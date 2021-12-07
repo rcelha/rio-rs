@@ -8,6 +8,8 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 mod errors;
 pub use errors::*;
 
+pub mod messages;
+
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
     mapping: HashMap<(String, String), Box<dyn Any>>,
