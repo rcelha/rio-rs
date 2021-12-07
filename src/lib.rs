@@ -1,9 +1,11 @@
+use async_trait::async_trait;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     any::{type_name, Any},
     collections::HashMap,
+    future::Future,
+    pin::Pin,
 };
-
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod errors;
 pub use errors::*;
@@ -14,7 +16,13 @@ pub struct Registry {
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
     callable_mapping: HashMap<
         (String, String),
-        Box<dyn FnMut(&mut Box<dyn Any>, &[u8]) -> Result<Vec<u8>, HandlerError>>,
+        Box<
+            dyn FnMut(
+                &mut Box<dyn Any>,
+                &[u8],
+            )
+                -> Pin<Box<Future<Output = Result<Vec<u8>, HandlerError>> + Send>>,
+        >,
     >,
 }
 
@@ -42,22 +50,29 @@ impl Registry {
         let type_id = T::user_defined_type_id().to_string();
         let message_type_id = M::user_defined_type_id().to_string();
 
-        let callable = move |any_obj: &mut Box<dyn Any>,
-                             encoded_message: &[u8]|
-              -> Result<Vec<u8>, HandlerError> {
-            let obj: &mut T = any_obj
-                .downcast_mut()
-                .ok_or_else(|| HandlerError::Unknown)?;
-            let message: M =
-                bincode::deserialize(&encoded_message).or_else(|_| Err(HandlerError::Unknown))?;
-            let ret = obj.handle(message)?;
-            bincode::serialize(&ret).or_else(|_| Err(HandlerError::ResponseSerializationError))
-        };
+        let callable =
+            move |any_obj: &mut Box<dyn Any>,
+                  encoded_message: &[u8]|
+                  -> Pin<Box<Future<Output = Result<Vec<u8>, HandlerError>> + Send>> {
+                let obj: &mut T = any_obj
+                    .downcast_mut()
+                    .ok_or_else(|| HandlerError::Unknown)
+                    .unwrap(); // TODO ?;
+                let message: M = bincode::deserialize(&encoded_message)
+                    .or_else(|_| Err(HandlerError::Unknown))
+                    .unwrap(); // TODO?;
+                let ret = obj.handle(message).unwrap(); //TODO ?;
+                Box::pin(async move {
+                    let msg_or_error = bincode::serialize(&ret)
+                        .or_else(|_| Err(HandlerError::ResponseSerializationError));
+                    msg_or_error
+                })
+            };
         self.callable_mapping
             .insert((type_id, message_type_id), Box::new(callable));
     }
 
-    pub fn send(
+    pub async fn send(
         &mut self,
         type_id: &str,
         object_id: &str,
@@ -77,11 +92,12 @@ impl Registry {
             .ok_or_else(|| HandlerError::HandlerNotFound)?;
 
         println!("found callable {}/{}", type_id, message_type_id);
-        callable(object, message)
+        callable(object, message).await
     }
 }
 
 // TODO create a derive for this
+// TODO deal with duplicates
 pub trait IdentifiableType {
     fn user_defined_type_id() -> &'static str {
         type_name::<Self>()
@@ -96,7 +112,7 @@ where
 }
 
 pub trait Message: Serialize + DeserializeOwned {
-    type Returns: Serialize;
+    type Returns: Serialize + Sync + Send;
 }
 
 #[cfg(test)]
@@ -143,8 +159,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn sanity_check() {
+    #[tokio::test]
+    async fn sanity_check() {
         let mut registry = Registry::new();
         let obj = Human {};
         registry.add("john".to_string(), obj);
@@ -157,6 +173,7 @@ mod test {
                 "HiMessage",
                 &bincode::serialize(&HiMessage {}).unwrap(),
             )
+            .await
             .unwrap();
 
         registry
@@ -166,36 +183,41 @@ mod test {
                 "GoodbyeMessage",
                 &bincode::serialize(&GoodbyeMessage {}).unwrap(),
             )
+            .await
             .unwrap();
     }
 
-    #[test]
-    fn test_return() {
+    #[tokio::test]
+    async fn test_return() {
         let mut registry = Registry::new();
         let obj = Human {};
         registry.add("john".to_string(), obj);
         registry.add_handler::<Human, HiMessage>();
-        let ret = registry.send(
-            "Human",
-            "john",
-            "HiMessage",
-            &bincode::serialize(&HiMessage {}).unwrap(),
-        );
+        let ret = registry
+            .send(
+                "Human",
+                "john",
+                "HiMessage",
+                &bincode::serialize(&HiMessage {}).unwrap(),
+            )
+            .await;
         let result: String = bincode::deserialize(&ret.unwrap()).unwrap();
         assert_eq!(result, "hi")
     }
 
-    #[test]
-    fn test_not_registered_message() {
+    #[tokio::test]
+    async fn test_not_registered_message() {
         let mut registry = Registry::new();
         let obj = Human {};
         registry.add("john".to_string(), obj);
-        let ret = registry.send(
-            "Human",
-            "john",
-            "HiMessage",
-            &bincode::serialize(&HiMessage {}).unwrap(),
-        );
+        let ret = registry
+            .send(
+                "Human",
+                "john",
+                "HiMessage",
+                &bincode::serialize(&HiMessage {}).unwrap(),
+            )
+            .await;
         assert!(ret.is_err());
     }
 }
