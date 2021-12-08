@@ -10,28 +10,20 @@ use std::{
 mod errors;
 pub use errors::*;
 
+type AsyncRet = Pin<Box<dyn Future<Output = Result<Vec<u8>, HandlerError>>>>;
+type AsyncCallback = dyn FnMut(&mut Box<dyn Any>, &[u8]) -> AsyncRet;
+
+#[derive(Default)]
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
     mapping: HashMap<(String, String), Box<dyn Any>>,
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
-    callable_mapping: HashMap<
-        (String, String),
-        Box<
-            dyn FnMut(
-                &mut Box<dyn Any>,
-                &[u8],
-            )
-                -> Pin<Box<Future<Output = Result<Vec<u8>, HandlerError>> + Send>>,
-        >,
-    >,
+    callable_mapping: HashMap<(String, String), Box<AsyncCallback>>,
 }
 
 impl Registry {
     pub fn new() -> Registry {
-        Registry {
-            mapping: HashMap::new(),
-            callable_mapping: HashMap::new(),
-        }
+        Registry::default()
     }
 
     pub fn add<T: 'static>(&mut self, k: String, v: T)
@@ -44,32 +36,26 @@ impl Registry {
 
     pub fn add_handler<T: 'static, M: 'static>(&mut self)
     where
-        T: Handler<M> + IdentifiableType,
-        M: IdentifiableType + Message,
+        T: Handler<M> + IdentifiableType + Send,
+        M: IdentifiableType + Message + Send,
     {
         let type_id = T::user_defined_type_id().to_string();
         let message_type_id = M::user_defined_type_id().to_string();
 
-        let callable =
-            move |any_obj: &mut Box<dyn Any>,
-                  encoded_message: &[u8]|
-                  -> Pin<Box<Future<Output = Result<Vec<u8>, HandlerError>> + Send>> {
-                let obj: &mut T = any_obj
-                    .downcast_mut()
-                    .ok_or_else(|| HandlerError::Unknown)
-                    .unwrap(); // TODO ?;
-                let message: M = bincode::deserialize(&encoded_message)
-                    .or_else(|_| Err(HandlerError::Unknown))
-                    .unwrap(); // TODO?;
-                let ret = obj.handle(message).unwrap(); //TODO ?;
-                Box::pin(async move {
-                    let msg_or_error = bincode::serialize(&ret)
-                        .or_else(|_| Err(HandlerError::ResponseSerializationError));
-                    msg_or_error
-                })
-            };
+        let callable = move |any_obj: &mut Box<dyn Any>, encoded_message: &[u8]| -> AsyncRet {
+            let obj: &mut T = any_obj.downcast_mut().ok_or(HandlerError::Unknown).unwrap(); // TODO ?;
+            let message: M = bincode::deserialize(encoded_message)
+                .map_err(|_| HandlerError::Unknown)
+                .unwrap(); // TODO?;
+                           //let ret = obj.handle(message).unwrap(); //TODO ?;
+            Box::pin(async move {
+                let ret = obj.handle(message).await.unwrap(); //TODO ?;
+                bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
+            })
+        };
+        let boxed_callable: Box<AsyncCallback> = Box::new(callable);
         self.callable_mapping
-            .insert((type_id, message_type_id), Box::new(callable));
+            .insert((type_id, message_type_id), boxed_callable);
     }
 
     pub async fn send(
@@ -83,13 +69,13 @@ impl Registry {
         let object = self
             .mapping
             .get_mut(&object_key)
-            .ok_or_else(|| HandlerError::ObjectNotFound)?;
+            .ok_or(HandlerError::ObjectNotFound)?;
 
         let callable_key = (type_id.to_string(), message_type_id.to_string());
         let callable = self
             .callable_mapping
             .get_mut(&callable_key)
-            .ok_or_else(|| HandlerError::HandlerNotFound)?;
+            .ok_or(HandlerError::HandlerNotFound)?;
 
         println!("found callable {}/{}", type_id, message_type_id);
         callable(object, message).await
@@ -104,11 +90,12 @@ pub trait IdentifiableType {
     }
 }
 
+#[async_trait]
 pub trait Handler<M>
 where
     M: Message,
 {
-    fn handle(&mut self, message: M) -> Result<M::Returns, HandlerError>;
+    async fn handle(&mut self, message: M) -> Result<M::Returns, HandlerError>;
 }
 
 pub trait Message: Serialize + DeserializeOwned {
@@ -148,13 +135,16 @@ mod test {
         type Returns = String;
     }
 
+    #[async_trait]
     impl Handler<HiMessage> for Human {
-        fn handle(&mut self, _message: HiMessage) -> Result<String, HandlerError> {
+        async fn handle(&mut self, _message: HiMessage) -> Result<String, HandlerError> {
             Ok("hi".to_string())
         }
     }
+
+    #[async_trait]
     impl Handler<GoodbyeMessage> for Human {
-        fn handle(&mut self, _message: GoodbyeMessage) -> Result<String, HandlerError> {
+        async fn handle(&mut self, _message: GoodbyeMessage) -> Result<String, HandlerError> {
             Ok("bye".to_string())
         }
     }
