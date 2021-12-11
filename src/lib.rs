@@ -1,23 +1,26 @@
-use async_trait::async_trait;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    any::{type_name, Any},
-    collections::HashMap,
-    future::Future,
-    pin::Pin,
-    sync::{Arc, RwLock},
+use {
+    async_trait::async_trait,
+    serde::{de::DeserializeOwned, Serialize},
+    std::{
+        any::{type_name, Any},
+        collections::HashMap,
+        future::Future,
+        pin::Pin,
+        sync::{Arc, RwLock},
+    },
 };
 
 mod errors;
 pub use errors::*;
 
+type LockHashMap<K, V> = Arc<RwLock<HashMap<K, V>>>;
 type AsyncRet = Pin<Box<dyn Future<Output = Result<Vec<u8>, HandlerError>>>>;
 type AsyncCallback = dyn FnMut(&str, &str, &[u8]) -> AsyncRet;
 
 #[derive(Default)]
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
-    mapping: Arc<RwLock<HashMap<(String, String), Box<dyn Any>>>>,
+    mapping: LockHashMap<(String, String), Box<dyn Any>>,
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
     callable_mapping: HashMap<(String, String), Box<AsyncCallback>>,
 }
@@ -48,7 +51,6 @@ impl Registry {
         let message_type_id = M::user_defined_type_id().to_string();
 
         let callable = move |type_id: &str, object_id: &str, encoded_message: &[u8]| -> AsyncRet {
-            // let obj: &mut T = any_obj.downcast_mut().ok_or(HandlerError::Unknown).unwrap(); // TODO ?;
             let message: M = bincode::deserialize(encoded_message)
                 .map_err(|_| HandlerError::Unknown)
                 .unwrap();
@@ -78,12 +80,6 @@ impl Registry {
         message_type_id: &str,
         message: &[u8],
     ) -> Result<Vec<u8>, HandlerError> {
-        // let object_key = (type_id.to_string(), object_id.to_string());
-        // let object = self
-        //     .mapping
-        //     .get_mut(&object_key)
-        //     .ok_or(HandlerError::ObjectNotFound)?;
-
         let callable_key = (type_id.to_string(), message_type_id.to_string());
         let callable = self
             .callable_mapping
@@ -118,6 +114,7 @@ pub trait Message: Serialize + DeserializeOwned {
 #[cfg(test)]
 mod test {
     use super::*;
+    use serde::Deserialize;
 
     struct Human {}
     impl IdentifiableType for Human {
