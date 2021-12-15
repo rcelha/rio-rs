@@ -50,7 +50,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "example-utils"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bincode",
+ "rio-rs",
  "serde",
 ]
 

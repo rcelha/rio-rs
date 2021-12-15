@@ -104,12 +104,11 @@ pub trait Handler<M>
 where
     M: Message,
 {
-    async fn handle(&mut self, message: M) -> Result<M::Returns, HandlerError>;
+    type Returns: Serialize + Sync + Send;
+    async fn handle(&mut self, message: M) -> Result<Self::Returns, HandlerError>;
 }
 
-pub trait Message: Serialize + DeserializeOwned {
-    type Returns: Serialize + Sync + Send;
-}
+pub trait Message: Serialize + DeserializeOwned {}
 
 #[cfg(test)]
 mod test {
@@ -130,9 +129,7 @@ mod test {
             "HiMessage"
         }
     }
-    impl Message for HiMessage {
-        type Returns = String;
-    }
+    impl Message for HiMessage {}
 
     #[derive(Serialize, Deserialize)]
     struct GoodbyeMessage {}
@@ -141,12 +138,11 @@ mod test {
             "GoodbyeMessage"
         }
     }
-    impl Message for GoodbyeMessage {
-        type Returns = String;
-    }
+    impl Message for GoodbyeMessage {}
 
     #[async_trait]
     impl Handler<HiMessage> for Human {
+        type Returns = String;
         async fn handle(&mut self, _message: HiMessage) -> Result<String, HandlerError> {
             Ok("hi".to_string())
         }
@@ -154,6 +150,7 @@ mod test {
 
     #[async_trait]
     impl Handler<GoodbyeMessage> for Human {
+        type Returns = String;
         async fn handle(&mut self, _message: GoodbyeMessage) -> Result<String, HandlerError> {
             Ok("bye".to_string())
         }

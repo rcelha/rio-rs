@@ -1,4 +1,5 @@
-use example_utils::Hello;
+use example_utils::messages;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_stream::StreamExt;
 use tokio_util::codec::Framed;
@@ -9,10 +10,11 @@ async fn handle_client(stream: TcpStream) {
     let mut lines = Framed::new(stream, LinesCodec::new());
     while let Some(value) = lines.next().await {
         let the_value = value.unwrap();
-        println!("Got {}", the_value);
+        println!("Raw message: {}", the_value);
         let byte_value = the_value.as_bytes();
-        let decoded_value: Hello = bincode::deserialize(&byte_value).unwrap();
-        println!("Got {:?}", decoded_value);
+        let decoded_value: messages::Metric = bincode::deserialize(&byte_value).unwrap();
+        println!("Decoded message: {:?}", decoded_value);
+        // TODO let response = messages::MetricResponse::default();
     }
     println!("client disconnected");
 }
