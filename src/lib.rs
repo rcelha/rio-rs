@@ -24,11 +24,13 @@ pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
     mapping: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
-    callable_mapping: HashMap<(String, String), Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send>>,
+    callable_mapping:
+        HashMap<(String, String), Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send>>,
 }
 
 // TODO remove this?
 unsafe impl Send for Registry {}
+unsafe impl Sync for Registry {}
 
 impl Registry {
     pub fn new() -> Registry {
@@ -70,7 +72,8 @@ impl Registry {
                 bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
             })
         };
-        let boxed_callable: Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send> = Box::new(callable);
+        let boxed_callable: Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send> =
+            Box::new(callable);
         self.callable_mapping
             .insert((type_id, message_type_id), boxed_callable);
     }
@@ -220,6 +223,7 @@ mod test {
         assert!(ret.is_err());
     }
 
+    #[tokio::test]
     async fn test_send_sync() {
         let join_handler = tokio::spawn(async move {
             let mut registry = Registry::new();
@@ -237,5 +241,32 @@ mod test {
                 .unwrap();
             tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         });
+        join_handler.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_send_sync_lock() {
+        let mut registry = Registry::new();
+        registry.add_handler::<Human, HiMessage>();
+        let obj = Human {};
+        registry.add("john".to_string(), obj).await;
+        let registry = Arc::new(RwLock::new(registry));
+        let inner_registry = Arc::clone(&registry);
+
+        let join_handler = tokio::spawn(async move {
+            inner_registry
+                .write()
+                .await
+                .send(
+                    "Human",
+                    "john",
+                    "HiMessage",
+                    &bincode::serialize(&HiMessage {}).unwrap(),
+                )
+                .await
+                .unwrap();
+            tokio::time::sleep(std::time::Duration::from_micros(1)).await;
+        });
+        join_handler.await.unwrap();
     }
 }
