@@ -6,21 +6,23 @@ use {
         collections::HashMap,
         future::Future,
         pin::Pin,
-        sync::{Arc, RwLock},
+        sync::Arc,
     },
 };
 
 mod errors;
 pub use errors::*;
+use tokio::sync::RwLock;
 
 type LockHashMap<K, V> = Arc<RwLock<HashMap<K, V>>>;
-type AsyncRet = Pin<Box<dyn Future<Output = Result<Vec<u8>, HandlerError>>>>;
+type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
+type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
 type AsyncCallback = dyn FnMut(&str, &str, &[u8]) -> AsyncRet;
 
 #[derive(Default)]
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
-    mapping: LockHashMap<(String, String), Box<dyn Any>>,
+    mapping: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
     callable_mapping: HashMap<(String, String), Box<AsyncCallback>>,
 }
@@ -30,21 +32,18 @@ impl Registry {
         Registry::default()
     }
 
-    pub fn add<T: 'static>(&mut self, k: String, v: T)
+    pub async fn add<T: 'static>(&mut self, k: String, v: T)
     where
-        T: IdentifiableType,
+        T: IdentifiableType + Send + Sync,
     {
         let type_id = T::user_defined_type_id().to_string();
-        self.mapping
-            .write()
-            .unwrap()
-            .insert((type_id, k), Box::new(v));
+        self.mapping.write().await.insert((type_id, k), Box::new(v));
     }
 
     pub fn add_handler<T: 'static, M: 'static>(&mut self)
     where
-        T: Handler<M> + IdentifiableType,
-        M: IdentifiableType + Message,
+        T: 'static + Handler<M> + IdentifiableType + Send,
+        M: 'static + IdentifiableType + Message + Send,
     {
         let mapping = self.mapping.clone();
         let type_id = T::user_defined_type_id().to_string();
@@ -57,7 +56,7 @@ impl Registry {
             let object_key = (type_id.to_string(), object_id.to_string());
             let mapping_inner = mapping.clone();
             Box::pin(async move {
-                let mut writabble_mapping = mapping_inner.write().unwrap();
+                let mut writabble_mapping = mapping_inner.write().await;
                 let boxed_object = writabble_mapping.get_mut(&object_key).unwrap();
                 let object: &mut T = boxed_object
                     .downcast_mut()
@@ -160,7 +159,7 @@ mod test {
     async fn sanity_check() {
         let mut registry = Registry::new();
         let obj = Human {};
-        registry.add("john".to_string(), obj);
+        registry.add("john".to_string(), obj).await;
         registry.add_handler::<Human, HiMessage>();
         registry.add_handler::<Human, GoodbyeMessage>();
         registry
@@ -188,7 +187,7 @@ mod test {
     async fn test_return() {
         let mut registry = Registry::new();
         let obj = Human {};
-        registry.add("john".to_string(), obj);
+        registry.add("john".to_string(), obj).await;
         registry.add_handler::<Human, HiMessage>();
         let ret = registry
             .send(
@@ -206,7 +205,7 @@ mod test {
     async fn test_not_registered_message() {
         let mut registry = Registry::new();
         let obj = Human {};
-        registry.add("john".to_string(), obj);
+        registry.add("john".to_string(), obj).await;
         let ret = registry
             .send(
                 "Human",
