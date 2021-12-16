@@ -1,10 +1,7 @@
 use example_utils::messages;
 use futures::SinkExt;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::io::{AsyncWrite, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 use tokio_stream::StreamExt;
-use tokio_util::codec::LinesCodec;
 use tokio_util::codec::{BytesCodec, Framed};
 
 #[tokio::main]

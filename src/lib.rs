@@ -27,6 +27,9 @@ pub struct Registry {
     callable_mapping: HashMap<(String, String), Box<AsyncCallback>>,
 }
 
+// TODO remove this?
+unsafe impl Send for Registry {}
+
 impl Registry {
     pub fn new() -> Registry {
         Registry::default()
@@ -215,5 +218,24 @@ mod test {
             )
             .await;
         assert!(ret.is_err());
+    }
+
+    async fn test_send_sync() {
+        let join_handler = tokio::spawn(async move {
+            let mut registry = Registry::new();
+            registry.add_handler::<Human, HiMessage>();
+            let obj = Human {};
+            registry.add("john".to_string(), obj).await;
+            registry
+                .send(
+                    "Human",
+                    "john",
+                    "HiMessage",
+                    &bincode::serialize(&HiMessage {}).unwrap(),
+                )
+                .await
+                .unwrap();
+            tokio::time::sleep(std::time::Duration::from_micros(1)).await;
+        });
     }
 }
