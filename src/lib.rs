@@ -43,8 +43,8 @@ impl Registry {
 
     pub fn add_handler<T: 'static, M: 'static>(&mut self)
     where
-        T: Handler<M> + IdentifiableType + Send,
-        M: IdentifiableType + Message + Send,
+        T: Handler<M> + IdentifiableType,
+        M: IdentifiableType + Message,
     {
         let mapping = self.mapping.clone();
         let type_id = T::user_defined_type_id().to_string();

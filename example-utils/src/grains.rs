@@ -1,6 +1,6 @@
 use super::*;
 use async_trait::async_trait;
-use rio_rs::Handler;
+use rio_rs::{Handler, IdentifiableType};
 
 #[derive(Debug, Default)]
 pub struct MetricAggregator {
@@ -8,6 +8,12 @@ pub struct MetricAggregator {
     pub count: i32,
     pub max: i32,
     pub min: i32,
+}
+
+impl IdentifiableType for MetricAggregator {
+    fn user_defined_type_id() -> &'static str {
+        "MetricAggregator"
+    }
 }
 
 #[async_trait]
