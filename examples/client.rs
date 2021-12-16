@@ -10,17 +10,19 @@ async fn main() {
     let stream = TcpStream::connect(&addr).await.unwrap();
     let mut frames = Framed::new(stream, BytesCodec::new());
 
-    println!("Connected to: {}", addr);
-    let msg = messages::Metric {
-        tags: "eu-west-1".to_string(),
-        value: 100,
-    };
-    let ser_msg = bincode::serialize(&msg).unwrap();
-    frames.send(ser_msg.into()).await.unwrap();
-    println!("msg sent");
+    for i in 1..11 {
+        println!("Connected to: {}", addr);
+        let msg = messages::Metric {
+            tags: "eu-west-1".to_string(),
+            value: 100 * i,
+        };
+        let ser_msg = bincode::serialize(&msg).unwrap();
+        frames.send(ser_msg.into()).await.unwrap();
+        println!("msg sent");
 
-    if let Some(Ok(frame)) = frames.next().await {
-        let message: messages::MetricResponse = bincode::deserialize(&frame).unwrap();
-        println!("Decoded message: {:?}", message);
+        if let Some(Ok(frame)) = frames.next().await {
+            let message: messages::MetricResponse = bincode::deserialize(&frame).unwrap();
+            println!("Decoded message: {:?}", message);
+        }
     }
 }

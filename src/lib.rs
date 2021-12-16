@@ -17,14 +17,14 @@ use tokio::sync::RwLock;
 type LockHashMap<K, V> = Arc<RwLock<HashMap<K, V>>>;
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
-type AsyncCallback = dyn FnMut(&str, &str, &[u8]) -> AsyncRet;
+// TODO go back to use this: type AsyncCallback = dyn FnMut(&str, &str, &[u8]) -> AsyncRet;
 
 #[derive(Default)]
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
     mapping: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
-    callable_mapping: HashMap<(String, String), Box<AsyncCallback>>,
+    callable_mapping: HashMap<(String, String), Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send>>,
 }
 
 // TODO remove this?
@@ -70,7 +70,7 @@ impl Registry {
                 bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
             })
         };
-        let boxed_callable: Box<AsyncCallback> = Box::new(callable);
+        let boxed_callable: Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send> = Box::new(callable);
         self.callable_mapping
             .insert((type_id, message_type_id), boxed_callable);
     }

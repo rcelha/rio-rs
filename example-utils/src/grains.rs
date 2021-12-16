@@ -24,13 +24,14 @@ impl Handler<messages::Metric> for MetricAggregator {
         message: messages::Metric,
     ) -> Result<Self::Returns, rio_rs::HandlerError> {
         // TODO propagate to message.tags
+        println!("gotoo {:?}", message);
         self.count += 1;
         self.sum += message.value;
         self.min = i32::min(self.min, message.value);
         self.max = i32::max(self.max, message.value);
         Ok(messages::MetricResponse {
             sum: self.sum,
-            avg: 0,
+            avg: self.sum / self.count,
             max: self.max,
             min: self.min,
         })

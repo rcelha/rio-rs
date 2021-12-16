@@ -1,5 +1,6 @@
-use example_utils::messages;
+use example_utils::{grains, messages};
 use futures::sink::SinkExt;
+use rio_rs::Registry;
 use tokio::io::BufReader;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_stream::StreamExt;
@@ -10,18 +11,17 @@ async fn handle_client(stream: TcpStream) {
     let stream = BufReader::new(stream);
     let mut frames = Framed::new(stream, BytesCodec::new());
 
-    while let Some(Ok(frame)) = frames.next().await {
-        let message: messages::Metric = bincode::deserialize(&frame).unwrap();
-        println!("Decoded message: {:?}", message);
+    let mut registry = Registry::new();
+    registry.add_handler::<grains::MetricAggregator, messages::Metric>();
+    let obj = grains::MetricAggregator::default();
+    registry.add("instance-1".to_string(), obj).await;
 
-        let response = messages::MetricResponse {
-            avg: 100,
-            max: 1000,
-            min: 10,
-            sum: 100000,
-        };
-        let ser_response = bincode::serialize(&response).unwrap();
-        frames.send(ser_response.into()).await.unwrap();
+    while let Some(Ok(frame)) = frames.next().await {
+        let response = registry
+            .send("MetricAggregator", "instance-1", "Metric", &frame)
+            .await
+            .unwrap();
+        frames.send(response.into()).await.unwrap();
     }
     println!("client disconnected");
 }
