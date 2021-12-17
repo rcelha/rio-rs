@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use example_utils::{grains, messages};
 use futures::sink::SinkExt;
-use rio_rs::Registry;
+use rio_rs::{Registry, RequestEnvelope, ResponseEnvelope};
 use tokio::io::BufReader;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
@@ -15,13 +15,25 @@ async fn handle_client(registry: Arc<RwLock<Registry>>, stream: TcpStream) {
     let mut frames = Framed::new(stream, BytesCodec::new());
 
     while let Some(Ok(frame)) = frames.next().await {
+        let request_envelope: RequestEnvelope = bincode::deserialize(&frame).unwrap();
+
         let response = registry
             .write()
             .await
-            .send("MetricAggregator", "instance-1", "Metric", &frame)
-            .await
-            .unwrap();
-        frames.send(response.into()).await.unwrap();
+            .send(
+                &request_envelope.handler_type,
+                &request_envelope.handler_id,
+                &request_envelope.message_type,
+                &request_envelope.payload,
+            )
+            .await;
+
+        let response_envelope = match response {
+            Ok(body) => ResponseEnvelope::new(body),
+            Err(err) => ResponseEnvelope::from(err),
+        };
+        let ser_response = bincode::serialize(&response_envelope).unwrap();
+        frames.send(ser_response.into()).await.unwrap();
     }
     println!("client disconnected");
 }
