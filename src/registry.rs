@@ -90,6 +90,11 @@ impl Registry {
         println!("found callable {}/{}", type_id, message_type_id);
         callable(type_id, object_id, message).await
     }
+
+    pub async fn has(&self, type_id: &str, object_id: &str) -> bool {
+        let object_key = (type_id.to_string(), object_id.to_string());
+        self.mapping.read().await.get(&object_key).is_some()
+    }
 }
 
 // TODO create a derive for this
@@ -264,5 +269,14 @@ mod test {
             tokio::time::sleep(std::time::Duration::from_micros(1)).await;
         });
         join_handler.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_has_object() {
+        let mut registry = Registry::new();
+        let obj = Human {};
+        registry.add("john".to_string(), obj).await;
+        assert!(registry.has("Human", "john").await);
+        assert!(!registry.has("Human", "not john").await);
     }
 }

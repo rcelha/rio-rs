@@ -17,6 +17,23 @@ async fn handle_client(registry: Arc<RwLock<Registry>>, stream: TcpStream) {
     while let Some(Ok(frame)) = frames.next().await {
         let request_envelope: RequestEnvelope = bincode::deserialize(&frame).unwrap();
 
+        if !registry
+            .read()
+            .await
+            .has(
+                &request_envelope.handler_type.clone(),
+                &request_envelope.handler_id.clone(),
+            )
+            .await
+        {
+            let obj = grains::MetricAggregator::default();
+            registry
+                .write()
+                .await
+                .add(request_envelope.handler_id.clone(), obj)
+                .await;
+        }
+
         let response = registry
             .write()
             .await
@@ -45,8 +62,6 @@ async fn main() {
 
     let mut registry = Registry::new();
     registry.add_handler::<grains::MetricAggregator, messages::Metric>();
-    let obj = grains::MetricAggregator::default();
-    registry.add("instance-1".to_string(), obj).await;
     let registry = Arc::new(RwLock::new(registry));
 
     println!("Listening on: {}", addr);

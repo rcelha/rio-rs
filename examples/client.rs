@@ -29,7 +29,8 @@ async fn main() {
 
         if let Some(Ok(frame)) = frames.next().await {
             let message: ResponseEnvelope = bincode::deserialize(&frame).unwrap();
-            let body: messages::MetricResponse = bincode::deserialize(&message.body.unwrap()).unwrap();
+            let body: messages::MetricResponse =
+                bincode::deserialize(&message.body.unwrap()).unwrap();
             println!("Decoded message: {:#?}", body);
         }
     }
