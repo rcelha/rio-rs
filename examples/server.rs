@@ -26,11 +26,13 @@ async fn handle_client(registry: Arc<RwLock<Registry>>, stream: TcpStream) {
             )
             .await
         {
-            let obj = grains::MetricAggregator::default();
             registry
                 .write()
                 .await
-                .add(request_envelope.handler_id.clone(), obj)
+                .insert_object(
+                    request_envelope.handler_type.clone(),
+                    request_envelope.handler_id.clone(),
+                )
                 .await;
         }
 

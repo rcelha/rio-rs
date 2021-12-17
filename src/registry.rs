@@ -13,15 +13,17 @@ use tokio::sync::RwLock;
 type LockHashMap<K, V> = Arc<RwLock<HashMap<K, V>>>;
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
-// TODO go back to use this: type AsyncCallback = dyn FnMut(&str, &str, &[u8]) -> AsyncRet;
+type BoxedCallback = Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send>;
+type BoxedDefault = Box<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>;
 
 #[derive(Default)]
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
     mapping: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
-    callable_mapping:
-        HashMap<(String, String), Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send>>,
+    callable_mapping: HashMap<(String, String), BoxedCallback>,
+    // (ObjectTypeName) -> Fn() -> Box<Object>
+    builder_mapping: HashMap<String, BoxedDefault>,
 }
 
 // TODO remove this?
@@ -41,9 +43,18 @@ impl Registry {
         self.mapping.write().await.insert((type_id, k), Box::new(v));
     }
 
+    pub fn add_builder<T: 'static>(&mut self)
+    where
+        T: IdentifiableType + Default + Send + Sync,
+    {
+        let k = T::user_defined_type_id().to_string();
+        self.builder_mapping
+            .insert(k, Box::new(move || Box::new(T::default())));
+    }
+
     pub fn add_handler<T: 'static, M: 'static>(&mut self)
     where
-        T: 'static + Handler<M> + IdentifiableType + Send,
+        T: 'static + Handler<M> + IdentifiableType + Default + Send + Sync,
         M: 'static + IdentifiableType + Message + Send,
     {
         let mapping = self.mapping.clone();
@@ -68,10 +79,12 @@ impl Registry {
                 bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
             })
         };
-        let boxed_callable: Box<dyn FnMut(&str, &str, &[u8]) -> AsyncRet + Send> =
-            Box::new(callable);
+        let boxed_callable: BoxedCallback = Box::new(callable);
         self.callable_mapping
             .insert((type_id, message_type_id), boxed_callable);
+
+        // TODO only do it once
+        self.add_builder::<T>();
     }
 
     pub async fn send(
@@ -94,6 +107,14 @@ impl Registry {
     pub async fn has(&self, type_id: &str, object_id: &str) -> bool {
         let object_key = (type_id.to_string(), object_id.to_string());
         self.mapping.read().await.get(&object_key).is_some()
+    }
+
+    pub async fn insert_object(&mut self, type_id: String, object_id: String) {
+        let default = self.builder_mapping.get(&type_id).unwrap();
+        self.mapping
+            .write()
+            .await
+            .insert((type_id, object_id), default());
     }
 }
 
@@ -121,6 +142,7 @@ mod test {
     use super::*;
     use serde::Deserialize;
 
+    #[derive(Default)]
     struct Human {}
     impl IdentifiableType for Human {
         fn user_defined_type_id() -> &'static str {
@@ -278,5 +300,27 @@ mod test {
         registry.add("john".to_string(), obj).await;
         assert!(registry.has("Human", "john").await);
         assert!(!registry.has("Human", "not john").await);
+    }
+
+    #[tokio::test]
+    async fn test_dynamic_insert_object() {
+        let mut registry = Registry::new();
+        registry.add_builder::<Human>();
+        assert!(!registry.has("Human", "john").await);
+        registry
+            .insert_object("Human".to_string(), "john".to_string())
+            .await;
+        assert!(registry.has("Human", "john").await);
+    }
+
+    #[tokio::test]
+    async fn test_automatic_dynamic_insert_object() {
+        let mut registry = Registry::new();
+        registry.add_handler::<Human, HiMessage>();
+        assert!(!registry.has("Human", "john").await);
+        registry
+            .insert_object("Human".to_string(), "john".to_string())
+            .await;
+        assert!(registry.has("Human", "john").await);
     }
 }
