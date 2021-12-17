@@ -1,0 +1,5 @@
+error: expected one of `!` or `::`, found `main`
+ --> tests/ui_fail/01-sanity.rs:1:5
+  |
+1 | def main() {}
+  |     ^^^^ expected one of `!` or `::`

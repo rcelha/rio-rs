@@ -1,5 +1,6 @@
 use super::errors::HandlerError;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestEnvelope {
@@ -27,18 +28,34 @@ impl RequestEnvelope {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseEnvelope {
-    pub body: Result<Vec<u8>, String>,
+    pub body: Result<Vec<u8>, ResponseError>,
 }
 impl ResponseEnvelope {
     pub fn new(body: Vec<u8>) -> ResponseEnvelope {
         ResponseEnvelope { body: Ok(body) }
+    }
+
+    pub fn err(error: ResponseError) -> ResponseEnvelope {
+        ResponseEnvelope { body: Err(error) }
     }
 }
 
 impl From<HandlerError> for ResponseEnvelope {
     fn from(error: HandlerError) -> Self {
         ResponseEnvelope {
-            body: Err(error.to_string()),
+            body: Err(ResponseError::Unknown(error.to_string())),
         }
     }
+}
+
+#[derive(Debug, Error, Serialize, Deserialize)]
+pub enum ResponseError {
+    #[error("Grain is in another silo")]
+    Redirect(String),
+
+    #[error("Grain had to be deallocated")]
+    DeallocateGrain,
+
+    #[error("unknown execution error")]
+    Unknown(String),
 }
