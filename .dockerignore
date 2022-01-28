@@ -1,0 +1,6 @@
+**/.git/
+**/.vim/
+**/target/
+**/perf.data*
+**/flamegraph.svg
+**/docker-compose.yaml

@@ -1,0 +1,7 @@
+error: proc-macro derive panicked
+ --> tests/ui_fail/type_name_ident_arg.rs:3:10
+  |
+3 | #[derive(TypeName)]
+  |          ^^^^^^^^
+  |
+  = help: message: Expected "[type_name = "..."]"
