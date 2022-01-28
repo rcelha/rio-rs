@@ -5,7 +5,7 @@ Distributed computing inspired by Orleans
 This crate provides a framework for scalable, distributed and stateful services
 based on message passing between objects
 
-The naming adopted throughout the crate a based off of Orleans, this way it is
+The naming adopted throughout the crate is based off of Orleans, this way it is
 easier to understand the similarities and differences between both systems
 
 ## Application
