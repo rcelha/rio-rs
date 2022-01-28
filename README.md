@@ -211,3 +211,4 @@ There are a few things that must be done before v0.1.0:
 - [ ] Dockerized examples
 - [ ] Supervision
 - [ ] Regular actors (anonym actors)
+- [ ] Code of conduct
