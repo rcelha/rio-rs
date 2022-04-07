@@ -7,7 +7,7 @@ use tokio::time::sleep;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = SqlMembersStorage::pool()
         .max_connections(50)
-        .connect("sqlite:///tmp/test.sqlite3")
+        .connect("sqlite:///tmp/membership.sqlite3?mode=rwc")
         .await?;
     let members_storage = SqlMembersStorage::new(pool);
 
@@ -44,7 +44,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("!");
 
-    for i in ["instance-1", "instance-2", "eu-west-1", "JP", "EU", "US"] {
+    for i in [
+        "instance-1",
+        "instance-2",
+        "eu-west-1",
+        "us-east-1",
+        "EU",
+        "US",
+    ] {
         let response: messages::MetricResponse = client
             .send(
                 "MetricAggregator".to_string(),

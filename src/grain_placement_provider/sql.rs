@@ -25,7 +25,7 @@ impl SqlGrainPlacementProvider {
             (
                 struct_name     TEXT                NOT NULL,
                 object_id       TEXT                NOT NULL,
-                silo_address    TEXT                NOT NULL,
+                silo_address    TEXT                NULL,
 
                 PRIMARY KEY (struct_name, object_id)
             )"#,
@@ -84,6 +84,20 @@ impl GrainPlacementProvider for SqlGrainPlacementProvider {
             "#,
         )
         .bind(&address)
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
+    async fn remove(&self, grain_id: &GrainId) {
+        sqlx::query(
+            r#"
+            DELETE FROM grain_placement
+            WHERE struct_name = $1 and object_id = $2
+            "#,
+        )
+        .bind(&grain_id.0)
+        .bind(&grain_id.1)
         .execute(&self.pool)
         .await
         .unwrap();

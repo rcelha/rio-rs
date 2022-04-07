@@ -11,6 +11,9 @@ pub struct Metric {
 pub struct GetMetric {}
 
 #[derive(TypeName, Message, Debug, Deserialize, Serialize)]
+pub struct Drop {}
+
+#[derive(TypeName, Message, Debug, Deserialize, Serialize)]
 pub struct Ping {
     pub ping_id: String,
 }

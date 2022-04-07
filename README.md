@@ -201,14 +201,19 @@ There are a few things that must be done before v0.1.0:
 - [x] Naive server/client protocol
 - [x] Basic cluster support
 - [x] Basic placement support
+- [x] Object self shutdown
+- [x] Naive object persistence
 - [ ] Harden networking (only happy path is implemented)
 - [ ] Public API renaming (will we use Orleans' naming?)
 - [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
 - [ ] Pub/sub
 - [ ] Placement strategies
-- [ ] Naive object persistence
 - [ ] Dockerized examples
 - [ ] Supervision
 - [ ] Regular actors (anonym actors)
 - [ ] Code of conduct
+- [ ] Object TTL
+- [ ] Remove magic numbers
+- [ ] Create a Silo builder; It would create sane defaults for the registry
+- [ ] Support service background task

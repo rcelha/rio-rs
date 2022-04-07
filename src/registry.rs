@@ -188,8 +188,16 @@ impl Registry {
     ) {
         self.object_map.insert((type_id, object_id), object);
     }
-}
 
+    /// remove object from registry
+    pub async fn remove(&self, type_id: String, object_id: String) {
+        let key = (type_id, object_id);
+        self.object_map.remove(&key).map(|(_, _)| ()).or_else(|| {
+            println!("TODO: error deleting {:?}", key);
+            Some(())
+        });
+    }
+}
 // TODO create a derive for this
 // TODO deal with duplicates
 pub trait IdentifiableType {
@@ -368,6 +376,21 @@ mod test {
             )
             .await
             .unwrap();
+
+        registry
+            .remove("Human".to_string(), "john".to_string())
+            .await;
+
+        registry
+            .send(
+                "Human",
+                "john",
+                "GoodbyeMessage",
+                &bincode::serialize(&GoodbyeMessage {}).unwrap(),
+                Arc::new(AppData::new()),
+            )
+            .await
+            .unwrap_err();
     }
 
     #[tokio::test]

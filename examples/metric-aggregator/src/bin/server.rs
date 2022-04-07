@@ -2,12 +2,20 @@ use metric_aggregator::{
     grains::{self, Counter},
     messages,
 };
-use rio_rs::prelude::*;
 use rio_rs::{
     grain_placement_provider::sql::SqlGrainPlacementProvider,
-    membership_provider::sql::SqlMembersStorage,
+    membership_provider::sql::SqlMembersStorage, state_provider::sql::SqlState,
 };
+use rio_rs::{prelude::*, state_provider::LocalState};
+use sqlx::any::AnyPoolOptions;
 use std::sync::atomic::AtomicUsize;
+
+#[cfg(not(target_env = "msvc"))]
+use jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 static USAGE: &str =
     "usage: server ip:port [MEMBERSHIP_CONNECTION_STRING] [PLACEMENT_CONNECTION_STRING]";
@@ -18,10 +26,10 @@ async fn main() {
     let addr = args.next().expect(USAGE);
     let members_storage_connection = args
         .next()
-        .unwrap_or("sqlite:///tmp/membership.sqlite3".to_string());
+        .unwrap_or("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string());
     let placement_connection = args
         .next()
-        .unwrap_or("sqlite:///tmp/placement.sqlite3".to_string());
+        .unwrap_or("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
     let mut registry = Registry::new();
     registry.add_static_fn::<grains::MetricAggregator, String, _>(FromId::from_id);
@@ -29,6 +37,7 @@ async fn main() {
     registry.add_handler::<grains::MetricAggregator, messages::Ping>();
     registry.add_handler::<grains::MetricAggregator, messages::Metric>();
     registry.add_handler::<grains::MetricAggregator, messages::GetMetric>();
+    registry.add_handler::<grains::MetricAggregator, messages::Drop>();
 
     let pool = SqlMembersStorage::pool()
         .max_connections(50)
@@ -61,5 +70,18 @@ async fn main() {
     );
 
     silo.app_data(Counter(AtomicUsize::new(0)));
+    silo.app_data(LocalState::new());
+
+    // let sql_state = SqlState::new(AnyPoio)
+    //
+    let sql_state_pool = AnyPoolOptions::new()
+        .max_connections(5)
+        .connect("sqlite:///tmp/state.sqlite3?mode=rwc")
+        .await
+        .expect("TODO: Connection failure");
+    let sql_state = SqlState::new(sql_state_pool);
+    sql_state.migrate().await;
+    silo.app_data(sql_state);
+
     silo.serve().await;
 }

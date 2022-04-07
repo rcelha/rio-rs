@@ -3,6 +3,7 @@ use futures::sink::SinkExt;
 use std::sync::Arc;
 use tokio::io::BufReader;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -15,6 +16,14 @@ use crate::membership_provider::MembersStorage;
 use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
 use crate::{GrainId, LifecycleMessage};
+
+#[derive(Debug)]
+pub enum AdminCommands {
+    Shutdown(String, String),
+}
+
+pub type AdminReceiver = mpsc::UnboundedReceiver<AdminCommands>;
+pub type AdminSender = mpsc::UnboundedSender<AdminCommands>;
 
 pub struct Silo<T>
 where
@@ -65,6 +74,24 @@ where
         }
     }
 
+    async fn consume_admin_commands(&self, mut admin_receiver: AdminReceiver) {
+        while let Some(message) = admin_receiver.recv().await {
+            match message {
+                AdminCommands::Shutdown(grain_type, grain_id) => {
+                    println!("deleting {}.{}", grain_type, grain_id);
+                    let registry = self.registry.write().await;
+                    registry.remove(grain_type.clone(), grain_id.clone()).await;
+                    self.grain_placement_provider
+                        .write()
+                        .await
+                        .remove(&GrainId(grain_type, grain_id))
+                        .await;
+                    println!("done deleting");
+                }
+            }
+        }
+    }
+
     // TODO make client pool configurable
     pub async fn serve(&mut self) {
         let boxed_storage = dyn_clone::clone_box(self.membership_provider.members_storage());
@@ -76,12 +103,18 @@ where
             .unwrap();
         self.app_data(client_pool);
 
+        let (admin_sender, admin_receiver) = mpsc::unbounded_channel::<AdminCommands>();
+        self.app_data(admin_sender);
+
         tokio::select! {
             _ = self.silo_serve() => {
                 println!("serve finished first");
             }
             _ = self.membership_provider.serve(&self.address)  => {
-                println!("serve finished first");
+                println!("membership serve finished first");
+            }
+            _ = self.consume_admin_commands(admin_receiver) => {
+                println!("admin command serve finished first");
             }
         };
     }

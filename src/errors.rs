@@ -76,3 +76,12 @@ impl From<MembershipError> for ClusterProviderServeError {
         ClusterProviderServeError::MembershipProviderError(err.to_string())
     }
 }
+
+#[derive(Error, Debug)]
+pub enum LoadStateError {
+    #[error("object not found")]
+    ObjectNotFound,
+
+    #[error("unknown error")]
+    Unknown,
+}

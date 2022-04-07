@@ -1,3 +1,4 @@
+use rio_rs::{prelude::*, state_provider::sql::SqlState};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -5,18 +6,25 @@ use std::sync::{
 
 use super::*;
 use async_trait::async_trait;
-use rio_rs::{membership_provider::sql::SqlMembersStorage, prelude::*};
+use rio_rs::membership_provider::sql::SqlMembersStorage;
+use serde::{Deserialize, Serialize};
 
 // AppData
 pub struct Counter(pub AtomicUsize);
 
-#[derive(TypeName, FromId, Debug, Default)]
-pub struct MetricAggregator {
-    pub id: String,
+#[derive(Default, Debug, Serialize, Deserialize, TypeName)]
+pub struct MetricStats {
     pub sum: i32,
     pub count: i32,
     pub max: i32,
     pub min: i32,
+}
+
+#[derive(Debug, Default, TypeName, FromId, ManagedState)]
+pub struct MetricAggregator {
+    pub id: String,
+    #[managed_state(provider = SqlState)]
+    pub metric_stats: Option<MetricStats>,
 }
 
 impl MetricAggregator {
@@ -42,7 +50,15 @@ impl MetricAggregator {
     }
 }
 
-impl Grain for MetricAggregator {}
+#[async_trait]
+impl Grain for MetricAggregator {
+    async fn after_load(&mut self, _: &AppData) -> Result<(), GrainLifeCycleError> {
+        if self.metric_stats.is_none() {
+            self.metric_stats = Some(MetricStats::default())
+        }
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl Handler<messages::Metric> for MetricAggregator {
@@ -52,6 +68,7 @@ impl Handler<messages::Metric> for MetricAggregator {
         message: messages::Metric,
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
+        let state_saver = app_data.get::<SqlState>();
         {
             let counter = app_data.get::<Counter>();
             let value = counter.0.fetch_add(1, Ordering::SeqCst);
@@ -61,16 +78,37 @@ impl Handler<messages::Metric> for MetricAggregator {
         self.propagate_to_tags(&app_data, &message.tags, message.value)
             .await;
 
-        self.count += 1;
-        self.sum += message.value;
-        self.min = i32::min(self.min, message.value);
-        self.max = i32::max(self.max, message.value);
-        Ok(messages::MetricResponse {
-            sum: self.sum,
-            avg: self.sum / self.count,
-            max: self.max,
-            min: self.min,
-        })
+        match self.metric_stats.as_mut() {
+            Some(mut stats) => {
+                stats.count += 1;
+                stats.sum += message.value;
+                stats.min = i32::min(stats.min, message.value);
+                stats.max = i32::max(stats.max, message.value);
+            }
+            None => {
+                println!("no stats found");
+                return Err(HandlerError::LyfecycleError(
+                    rio_rs::errors::GrainLifeCycleError::Unknown,
+                ));
+            }
+        }
+
+        self.save_state(state_saver).await.map_err(|_| {
+            println!("save error");
+            HandlerError::LyfecycleError(rio_rs::errors::GrainLifeCycleError::Unknown)
+        })?;
+
+        self.metric_stats
+            .as_ref()
+            .map(|stats| {
+                Ok(messages::MetricResponse {
+                    sum: stats.sum,
+                    avg: stats.sum / stats.count,
+                    max: stats.max,
+                    min: stats.min,
+                })
+            })
+            .unwrap()
     }
 }
 
@@ -82,15 +120,16 @@ impl Handler<messages::GetMetric> for MetricAggregator {
         _: messages::GetMetric,
         _: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
+        let stats = self.metric_stats.as_ref().ok_or(HandlerError::Unknown)?;
         Ok(messages::MetricResponse {
-            sum: self.sum,
-            avg: if self.count == 0 {
+            sum: stats.sum,
+            avg: if stats.count == 0 {
                 0
             } else {
-                self.sum / self.count
+                stats.sum / stats.count
             },
-            max: self.max,
-            min: self.min,
+            max: stats.max,
+            min: stats.min,
         })
     }
 }
@@ -106,5 +145,19 @@ impl Handler<messages::Ping> for MetricAggregator {
         Ok(messages::Pong {
             ping_id: message.ping_id,
         })
+    }
+}
+
+#[async_trait]
+impl Handler<messages::Drop> for MetricAggregator {
+    type Returns = ();
+    async fn handle(
+        &mut self,
+        _: messages::Drop,
+        app_data: Arc<AppData>,
+    ) -> Result<Self::Returns, HandlerError> {
+        println!("got shudown");
+        self.shutdown(&app_data).await.expect("TODO shutdown");
+        Ok(())
     }
 }

@@ -25,4 +25,5 @@ pub trait GrainPlacementProvider: Send + Sync {
     async fn update(&self, grain_placement: GrainPlacement);
     async fn lookup(&self, grain_id: &GrainId) -> Option<String>;
     async fn clean_silo(&self, address: String);
+    async fn remove(&self, grain_id: &GrainId);
 }
