@@ -62,7 +62,7 @@ async fn main() {
     let grain_placement_provider = SqlGrainPlacementProvider::new(pool);
     grain_placement_provider.migrate().await;
 
-    let mut silo = Silo::new(
+    let mut silo = Server::new(
         addr.to_string(),
         registry,
         cluster,
@@ -83,5 +83,5 @@ async fn main() {
     sql_state.migrate().await;
     silo.app_data(sql_state);
 
-    silo.serve().await;
+    silo.run().await;
 }

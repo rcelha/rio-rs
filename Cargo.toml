@@ -19,6 +19,7 @@ tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.8" }
 tokio-util = { version = "0.6", features = ["full"] }
 rio-macros = { path = "./rio-macros" }
+tower = { version = "0.4.12", features = ["full"] }
 
 # Need for futures::SyncExt (Framed.send)
 futures = "0.3.0"
@@ -43,3 +44,6 @@ sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "sqlite", "p
 
 # I use Box<dyn *> to avoid monomorphization of some types (mostly the providers)
 dyn-clone = "1.0.4"
+
+# Trying it for the service class
+pin-project = "1.0.10"

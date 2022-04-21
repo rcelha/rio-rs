@@ -115,7 +115,7 @@ async fn main() {
     grain_placement_provider.migrate().await;
 
     // Create the server object
-    let mut silo = Silo::new(
+    let mut server = Server::new(
         addr.to_string(),
         registry,
         membership_provider,
@@ -203,8 +203,9 @@ There are a few things that must be done before v0.1.0:
 - [x] Basic placement support
 - [x] Object self shutdown
 - [x] Naive object persistence
-- [ ] Harden networking (only happy path is implemented)
+- [ ] Reduce Boxed objects
 - [ ] Public API renaming (will we use Orleans' naming?)
+- [ ] Harden networking (only happy path is implemented)
 - [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
 - [ ] Pub/sub
@@ -213,7 +214,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Supervision
 - [ ] Regular actors (anonym actors)
 - [ ] Code of conduct
-- [ ] Object TTL
 - [ ] Remove magic numbers
 - [ ] Create a Silo builder; It would create sane defaults for the registry
+- [ ] Object TTL
 - [ ] Support service background task

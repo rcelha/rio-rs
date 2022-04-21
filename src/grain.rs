@@ -10,7 +10,7 @@ use crate::{
     errors::{ClientError, GrainLifeCycleError, HandlerError},
     membership_provider::MembersStorage,
     registry::{Handler, IdentifiableType, Message},
-    silo::{AdminCommands, AdminSender},
+    server::{AdminCommands, AdminSender},
     state_provider::ObjectStateManager,
 };
 
