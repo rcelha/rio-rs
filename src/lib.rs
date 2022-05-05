@@ -12,7 +12,8 @@ pub mod grain_placement_provider;
 pub mod membership_provider;
 pub mod protocol;
 pub mod registry;
-pub mod silo;
+pub mod server;
+pub mod service;
 pub mod state_provider;
 
 pub use grain::*;
@@ -35,7 +36,10 @@ pub mod prelude {
     pub use super::errors::{ClientBuilderError, ClientError, GrainLifeCycleError, HandlerError};
     pub use super::membership_provider::MembersStorage;
     pub use super::registry::{Handler, Registry};
-    pub use super::silo::Silo;
+
+    pub use super::server::Server;
+    pub use super::service::Service;
+    // pub use super::silo::Silo;
     pub use super::state_provider::ObjectStateManager;
     pub use super::FromId;
     pub use super::Grain;

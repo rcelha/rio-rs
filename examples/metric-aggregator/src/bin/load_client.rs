@@ -1,12 +1,13 @@
 use std::time::SystemTime;
 
+use futures::FutureExt;
 use metric_aggregator::messages;
 use rand::{thread_rng, Rng};
 use rio_rs::{
     client::ClientConnectionManager, membership_provider::sql::SqlMembersStorage, prelude::*,
 };
 
-static USAGE: &str = "usage: load_client DB_CONN_STRING PARALLEL_REQUEST NUM_CLIENTS [NUM_REQUESTS=1000] [NUM_IDS=1000]";
+static USAGE: &str = "usage: load_client PARALLEL_REQUEST NUM_CLIENTS [NUM_REQUESTS=1000] [NUM_IDS=1000] [DB_CONN_STRING=sqlite:///tmp/membership.sqlite3?mode=rwc]";
 
 #[derive(Debug, Clone)]
 struct Options {
@@ -21,11 +22,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let parse = |x: String| x.parse().ok();
     let options = Options {
-        db_conn: args.next().expect(USAGE),
         parallel_requests: args.next().and_then(parse).expect(USAGE),
         num_clients: args.next().and_then(parse).expect(USAGE),
         num_requests: args.next().and_then(parse).unwrap_or(1000),
         num_ids: args.next().and_then(parse).unwrap_or(1000),
+        db_conn: args
+            .next()
+            .unwrap_or("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string()),
     };
     println!("{:#?}", options);
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -62,16 +65,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
     let pool = SqlMembersStorage::pool()
-        .max_connections(50)
+        .max_connections(opts.parallel_requests as u32)
         .connect(&opts.db_conn)
         .await?;
     let members_storage = SqlMembersStorage::new(pool);
+
+    members_storage
+        .members()
+        .map(|x| println!("Members={:#?}", x))
+        .await;
 
     let conn_manager = ClientBuilder::new()
         .members_storage(members_storage)
         .build_connection_manager()?;
     let client_pool = ClientConnectionManager::pool()
-        .max_size(10)
+        .max_size(opts.parallel_requests as u32)
         .build(conn_manager)
         .await?;
 

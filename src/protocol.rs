@@ -58,4 +58,13 @@ pub enum ResponseError {
 
     #[error("unknown execution error")]
     Unknown(String),
+
+    #[error("handler error")]
+    HandlerError(String),
+}
+
+impl From<HandlerError> for ResponseError {
+    fn from(error: HandlerError) -> Self {
+        ResponseError::HandlerError(error.to_string())
+    }
 }
