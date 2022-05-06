@@ -5,12 +5,14 @@ use tokio::sync::mpsc;
 use tokio::{net::TcpListener, sync::RwLock};
 use tower::ServiceExt;
 
-use crate::GrainId;
-use crate::{
-    app_data::AppData, client::ClientConnectionManager, cluster_provider::ClusterProvider,
-    grain_placement_provider::GrainPlacementProvider, membership_provider::MembersStorage,
-    registry::Registry, service::Service,
-};
+use crate::app_data::AppData;
+use crate::client::ClientConnectionManager;
+use crate::cluster::membership_protocol::ClusterProvider;
+use crate::cluster::storage::MembersStorage;
+use crate::object_placement::ObjectPlacementProvider;
+use crate::registry::Registry;
+use crate::service::Service;
+use crate::ObjectId;
 
 #[derive(Debug)]
 pub enum AdminCommands {
@@ -27,7 +29,7 @@ where
     address: String,
     registry: Arc<RwLock<Registry>>,
     membership_provider: Box<dyn ClusterProvider<T>>,
-    grain_placement_provider: Arc<RwLock<dyn GrainPlacementProvider>>,
+    object_placement_provider: Arc<RwLock<dyn ObjectPlacementProvider>>,
     app_data: Arc<AppData>,
 }
 
@@ -39,13 +41,13 @@ where
         address: String,
         registry: Registry,
         membership_provider: impl ClusterProvider<T> + 'static,
-        grain_placement_provider: impl GrainPlacementProvider + 'static,
+        object_placement_provider: impl ObjectPlacementProvider + 'static,
     ) -> Server<T> {
         Server {
             address,
             registry: Arc::new(RwLock::new(registry)),
             membership_provider: Box::new(membership_provider),
-            grain_placement_provider: Arc::new(RwLock::new(grain_placement_provider)),
+            object_placement_provider: Arc::new(RwLock::new(object_placement_provider)),
             app_data: Arc::new(AppData::new()),
         }
     }
@@ -100,14 +102,14 @@ where
     async fn consume_admin_commands(&self, mut admin_receiver: AdminReceiver) {
         while let Some(message) = admin_receiver.recv().await {
             match message {
-                AdminCommands::Shutdown(grain_type, grain_id) => {
-                    println!("deleting {}.{}", grain_type, grain_id);
+                AdminCommands::Shutdown(object_kind, object_id) => {
+                    println!("deleting {}.{}", object_kind, object_id);
                     let registry = self.registry.write().await;
-                    registry.remove(grain_type.clone(), grain_id.clone()).await;
-                    self.grain_placement_provider
+                    registry.remove(object_kind.clone(), object_id.clone()).await;
+                    self.object_placement_provider
                         .write()
                         .await
-                        .remove(&GrainId(grain_type, grain_id))
+                        .remove(&ObjectId(object_kind, object_id))
                         .await;
                     println!("done deleting");
                 }
@@ -123,7 +125,7 @@ where
     fn into(self) -> Service {
         let address = self.address.clone();
         let registry = self.registry.clone();
-        let grain_placement_provider = self.grain_placement_provider.clone();
+        let object_placement_provider = self.object_placement_provider.clone();
         let app_data = self.app_data.clone();
         let members_storage = dyn_clone::clone_box(self.membership_provider.members_storage());
 
@@ -131,7 +133,7 @@ where
             address,
             registry,
             members_storage,
-            grain_placement_provider,
+            object_placement_provider,
             app_data,
         }
     }

@@ -10,11 +10,11 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tower::Service as TowerService;
 
 use crate::app_data::AppData;
-use crate::grain_placement_provider::GrainPlacementProvider;
-use crate::membership_provider::MembersStorage;
+use crate::cluster::storage::MembersStorage;
+use crate::object_placement::ObjectPlacementProvider;
 use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
-use crate::{GrainId, LifecycleMessage};
+use crate::{ObjectId, LifecycleMessage};
 
 #[pin_project]
 pub struct Service {
@@ -22,7 +22,7 @@ pub struct Service {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
     pub(crate) members_storage: Box<dyn MembersStorage>,
-    pub(crate) grain_placement_provider: Arc<RwLock<dyn GrainPlacementProvider>>,
+    pub(crate) object_placement_provider: Arc<RwLock<dyn ObjectPlacementProvider>>,
     pub(crate) app_data: Arc<AppData>,
 }
 
@@ -41,13 +41,13 @@ impl TowerService<RequestEnvelope> for Service {
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let address = self.address.clone();
         let members_storage = self.members_storage.clone();
-        let grain_placement_provider = self.grain_placement_provider.clone();
+        let object_placement_provider = self.object_placement_provider.clone();
         let registry = self.registry.clone();
         let app_data = self.app_data.clone();
 
         let result = async move {
             let silo_address = Self::upsert_placement(
-                grain_placement_provider.clone(),
+                object_placement_provider.clone(),
                 address.clone(),
                 req.handler_type.clone(),
                 req.handler_id.clone(),
@@ -66,12 +66,12 @@ impl TowerService<RequestEnvelope> for Service {
                 let error = if members_storage.is_active(ip, port).await.expect("TODO") {
                     ResponseError::Redirect(silo_address)
                 } else {
-                    grain_placement_provider
+                    object_placement_provider
                         .read()
                         .await
                         .clean_silo(silo_address)
                         .await;
-                    ResponseError::DeallocateGrain
+                    ResponseError::DeallocateServiceObject
                 };
                 return Err(error);
             }
@@ -136,15 +136,15 @@ impl TowerService<RequestEnvelope> for Service {
 
 impl Service {
     async fn upsert_placement(
-        grain_placement_provider: Arc<RwLock<dyn GrainPlacementProvider>>,
+        object_placement_provider: Arc<RwLock<dyn ObjectPlacementProvider>>,
         address: String,
         handler_type: String,
         handler_id: String,
     ) -> String {
-        grain_placement_provider
+        object_placement_provider
             .write()
             .await
-            .upsert(GrainId(handler_type, handler_id), address)
+            .upsert(ObjectId(handler_type, handler_id), address)
             .await
     }
 
@@ -177,16 +177,15 @@ mod test {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::{
-        grain_placement_provider::LocalGrainPlacementProvider, membership_provider::LocalStorage,
-    };
+    use crate::cluster::storage::LocalStorage;
+    use crate::object_placement::local::LocalObjectPlacementProvider;
 
     fn svc() -> Service {
         Service {
             address: "0.0.0.0:5000".to_string(),
             registry: Arc::new(RwLock::new(Registry::new())),
             members_storage: Box::new(LocalStorage::default()),
-            grain_placement_provider: Arc::new(RwLock::new(LocalGrainPlacementProvider::default())),
+            object_placement_provider: Arc::new(RwLock::new(LocalObjectPlacementProvider::default())),
             app_data: Arc::new(AppData::new()),
         }
     }

@@ -23,11 +23,11 @@ impl SqlState {
             // Table with all state objects
             r#"CREATE TABLE IF NOT EXISTS state_provider_object_state
                (
-                   grain_type       TEXT                              NOT NULL,
-                   grain_id         TEXT                              NOT NULL,
+                   object_kind       TEXT                              NOT NULL,
+                   object_id         TEXT                              NOT NULL,
                    state_type       TEXT                              NOT NULL,
                    serialized_state BLOB                              NOT NULL,
-                   PRIMARY KEY (grain_type, grain_id, state_type)
+                   PRIMARY KEY (object_kind, object_id, state_type)
                )"#,
         ];
         for query in queries {
@@ -41,19 +41,19 @@ impl SqlState {
 impl StateLoader for SqlState {
     async fn load<T: DeserializeOwned>(
         &self,
-        grain_type: &str,
-        grain_id: &str,
+        object_kind: &str,
+        object_id: &str,
         state_type: &str,
     ) -> Result<T, LoadStateError> {
         let items = sqlx::query(
             r#"
             SELECT serialized_state
             FROM state_provider_object_state
-            WHERE grain_type=$1 AND grain_id=$2 AND state_type = $3
+            WHERE object_kind=$1 AND object_id=$2 AND state_type = $3
             "#,
         )
-        .bind(grain_type)
-        .bind(grain_id)
+        .bind(object_kind)
+        .bind(object_id)
         .bind(state_type)
         .map(|x: AnyRow| -> String { x.get("serialized_state") })
         .fetch_one(&self.pool)
@@ -68,8 +68,8 @@ impl StateLoader for SqlState {
 impl StateSaver for SqlState {
     async fn save(
         &self,
-        grain_type: &str,
-        grain_id: &str,
+        object_kind: &str,
+        object_id: &str,
         state_type: &str,
         data: &(impl Serialize + Send + Sync),
     ) -> Result<(), LoadStateError> {
@@ -77,13 +77,13 @@ impl StateSaver for SqlState {
         sqlx::query(
             r#"
             INSERT INTO
-                state_provider_object_state(grain_type, grain_id, state_type, serialized_state)
+                state_provider_object_state(object_kind, object_id, state_type, serialized_state)
             VALUES ($1, $2, $3, $4)
-            ON CONFLICT(grain_type, grain_id, state_type) DO UPDATE SET serialized_state=$4
+            ON CONFLICT(object_kind, object_id, state_type) DO UPDATE SET serialized_state=$4
             "#,
         )
-        .bind(grain_type)
-        .bind(grain_id)
+        .bind(object_kind)
+        .bind(object_id)
         .bind(state_type)
         .bind(serialized_data)
         .execute(&self.pool)

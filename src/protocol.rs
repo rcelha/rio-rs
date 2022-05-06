@@ -50,11 +50,11 @@ impl From<HandlerError> for ResponseEnvelope {
 
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum ResponseError {
-    #[error("Grain is in another silo")]
+    #[error("ServiceObject is in another silo")]
     Redirect(String),
 
-    #[error("Grain had to be deallocated")]
-    DeallocateGrain,
+    #[error("ServiceObject had to be deallocated")]
+    DeallocateServiceObject,
 
     #[error("unknown execution error")]
     Unknown(String),

@@ -2,26 +2,26 @@ use async_trait::async_trait;
 use sqlx::any::{AnyPool, AnyPoolOptions};
 use sqlx::{self, Row};
 
-use super::{GrainPlacement, GrainPlacementProvider};
-use crate::GrainId;
+use super::{ObjectPlacement, ObjectPlacementProvider};
+use crate::ObjectId;
 
-pub struct SqlGrainPlacementProvider {
+pub struct SqlObjectPlacementProvider {
     pool: AnyPool,
 }
 
-impl SqlGrainPlacementProvider {
+impl SqlObjectPlacementProvider {
     pub fn pool() -> AnyPoolOptions {
         AnyPoolOptions::new()
     }
 
     pub fn new(pool: AnyPool) -> Self {
-        SqlGrainPlacementProvider { pool }
+        SqlObjectPlacementProvider { pool }
     }
 
     pub async fn migrate(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
         sqlx::query(
-            r#"CREATE TABLE IF NOT EXISTS grain_placement
+            r#"CREATE TABLE IF NOT EXISTS object_placement
             (
                 struct_name     TEXT                NOT NULL,
                 object_id       TEXT                NOT NULL,
@@ -34,7 +34,7 @@ impl SqlGrainPlacementProvider {
         .await
         .unwrap();
 
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_grain_placement_silo_address on grain_placement(silo_address)")
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_object_placement_silo_address on object_placement(silo_address)")
             .execute(&mut transaction)
             .await
             .unwrap();
@@ -44,33 +44,33 @@ impl SqlGrainPlacementProvider {
 }
 
 #[async_trait]
-impl GrainPlacementProvider for SqlGrainPlacementProvider {
-    async fn update(&self, grain_placement: GrainPlacement) {
+impl ObjectPlacementProvider for SqlObjectPlacementProvider {
+    async fn update(&self, object_placement: ObjectPlacement) {
         sqlx::query(
             r#"
             INSERT INTO
-            grain_placement(struct_name, object_id, silo_address)
+            object_placement(struct_name, object_id, silo_address)
             VALUES ($1, $2, $3)
             ON CONFLICT(struct_name, object_id) DO UPDATE SET silo_address=$4"#,
         )
-        .bind(&grain_placement.grain_id.0)
-        .bind(&grain_placement.grain_id.1)
-        .bind(&grain_placement.silo_address)
-        .bind(&grain_placement.silo_address)
+        .bind(&object_placement.object_id.0)
+        .bind(&object_placement.object_id.1)
+        .bind(&object_placement.silo_address)
+        .bind(&object_placement.silo_address)
         .execute(&self.pool)
         .await
         .unwrap();
     }
-    async fn lookup(&self, grain_id: &GrainId) -> Option<String> {
+    async fn lookup(&self, object_id: &ObjectId) -> Option<String> {
         let row = sqlx::query(
             r#"
             SELECT silo_address
-            FROM grain_placement
+            FROM object_placement
             WHERE struct_name = $1 and object_id = $2
             "#,
         )
-        .bind(&grain_id.0)
-        .bind(&grain_id.1)
+        .bind(&object_id.0)
+        .bind(&object_id.1)
         .fetch_one(&self.pool)
         .await
         .ok();
@@ -79,7 +79,7 @@ impl GrainPlacementProvider for SqlGrainPlacementProvider {
     async fn clean_silo(&self, address: String) {
         sqlx::query(
             r#"
-            DELETE FROM grain_placement
+            DELETE FROM object_placement
             WHERE silo_address = $1
             "#,
         )
@@ -89,15 +89,15 @@ impl GrainPlacementProvider for SqlGrainPlacementProvider {
         .unwrap();
     }
 
-    async fn remove(&self, grain_id: &GrainId) {
+    async fn remove(&self, object_id: &ObjectId) {
         sqlx::query(
             r#"
-            DELETE FROM grain_placement
+            DELETE FROM object_placement
             WHERE struct_name = $1 and object_id = $2
             "#,
         )
-        .bind(&grain_id.0)
-        .bind(&grain_id.1)
+        .bind(&object_id.0)
+        .bind(&object_id.1)
         .execute(&self.pool)
         .await
         .unwrap();
@@ -118,44 +118,44 @@ mod test {
             .expect("TODO: Connection failure")
     }
 
-    async fn grain_placement_provider() -> (AnyPool, impl GrainPlacementProvider) {
+    async fn object_placement_provider() -> (AnyPool, impl ObjectPlacementProvider) {
         let pool = pool().await;
-        let grain_placement_provider = SqlGrainPlacementProvider::new(pool.clone());
-        grain_placement_provider.migrate().await;
-        (pool, grain_placement_provider)
+        let object_placement_provider = SqlObjectPlacementProvider::new(pool.clone());
+        object_placement_provider.migrate().await;
+        (pool, object_placement_provider)
     }
 
     #[tokio::test]
     async fn test_sanity() {
-        let (_, grain_placement_provider) = grain_placement_provider().await;
-        let placement = grain_placement_provider
-            .lookup(&GrainId::new("Test", "1"))
+        let (_, object_placement_provider) = object_placement_provider().await;
+        let placement = object_placement_provider
+            .lookup(&ObjectId::new("Test", "1"))
             .await;
         assert_eq!(placement, None);
 
-        let grain_placement =
-            GrainPlacement::new(GrainId::new("Test", "1"), Some("0.0.0.0:5000".to_string()));
-        grain_placement_provider.update(grain_placement).await;
-        let placement = grain_placement_provider
-            .lookup(&GrainId::new("Test", "1"))
+        let object_placement =
+            ObjectPlacement::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5000".to_string()));
+        object_placement_provider.update(object_placement).await;
+        let placement = object_placement_provider
+            .lookup(&ObjectId::new("Test", "1"))
             .await
             .unwrap();
         assert_eq!(placement, "0.0.0.0:5000");
 
-        let grain_placement =
-            GrainPlacement::new(GrainId::new("Test", "1"), Some("0.0.0.0:5001".to_string()));
-        grain_placement_provider.update(grain_placement).await;
-        let placement = grain_placement_provider
-            .lookup(&GrainId::new("Test", "1"))
+        let object_placement =
+            ObjectPlacement::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5001".to_string()));
+        object_placement_provider.update(object_placement).await;
+        let placement = object_placement_provider
+            .lookup(&ObjectId::new("Test", "1"))
             .await
             .unwrap();
         assert_eq!(placement, "0.0.0.0:5001");
 
-        grain_placement_provider
+        object_placement_provider
             .clean_silo("0.0.0.0:5001".to_string())
             .await;
-        let placement = grain_placement_provider
-            .lookup(&GrainId::new("Test", "1"))
+        let placement = object_placement_provider
+            .lookup(&ObjectId::new("Test", "1"))
             .await;
         assert_eq!(placement, None);
     }

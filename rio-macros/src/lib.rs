@@ -90,7 +90,7 @@ pub fn derive_from_id(tokens: TokenStream) -> TokenStream {
     let rio_rs = get_crate_path(&ast);
 
     let output = quote! {
-        impl #rio_rs::grain::FromId for #struct_name {
+        impl #rio_rs::service_object::FromId for #struct_name {
             fn from_id(id: String) -> Self {
                 Self {
                     id,
@@ -229,7 +229,7 @@ pub fn derive_managed_state(tokens: TokenStream) -> TokenStream {
         managed_state.attributes.iter()
     {
         states.push(quote! {
-            impl #crate_path::state_provider::State<#attribute_type> for #struct_name {
+            impl #crate_path::state::State<#attribute_type> for #struct_name {
                 fn get_state(&self) -> Option<&#attribute_type> {
                     self.#attribute_ident.as_ref()
                 }
@@ -245,7 +245,7 @@ pub fn derive_managed_state(tokens: TokenStream) -> TokenStream {
                 let state_loader = app_data.get::<#state_provider>();
                 match self.load_state::<#attribute_type, #state_provider>(state_loader).await  {
                     Ok(_) | Err(#crate_path::errors::LoadStateError::ObjectNotFound)=> (),
-                    Err(e) => panic!("Cannot load grain state {:?}", e),
+                    Err(e) => panic!("Cannot load ServiceObject state {:?}", e),
                 }
 
             });
@@ -258,8 +258,8 @@ pub fn derive_managed_state(tokens: TokenStream) -> TokenStream {
         quote! {
 
             #[async_trait::async_trait]
-            impl #crate_path::grain::GrainStateLoad for #struct_name {
-                async fn load(&mut self, app_data: &#crate_path::app_data::AppData) -> Result<(), #crate_path::errors::GrainLifeCycleError> {
+            impl #crate_path::service_object::ServiceObjectStateLoad for #struct_name {
+                async fn load(&mut self, app_data: &#crate_path::app_data::AppData) -> Result<(), #crate_path::errors::ServiceObjectLifeCycleError> {
                     #(#state_providers)*
                     Ok(())
                 }

@@ -4,21 +4,19 @@ use async_trait::async_trait;
 use bb8::{Pool, RunError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::{
-    app_data::AppData,
-    client::ClientConnectionManager,
-    errors::{ClientError, GrainLifeCycleError, HandlerError},
-    membership_provider::MembersStorage,
-    registry::{Handler, IdentifiableType, Message},
-    server::{AdminCommands, AdminSender},
-    state_provider::ObjectStateManager,
-};
+use crate::app_data::AppData;
+use crate::client::ClientConnectionManager;
+use crate::cluster::storage::MembersStorage;
+use crate::errors::{ClientError, ServiceObjectLifeCycleError, HandlerError};
+use crate::registry::{Handler, IdentifiableType, Message};
+use crate::server::{AdminCommands, AdminSender};
+use crate::state::ObjectStateManager;
 
-pub struct GrainId(pub String, pub String);
+pub struct ObjectId(pub String, pub String);
 
-impl GrainId {
-    pub fn new(struct_name: impl Into<String>, object_id: impl Into<String>) -> GrainId {
-        GrainId(struct_name.into(), object_id.into())
+impl ObjectId {
+    pub fn new(struct_name: impl Into<String>, object_id: impl Into<String>) -> ObjectId {
+        ObjectId(struct_name.into(), object_id.into())
     }
 }
 
@@ -28,7 +26,7 @@ pub trait FromId {
 }
 
 #[async_trait]
-pub trait Grain: FromId + IdentifiableType + ObjectStateManager + GrainStateLoad {
+pub trait ServiceObject: FromId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad {
     async fn send<S, T, V>(
         app_data: &AppData,
         handler_type_id: String,
@@ -51,19 +49,19 @@ pub trait Grain: FromId + IdentifiableType + ObjectStateManager + GrainStateLoad
         }
     }
 
-    async fn before_load(&mut self, _: &AppData) -> Result<(), GrainLifeCycleError> {
+    async fn before_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 
-    async fn after_load(&mut self, _: &AppData) -> Result<(), GrainLifeCycleError> {
+    async fn after_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 
-    async fn before_shutdown(&mut self, _: &AppData) -> Result<(), GrainLifeCycleError> {
+    async fn before_shutdown(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 
-    async fn shutdown(&mut self, app_data: &AppData) -> Result<(), GrainLifeCycleError> {
+    async fn shutdown(&mut self, app_data: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
         self.before_shutdown(&app_data).await?;
         let admin_sender = app_data.get::<AdminSender>().clone();
         admin_sender
@@ -76,10 +74,10 @@ pub trait Grain: FromId + IdentifiableType + ObjectStateManager + GrainStateLoad
     }
 }
 
-/// Load all states for a grain
+/// Load all states for a into a ServiceObject
 #[async_trait]
-pub trait GrainStateLoad {
-    async fn load(&mut self, _: &AppData) -> Result<(), GrainLifeCycleError> {
+pub trait ServiceObjectStateLoad {
+    async fn load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 }
@@ -100,7 +98,7 @@ impl IdentifiableType for LifecycleMessage {
 #[async_trait]
 impl<T> Handler<LifecycleMessage> for T
 where
-    T: Grain + Send + Sync,
+    T: ServiceObject + Send + Sync,
 {
     type Returns = ();
     async fn handle(

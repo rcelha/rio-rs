@@ -1,7 +1,7 @@
 use rio_macros::*;
-use rio_rs::grain::Grain;
-use rio_rs::state_provider::LocalState;
-use rio_rs::state_provider::ObjectStateManager;
+use rio_rs::ServiceObject;
+use rio_rs::state::local::LocalState;
+use rio_rs::state::ObjectStateManager;
 
 #[derive(ManagedState)]
 struct Test {}
@@ -28,6 +28,6 @@ struct TestProvider {
     tests: Option<TestVec>,
 }
 
-impl Grain for TestProvider {}
+impl ServiceObject for TestProvider {}
 
 fn main() {}

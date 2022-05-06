@@ -14,14 +14,14 @@ pub enum HandlerError {
     ResponseSerializationError,
 
     #[error("lifecycle error")]
-    LyfecycleError(GrainLifeCycleError),
+    LyfecycleError(ServiceObjectLifeCycleError),
 
     #[error("unknown execution error")]
     Unknown,
 }
 
 #[derive(Error, Debug, PartialEq)]
-pub enum GrainLifeCycleError {
+pub enum ServiceObjectLifeCycleError {
     #[error("unknown error")]
     Unknown,
 }

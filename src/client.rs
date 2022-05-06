@@ -17,8 +17,8 @@ use tokio::time::timeout;
 use tokio_stream::StreamExt;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
+use crate::cluster::storage::MembersStorage;
 use crate::errors::{ClientBuilderError, ClientError};
-use crate::membership_provider::MembersStorage;
 use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::IdentifiableType;
 
@@ -34,7 +34,7 @@ pub struct Client {
     /// Framed TCP Stream mapped by ip+port address
     streams: HashMap<String, Framed<TcpStream, LengthDelimitedCodec>>,
 
-    /// Grain placement cache ((type, id) -> address)
+    /// ServiceObject placement cache ((type, id) -> address)
     placement: LruCache<(String, String), String>,
 }
 
@@ -100,18 +100,18 @@ impl Client {
         }
     }
 
-    /// Returns the address (ip + port) for a given grain in the cluster
+    /// Returns the address (ip + port) for a given ServiceObject in the cluster
     ///
     /// In case this information is no available on the client, it will try
     /// a random server. The server has the ability to 'redirect' the client
     /// to the right server in case there is a mismatch
-    async fn grain_lookup(
+    async fn service_object_lookup(
         &mut self,
         handler_type_id: String,
         handler_id: String,
     ) -> Result<String, ClientError> {
-        let grain_id = (handler_type_id, handler_id);
-        if let Some(address) = self.placement.get(&grain_id) {
+        let object_id = (handler_type_id, handler_id);
+        if let Some(address) = self.placement.get(&object_id) {
             return Ok(address.clone());
         }
 
@@ -125,7 +125,7 @@ impl Client {
             .choose(&mut rng)
             .map(|i| {
                 let address = i.address();
-                self.placement.put(grain_id, address.clone());
+                self.placement.put(object_id, address.clone());
                 address
             })
             .ok_or(ClientError::NoSilosAvailable)
@@ -176,12 +176,14 @@ impl Client {
     }
 
     /// TODO replace Option with Result
-    async fn grain_stream(
+    async fn service_object_stream(
         &mut self,
         handler_type_id: String,
         handler_id: String,
     ) -> Result<&mut Framed<TcpStream, LengthDelimitedCodec>, ClientError> {
-        let address = self.grain_lookup(handler_type_id, handler_id).await?;
+        let address = self
+            .service_object_lookup(handler_type_id, handler_id)
+            .await?;
         let stream = self.stream(&address).await?;
         Ok(stream)
     }
@@ -200,7 +202,7 @@ impl Client {
         V: Serialize + IdentifiableType + Send + Sync,
     {
         let stream = self
-            .grain_stream(handler_type_id.clone(), handler_id.clone())
+            .service_object_stream(handler_type_id.clone(), handler_id.clone())
             .await?;
 
         let request = RequestEnvelope::new(
@@ -227,7 +229,7 @@ impl Client {
                             .await
                     }
                     // Retry so it picks up a new Silo on the cluster
-                    Err(ResponseError::DeallocateGrain) => {
+                    Err(ResponseError::DeallocateServiceObject) => {
                         self.placement
                             .pop(&(handler_type_id.clone(), handler_id.clone()));
                         self.send::<T, V>(handler_type_id, handler_id, payload)

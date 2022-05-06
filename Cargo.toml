@@ -27,7 +27,7 @@ futures = "0.3.0"
 # Date types for SQLx
 chrono = "0.4.19"
 
-# Store grain placements locally
+# Store ServiceObject's placements locally
 lru = "0.7.2"
 
 # Client::send needs recursion (for now)

@@ -2,12 +2,12 @@
 
 use crate::errors::LoadStateError;
 use crate::registry::IdentifiableType;
-use crate::{FromId, Grain};
+use crate::{FromId, ServiceObject};
 use async_trait::async_trait;
-use dashmap::DashMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+pub mod local;
 pub mod sql;
 
 /// The `StateLoader` defines an interface to load serialized state from a source
@@ -20,8 +20,8 @@ pub mod sql;
 pub trait StateLoader: Sync + Send {
     async fn load<T: DeserializeOwned>(
         &self,
-        grain_type: &str,
-        grain_id: &str,
+        object_kind: &str,
+        object_id: &str,
         state_type: &str,
     ) -> Result<T, LoadStateError>;
 }
@@ -35,8 +35,8 @@ pub trait StateLoader: Sync + Send {
 pub trait StateSaver: Sync + Send {
     async fn save(
         &self,
-        grain_type: &str,
-        grain_id: &str,
+        object_kind: &str,
+        object_id: &str,
         state_type: &str,
         data: &(impl Serialize + Send + Sync),
     ) -> Result<(), LoadStateError>;
@@ -53,11 +53,11 @@ pub trait ObjectStateManager {
         S: StateLoader,
         Self: State<T> + IdentifiableType + FromId + Send + Sync,
     {
-        let grain_type = Self::user_defined_type_id();
-        let grain_id = self.id();
+        let object_kind = Self::user_defined_type_id();
+        let object_id = self.id();
         let state_type = T::user_defined_type_id();
         let data: T = self
-            .load(state_loader, grain_type, grain_id, state_type)
+            .load(state_loader, object_kind, object_id, state_type)
             .await
             .or(Err(LoadStateError::ObjectNotFound))?;
 
@@ -71,14 +71,14 @@ pub trait ObjectStateManager {
         S: StateSaver,
         Self: State<T> + IdentifiableType + FromId + Send + Sync,
     {
-        let grain_type = Self::user_defined_type_id();
-        let grain_id = self.id();
+        let object_kind = Self::user_defined_type_id();
+        let object_id = self.id();
 
         let state_type = T::user_defined_type_id();
         let state_value: Option<&T> = self.get_state();
         if let Some(state_value) = state_value {
             state_saver
-                .save(grain_type, grain_id, state_type, &state_value)
+                .save(object_kind, object_id, state_type, &state_value)
                 .await
                 .expect("TODO");
         }
@@ -86,8 +86,8 @@ pub trait ObjectStateManager {
     }
 }
 
-// If an struct implements Grain, it gets ObjectStateManager out of the box
-impl<T> ObjectStateManager for T where T: Grain {}
+// If an struct implements ServiceObject, it gets ObjectStateManager out of the box
+impl<T> ObjectStateManager for T where T: ServiceObject {}
 
 /// Trait to define how to get and set states in and out of an object
 ///
@@ -104,67 +104,11 @@ where
     async fn load<S: StateLoader + Sync + Send>(
         &self,
         state_loader: &S,
-        grain_type: &str,
-        grain_id: &str,
+        object_kind: &str,
+        object_id: &str,
         state_type: &str,
     ) -> Result<T, LoadStateError> {
-        state_loader.load(grain_type, grain_id, state_type).await
-    }
-}
-
-/// `LocalState` is a state provider for testing purposes
-///
-/// It stores all the serialized states into a single `DashMap`
-#[derive(Debug)]
-pub struct LocalState {
-    data: DashMap<(String, String, String), String>,
-}
-
-impl LocalState {
-    pub fn new() -> LocalState {
-        LocalState {
-            data: DashMap::new(),
-        }
-    }
-}
-
-#[async_trait]
-impl StateLoader for LocalState {
-    async fn load<T: DeserializeOwned>(
-        &self,
-        grain_type: &str,
-        grain_id: &str,
-        state_type: &str,
-    ) -> Result<T, LoadStateError> {
-        let grain_type = grain_type.to_string();
-        let grain_id = grain_id.to_string();
-        let state_type = state_type.to_string();
-        let k = (grain_type, grain_id, state_type);
-
-        if let Some(x) = self.data.get(&k) {
-            Ok(serde_json::from_str(&x).expect("TODO"))
-        } else {
-            Err(LoadStateError::Unknown)
-        }
-    }
-}
-
-#[async_trait]
-impl StateSaver for LocalState {
-    async fn save(
-        &self,
-        grain_type: &str,
-        grain_id: &str,
-        state_type: &str,
-        data: &(impl Serialize + Send + Sync),
-    ) -> Result<(), LoadStateError> {
-        let grain_type = grain_type.to_string();
-        let grain_id = grain_id.to_string();
-        let state_type = state_type.to_string();
-        let k = (grain_type, grain_id, state_type);
-        self.data
-            .insert(k, serde_json::to_string(&data).expect("TODO"));
-        Ok(())
+        state_loader.load(object_kind, object_id, state_type).await
     }
 }
 
@@ -195,7 +139,7 @@ mod test {
 
     #[tokio::test]
     async fn sanity_check() -> TestResult {
-        let local_state = LocalState::new();
+        let local_state = local::LocalState::new();
         let state = PersonState {
             name: "Foo".to_string(),
             age: 21,
@@ -239,7 +183,7 @@ mod test {
             }
         }
 
-        let local_state = LocalState::new();
+        let local_state = local::LocalState::new();
 
         {
             let mut person = Person::from_id("foo".to_string());

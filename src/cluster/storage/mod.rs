@@ -1,4 +1,4 @@
-//! Rendevouz + Membership APIs to keep a list of running servers
+//! Rendevouz + Cluster Membership APIs to keep a list of running servers
 
 use chrono::{DateTime, TimeZone, Utc};
 use dyn_clone::DynClone;

@@ -1,8 +1,10 @@
+//! Controls which cluster members are healthy
+
 use std::time::Duration;
 
 use async_trait::async_trait;
 
-use crate::{errors::ClusterProviderServeError, membership_provider::MembersStorage};
+use crate::{cluster::storage::MembersStorage, errors::ClusterProviderServeError};
 
 pub mod peer_to_peer;
 

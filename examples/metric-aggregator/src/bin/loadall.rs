@@ -1,5 +1,6 @@
 use metric_aggregator::messages;
-use rio_rs::{membership_provider::sql::SqlMembersStorage, prelude::*};
+use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::prelude::*;
 use std::time::Duration;
 use tokio::time::sleep;
 

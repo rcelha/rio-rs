@@ -4,10 +4,9 @@ use std::time::{Duration, SystemTime};
 use std::{net::SocketAddr, str::FromStr};
 
 use crate::client::Client;
+use crate::cluster::membership_protocol::ClusterProvider;
+use crate::cluster::storage::{LocalStorage, Member, MembersStorage};
 use crate::errors::ClusterProviderServeError;
-use crate::membership_provider::{LocalStorage, Member, MembersStorage};
-
-use super::ClusterProvider;
 
 /// Marks a node as inactive if we have more than `num_failures_threshold` in the past
 /// `interinterval_secs_threshold` seconds
@@ -167,11 +166,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
-    use crate::membership_provider::LocalStorage;
-
     use super::*;
+    use crate::cluster::storage::LocalStorage;
+    use std::collections::HashMap;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

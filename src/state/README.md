@@ -1,6 +1,6 @@
 Module that provides object persistence
 
-The `rio_rs::state_provider` module has all the traits and structs one needs
+The `rio_rs::state` module has all the traits and structs one needs
 to start saving objects from your cluster to persistent storage.
 
 # State Loader

@@ -1,13 +1,12 @@
-use rio_rs::{prelude::*, state_provider::sql::SqlState};
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use async_trait::async_trait;
+use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::prelude::*;
+use rio_rs::state::sql::SqlState;
+use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use super::*;
-use async_trait::async_trait;
-use rio_rs::membership_provider::sql::SqlMembersStorage;
-use serde::{Deserialize, Serialize};
 
 // AppData
 pub struct Counter(pub AtomicUsize);
@@ -51,8 +50,8 @@ impl MetricAggregator {
 }
 
 #[async_trait]
-impl Grain for MetricAggregator {
-    async fn after_load(&mut self, _: &AppData) -> Result<(), GrainLifeCycleError> {
+impl ServiceObject for MetricAggregator {
+    async fn after_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
         if self.metric_stats.is_none() {
             self.metric_stats = Some(MetricStats::default())
         }
@@ -88,14 +87,14 @@ impl Handler<messages::Metric> for MetricAggregator {
             None => {
                 println!("no stats found");
                 return Err(HandlerError::LyfecycleError(
-                    rio_rs::errors::GrainLifeCycleError::Unknown,
+                    rio_rs::errors::ServiceObjectLifeCycleError::Unknown,
                 ));
             }
         }
 
         self.save_state(state_saver).await.map_err(|_| {
             println!("save error");
-            HandlerError::LyfecycleError(rio_rs::errors::GrainLifeCycleError::Unknown)
+            HandlerError::LyfecycleError(rio_rs::errors::ServiceObjectLifeCycleError::Unknown)
         })?;
 
         self.metric_stats

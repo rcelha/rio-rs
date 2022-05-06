@@ -5,18 +5,17 @@
 
 pub mod app_data;
 pub mod client;
-pub mod cluster_provider;
+pub mod cluster;
 pub mod errors;
-pub mod grain;
-pub mod grain_placement_provider;
-pub mod membership_provider;
+pub mod object_placement;
 pub mod protocol;
 pub mod registry;
 pub mod server;
 pub mod service;
-pub mod state_provider;
+pub mod service_object;
+pub mod state;
 
-pub use grain::*;
+pub use service_object::*;
 
 pub mod derive {
     pub use rio_macros::FromId;
@@ -28,22 +27,22 @@ pub mod derive {
 pub mod prelude {
     pub use super::app_data::AppData;
     pub use super::client::ClientBuilder;
-    pub use super::cluster_provider::peer_to_peer::{
+    pub use super::cluster::membership_protocol::peer_to_peer::{
         PeerToPeerClusterConfig, PeerToPeerClusterProvider,
     };
-    pub use super::cluster_provider::ClusterProvider;
+    pub use super::cluster::membership_protocol::ClusterProvider;
+    pub use super::cluster::storage::MembersStorage;
     pub use super::derive::{FromId, ManagedState, Message, TypeName};
-    pub use super::errors::{ClientBuilderError, ClientError, GrainLifeCycleError, HandlerError};
-    pub use super::membership_provider::MembersStorage;
+    pub use super::errors::{
+        ClientBuilderError, ClientError, HandlerError, ServiceObjectLifeCycleError,
+    };
     pub use super::registry::{Handler, Registry};
 
     pub use super::server::Server;
-    pub use super::service::Service;
-    // pub use super::silo::Silo;
-    pub use super::state_provider::ObjectStateManager;
+    pub use super::state::ObjectStateManager;
     pub use super::FromId;
-    pub use super::Grain;
-    pub use super::GrainId;
-    pub use super::GrainStateLoad;
     pub use super::LifecycleMessage;
+    pub use super::ObjectId;
+    pub use super::ServiceObject;
+    pub use super::ServiceObjectStateLoad;
 }

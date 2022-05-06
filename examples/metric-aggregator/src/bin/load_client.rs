@@ -3,9 +3,9 @@ use std::time::SystemTime;
 use futures::FutureExt;
 use metric_aggregator::messages;
 use rand::{thread_rng, Rng};
-use rio_rs::{
-    client::ClientConnectionManager, membership_provider::sql::SqlMembersStorage, prelude::*,
-};
+use rio_rs::client::ClientConnectionManager;
+use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::prelude::*;
 
 static USAGE: &str = "usage: load_client PARALLEL_REQUEST NUM_CLIENTS [NUM_REQUESTS=1000] [NUM_IDS=1000] [DB_CONN_STRING=sqlite:///tmp/membership.sqlite3?mode=rwc]";
 
@@ -90,19 +90,19 @@ async fn client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
         tokio::spawn(async move {
             for _ in 0..opts.num_requests {
                 let mut client = client_pool.get().await.unwrap();
-                let grain_id = { thread_rng().gen_range(0..opts.num_ids).to_string() };
+                let object_id = { thread_rng().gen_range(0..opts.num_ids).to_string() };
                 let resp: messages::Pong = client
                     .send(
                         "MetricAggregator".to_string(),
-                        grain_id.clone(),
+                        object_id.clone(),
                         &messages::Ping {
-                            ping_id: grain_id.clone(),
+                            ping_id: object_id.clone(),
                         },
                     )
                     .await
                     .unwrap();
-                if resp.ping_id != grain_id {
-                    panic!("{} != {}", resp.ping_id, grain_id);
+                if resp.ping_id != object_id {
+                    panic!("{} != {}", resp.ping_id, object_id);
                 }
             }
         })

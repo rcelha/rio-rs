@@ -1,6 +1,8 @@
 use metric_aggregator::messages;
-use rio_rs::{membership_provider::sql::SqlMembersStorage, prelude::*};
-use std::{collections::HashMap, time::Duration};
+use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::prelude::*;
+use std::collections::HashMap;
+use std::time::Duration;
 use tokio::time::sleep;
 
 #[tokio::main]
