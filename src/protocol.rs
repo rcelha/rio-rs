@@ -50,7 +50,7 @@ impl From<HandlerError> for ResponseEnvelope {
 
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum ResponseError {
-    #[error("ServiceObject is in another silo")]
+    #[error("ServiceObject is in another server")]
     Redirect(String),
 
     #[error("ServiceObject had to be deallocated")]

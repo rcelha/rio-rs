@@ -1,7 +1,6 @@
 //! Rendevouz + Cluster Membership APIs to keep a list of running servers
 
 use chrono::{DateTime, TimeZone, Utc};
-use dyn_clone::DynClone;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 pub mod sql;
@@ -51,7 +50,7 @@ pub type MembershipResult<T> = Result<T, MembershipError>;
 pub type MembershipUnitResult = Result<(), MembershipError>;
 
 #[async_trait]
-pub trait MembersStorage: Send + Sync + DynClone {
+pub trait MembersStorage: Send + Sync + Clone {
     /// Saves a new member to the storage
     async fn push(&self, member: Member) -> MembershipUnitResult;
 
@@ -101,8 +100,6 @@ pub trait MembersStorage: Send + Sync + DynClone {
         self.set_is_active(ip, port, true).await
     }
 }
-
-dyn_clone::clone_trait_object!(MembersStorage);
 
 type ArcMembers = Arc<RwLock<Vec<Member>>>;
 type ArcFailures = Arc<RwLock<Vec<(String, String, DateTime<Utc>)>>>;

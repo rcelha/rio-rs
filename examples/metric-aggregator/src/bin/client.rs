@@ -16,8 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sleep(Duration::from_secs(1)).await;
 
     members_storage.migrate().await;
-    let silos = members_storage.active_members().await;
-    println!("server: {:?}", silos);
+    let servers = members_storage.active_members().await;
+    println!("server: {:?}", servers);
 
     let mut client = ClientBuilder::new()
         .members_storage(members_storage)

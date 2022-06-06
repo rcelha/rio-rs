@@ -84,7 +84,7 @@ where
     async fn test_member(&self, member: &Member) -> Result<(), ClusterProviderServeError> {
         let local_storage = LocalStorage::default();
         local_storage.push(member.clone()).await?;
-        let mut client = Client::new(Box::new(local_storage));
+        let mut client = Client::new(local_storage);
 
         if let Err(_) = client.ping().await {
             self.members_storage()

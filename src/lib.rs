@@ -39,6 +39,7 @@ pub mod prelude {
     pub use super::registry::{Handler, Registry};
 
     pub use super::server::Server;
+    pub use super::server::ServerBuilder;
     pub use super::state::ObjectStateManager;
     pub use super::FromId;
     pub use super::LifecycleMessage;

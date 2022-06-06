@@ -1,5 +1,5 @@
 services:
-  silo:
+  server:
     image: rio-rs
     build: ../../
     command: server 0.0.0.0:5000

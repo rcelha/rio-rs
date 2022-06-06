@@ -25,11 +25,14 @@ use crate::registry::IdentifiableType;
 const DEFAULT_TIMEOUT_MILLIS: u64 = 500;
 
 /// Client struct to interact with a cluster in a request/response manner
-pub struct Client {
+pub struct Client<S>
+where
+    S: MembersStorage,
+{
     timeout_millis: u64,
 
-    /// Membership view used for Silo service discovery
-    members_storage: Box<dyn MembersStorage>,
+    /// Membership view used for Server's service discovery
+    members_storage: S,
 
     /// Framed TCP Stream mapped by ip+port address
     streams: HashMap<String, Framed<TcpStream, LengthDelimitedCodec>>,
@@ -39,13 +42,21 @@ pub struct Client {
 }
 
 /// Helper Struct to build clients from configuration
-#[derive(Default)]
-pub struct ClientBuilder {
-    members_storage: Option<Box<dyn MembersStorage>>,
+pub struct ClientBuilder<S: MembersStorage> {
+    members_storage: Option<S>,
     timeout_millis: u64,
 }
 
-impl ClientBuilder {
+impl<S: MembersStorage> Default for ClientBuilder<S> {
+    fn default() -> Self {
+        ClientBuilder {
+            members_storage: None,
+            timeout_millis: 0,
+        }
+    }
+}
+
+impl<S: MembersStorage + 'static> ClientBuilder<S> {
     pub fn new() -> Self {
         ClientBuilder {
             timeout_millis: DEFAULT_TIMEOUT_MILLIS,
@@ -53,22 +64,17 @@ impl ClientBuilder {
         }
     }
 
-    pub fn members_storage(&mut self, members_storage: impl MembersStorage + 'static) -> &mut Self {
-        self.members_storage = Some(Box::new(members_storage));
-        self
-    }
-
-    pub fn timeout_millis(&mut self, timeout_millis: u64) -> &mut Self {
-        self.timeout_millis = timeout_millis;
-        self
-    }
-
-    pub fn boxed_members_storage(&mut self, members_storage: Box<dyn MembersStorage>) -> &mut Self {
+    pub fn members_storage(mut self, members_storage: S) -> Self {
         self.members_storage = Some(members_storage);
         self
     }
 
-    pub fn build(&self) -> Result<Client, ClientBuilderError> {
+    pub fn timeout_millis(mut self, timeout_millis: u64) -> Self {
+        self.timeout_millis = timeout_millis;
+        self
+    }
+
+    pub fn build(self) -> Result<Client<S>, ClientBuilderError> {
         let members_storage = self
             .members_storage
             .clone()
@@ -79,7 +85,9 @@ impl ClientBuilder {
         Ok(client)
     }
 
-    pub fn build_connection_manager(&self) -> Result<ClientConnectionManager, ClientBuilderError> {
+    pub fn build_connection_manager(
+        &self,
+    ) -> Result<ClientConnectionManager<S>, ClientBuilderError> {
         let members_storage = self
             .members_storage
             .clone()
@@ -90,8 +98,8 @@ impl ClientBuilder {
     }
 }
 
-impl Client {
-    pub fn new(members_storage: Box<dyn MembersStorage>) -> Self {
+impl<S: MembersStorage> Client<S> {
+    pub fn new(members_storage: S) -> Self {
         Client {
             timeout_millis: DEFAULT_TIMEOUT_MILLIS,
             streams: HashMap::new(),
@@ -115,20 +123,20 @@ impl Client {
             return Ok(address.clone());
         }
 
-        let silos = self
+        let servers = self
             .members_storage
             .active_members()
             .await
             .map_err(|err| ClientError::Unknown(err.to_string()))?;
         let mut rng = thread_rng();
-        silos
+        servers
             .choose(&mut rng)
             .map(|i| {
                 let address = i.address();
                 self.placement.put(object_id, address.clone());
                 address
             })
-            .ok_or(ClientError::NoSilosAvailable)
+            .ok_or(ClientError::NoServersAvailable)
     }
 
     /// Get or create a TCP stream to a server in the cluster
@@ -150,12 +158,12 @@ impl Client {
 
     /// Creates a connection and close it. Useful to test client/server connectivity
     pub async fn ping(&mut self) -> Result<(), ClientError> {
-        let silos = self
+        let servers = self
             .members_storage
             .members()
             .await
             .map_err(|_| ClientError::Connectivity)?;
-        let silo = silos.first().ok_or(ClientError::NoSilosAvailable)?;
+        let server = servers.first().ok_or(ClientError::NoServersAvailable)?;
 
         async fn conn(address: &str) -> Result<(), ClientError> {
             TcpStream::connect(&address)
@@ -166,7 +174,7 @@ impl Client {
 
         match timeout(
             std::time::Duration::from_millis(self.timeout_millis),
-            conn(&silo.address()),
+            conn(&server.address()),
         )
         .await
         {
@@ -228,7 +236,7 @@ impl Client {
                         self.send::<T, V>(handler_type_id, handler_id, payload)
                             .await
                     }
-                    // Retry so it picks up a new Silo on the cluster
+                    // Retry so it picks up a new Server on the cluster
                     Err(ResponseError::DeallocateServiceObject) => {
                         self.placement
                             .pop(&(handler_type_id.clone(), handler_id.clone()));
@@ -247,13 +255,13 @@ impl Client {
 
 /// TODO: Move cache out of the Client struct so we can share the cache across all connections in
 /// the pool
-pub struct ClientConnectionManager {
-    members_storage: Box<dyn MembersStorage>,
+pub struct ClientConnectionManager<S: MembersStorage> {
+    members_storage: S,
     timeout_millis: u64,
 }
 
-impl ClientConnectionManager {
-    pub fn new(members_storage: Box<dyn MembersStorage>) -> Self {
+impl<S: MembersStorage + 'static> ClientConnectionManager<S> {
+    pub fn new(members_storage: S) -> Self {
         ClientConnectionManager {
             members_storage,
             timeout_millis: DEFAULT_TIMEOUT_MILLIS,
@@ -266,12 +274,12 @@ impl ClientConnectionManager {
 }
 
 #[async_trait]
-impl ManageConnection for ClientConnectionManager {
-    type Connection = Client;
+impl<S: MembersStorage + 'static> ManageConnection for ClientConnectionManager<S> {
+    type Connection = Client<S>;
     type Error = ClientError;
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         ClientBuilder::new()
-            .boxed_members_storage(self.members_storage.clone())
+            .members_storage(self.members_storage.clone())
             .timeout_millis(self.timeout_millis)
             .build()
             .map_err(|err| ClientError::Unknown(err.to_string()))
@@ -286,5 +294,31 @@ impl ManageConnection for ClientConnectionManager {
 
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::cluster::storage::LocalStorage;
+
+    #[tokio::test]
+    async fn test_default_builder() {
+        let client_builder = ClientBuilder::<LocalStorage>::new();
+        assert!(client_builder.members_storage.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_builder_without_storage() {
+        let client = ClientBuilder::<LocalStorage>::new().build();
+        assert!(client.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_builder_build() {
+        let client = ClientBuilder::new()
+            .members_storage(LocalStorage::default())
+            .build();
+        assert!(client.is_ok());
     }
 }
