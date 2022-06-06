@@ -12,6 +12,6 @@ impl ObjectPlacementProvider for LocalObjectPlacementProvider {
     async fn lookup(&self, _object_id: &ObjectId) -> Option<String> {
         None
     }
-    async fn clean_silo(&self, _address: String) {}
+    async fn clean_server(&self, _address: String) {}
     async fn remove(&self, _object_id: &ObjectId) {}
 }

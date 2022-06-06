@@ -25,7 +25,7 @@ impl SqlObjectPlacementProvider {
             (
                 struct_name     TEXT                NOT NULL,
                 object_id       TEXT                NOT NULL,
-                silo_address    TEXT                NULL,
+                server_address  TEXT                NULL,
 
                 PRIMARY KEY (struct_name, object_id)
             )"#,
@@ -34,7 +34,7 @@ impl SqlObjectPlacementProvider {
         .await
         .unwrap();
 
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_object_placement_silo_address on object_placement(silo_address)")
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_object_placement_server_address on object_placement(server_address)")
             .execute(&mut transaction)
             .await
             .unwrap();
@@ -49,14 +49,13 @@ impl ObjectPlacementProvider for SqlObjectPlacementProvider {
         sqlx::query(
             r#"
             INSERT INTO
-            object_placement(struct_name, object_id, silo_address)
+            object_placement(struct_name, object_id, server_address)
             VALUES ($1, $2, $3)
-            ON CONFLICT(struct_name, object_id) DO UPDATE SET silo_address=$4"#,
+            ON CONFLICT(struct_name, object_id) DO UPDATE SET server_address=$3"#,
         )
         .bind(&object_placement.object_id.0)
         .bind(&object_placement.object_id.1)
-        .bind(&object_placement.silo_address)
-        .bind(&object_placement.silo_address)
+        .bind(&object_placement.server_address)
         .execute(&self.pool)
         .await
         .unwrap();
@@ -64,7 +63,7 @@ impl ObjectPlacementProvider for SqlObjectPlacementProvider {
     async fn lookup(&self, object_id: &ObjectId) -> Option<String> {
         let row = sqlx::query(
             r#"
-            SELECT silo_address
+            SELECT server_address
             FROM object_placement
             WHERE struct_name = $1 and object_id = $2
             "#,
@@ -74,13 +73,13 @@ impl ObjectPlacementProvider for SqlObjectPlacementProvider {
         .fetch_one(&self.pool)
         .await
         .ok();
-        row.map(|row| row.get("silo_address"))
+        row.map(|row| row.get("server_address"))
     }
-    async fn clean_silo(&self, address: String) {
+    async fn clean_server(&self, address: String) {
         sqlx::query(
             r#"
             DELETE FROM object_placement
-            WHERE silo_address = $1
+            WHERE server_address = $1
             "#,
         )
         .bind(&address)
@@ -152,7 +151,7 @@ mod test {
         assert_eq!(placement, "0.0.0.0:5001");
 
         object_placement_provider
-            .clean_silo("0.0.0.0:5001".to_string())
+            .clean_server("0.0.0.0:5001".to_string())
             .await;
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))

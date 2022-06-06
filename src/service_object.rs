@@ -40,7 +40,7 @@ pub trait ServiceObject:
         T: DeserializeOwned,
         V: Serialize + IdentifiableType + Send + Sync,
     {
-        let pool: &Pool<ClientConnectionManager> = app_data.get();
+        let pool: &Pool<ClientConnectionManager<S>> = app_data.get();
         match pool.get().await {
             Ok(mut client) => client.send(handler_type_id, handler_id, payload).await,
             Err(RunError::User(error)) => {

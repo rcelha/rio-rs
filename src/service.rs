@@ -1,6 +1,5 @@
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
-use pin_project::pin_project;
 use std::sync::Arc;
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
@@ -16,17 +15,17 @@ use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
 use crate::{LifecycleMessage, ObjectId};
 
-#[pin_project]
-pub struct Service {
-    #[pin]
+pub struct Service<S: MembersStorage, P: ObjectPlacementProvider> {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
-    pub(crate) members_storage: Box<dyn MembersStorage>,
-    pub(crate) object_placement_provider: Arc<RwLock<dyn ObjectPlacementProvider>>,
+    pub(crate) members_storage: S,
+    pub(crate) object_placement_provider: Arc<RwLock<P>>,
     pub(crate) app_data: Arc<AppData>,
 }
 
-impl TowerService<RequestEnvelope> for Service {
+impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
+    TowerService<RequestEnvelope> for Service<S, P>
+{
     type Response = ResponseEnvelope;
     type Error = ResponseError;
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
@@ -46,7 +45,7 @@ impl TowerService<RequestEnvelope> for Service {
         let app_data = self.app_data.clone();
 
         let result = async move {
-            let silo_address = Self::upsert_placement(
+            let server_address = Self::upsert_placement(
                 object_placement_provider.clone(),
                 address.clone(),
                 req.handler_type.clone(),
@@ -54,9 +53,9 @@ impl TowerService<RequestEnvelope> for Service {
             )
             .await;
 
-            if silo_address != address {
+            if server_address != address {
                 // TODO error handling
-                let mut split_address = silo_address.split(':');
+                let mut split_address = server_address.split(':');
                 let ip = split_address.next().expect("TODO: Address has no IP in it");
                 let port = split_address
                     .next()
@@ -64,12 +63,12 @@ impl TowerService<RequestEnvelope> for Service {
 
                 // TODO cache is_active response?
                 let error = if members_storage.is_active(ip, port).await.expect("TODO") {
-                    ResponseError::Redirect(silo_address)
+                    ResponseError::Redirect(server_address)
                 } else {
                     object_placement_provider
                         .read()
                         .await
-                        .clean_silo(silo_address)
+                        .clean_server(server_address)
                         .await;
                     ResponseError::DeallocateServiceObject
                 };
@@ -134,9 +133,9 @@ impl TowerService<RequestEnvelope> for Service {
     }
 }
 
-impl Service {
+impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<S, P> {
     async fn upsert_placement(
-        object_placement_provider: Arc<RwLock<dyn ObjectPlacementProvider>>,
+        object_placement_provider: Arc<RwLock<P>>,
         address: String,
         handler_type: String,
         handler_id: String,
@@ -180,11 +179,11 @@ mod test {
     use crate::cluster::storage::LocalStorage;
     use crate::object_placement::local::LocalObjectPlacementProvider;
 
-    fn svc() -> Service {
+    fn svc() -> Service<LocalStorage, LocalObjectPlacementProvider> {
         Service {
             address: "0.0.0.0:5000".to_string(),
             registry: Arc::new(RwLock::new(Registry::new())),
-            members_storage: Box::new(LocalStorage::default()),
+            members_storage: LocalStorage::default(),
             object_placement_provider: Arc::new(RwLock::new(
                 LocalObjectPlacementProvider::default(),
             )),

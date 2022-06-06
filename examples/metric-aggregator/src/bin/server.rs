@@ -59,15 +59,17 @@ async fn main() {
     let object_placement_provider = SqlObjectPlacementProvider::new(pool);
     object_placement_provider.migrate().await;
 
-    let mut silo = Server::new(
-        addr.to_string(),
-        registry,
-        cluster,
-        object_placement_provider,
-    );
+    let mut server = ServerBuilder::new()
+        .address(addr.to_string())
+        .registry(registry)
+        .cluster_provider(cluster)
+        .object_placement_provider(object_placement_provider)
+        .client_pool_size(10)
+        .build()
+        .expect("TODO: server builder fail");
 
-    silo.app_data(Counter(AtomicUsize::new(0)));
-    silo.app_data(LocalState::new());
+    server.app_data(Counter(AtomicUsize::new(0)));
+    server.app_data(LocalState::new());
 
     // let sql_state = SqlState::new(AnyPoio)
     //
@@ -78,7 +80,6 @@ async fn main() {
         .expect("TODO: Connection failure");
     let sql_state = SqlState::new(sql_state_pool);
     sql_state.migrate().await;
-    silo.app_data(sql_state);
-
-    silo.run().await;
+    server.app_data(sql_state);
+    server.run().await;
 }

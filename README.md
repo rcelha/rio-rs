@@ -44,7 +44,7 @@ impl Handler<HelloMessage> for HelloWorldService {
 
 ## Running Server
 
-To run your application you need to spin up your servers, the `Silos`
+To run your application you need to spin up your servers, the `Server`
 
 ```rust
 use rio_rs::prelude::*;
@@ -86,7 +86,7 @@ use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 async fn main() {
     let addr = "0.0.0.0:5000";
 
-    // Configure types on the Silo's registry
+    // Configure types on the server's registry
     let mut registry = Registry::new();
     registry.add_static_fn::<HelloWorldService, String, _>(FromId::from_id);
     registry.add_handler::<HelloWorldService, HelloMessage>();
@@ -120,7 +120,7 @@ async fn main() {
     );
 
     // Run the server
-    // silo.serve().await;
+    // server.serve().await;
 }
 ```
 
@@ -201,7 +201,9 @@ There are a few things that must be done before v0.1.0:
 - [x] Object self shutdown
 - [x] Naive object persistence
 - [x] Public API renaming
-- [ ] Reduce Boxed objects
+- [x] Reduce Boxed objects
+- [x] Create a Server builder
+- [ ] Reduce static lifetimes
 - [ ] Harden networking (only happy path is implemented)
 - [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
@@ -212,6 +214,5 @@ There are a few things that must be done before v0.1.0:
 - [ ] Regular actors (anonym actors)
 - [ ] Code of conduct
 - [ ] Remove magic numbers
-- [ ] Create a Silo builder; It would create sane defaults for the registry
 - [ ] Object TTL
 - [ ] Support service background task
