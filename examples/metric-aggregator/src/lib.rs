@@ -1,2 +1,2 @@
-pub mod services;
 pub mod messages;
+pub mod services;

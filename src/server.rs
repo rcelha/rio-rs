@@ -105,7 +105,9 @@ where
                 AdminCommands::Shutdown(object_kind, object_id) => {
                     println!("deleting {}.{}", object_kind, object_id);
                     let registry = self.registry.write().await;
-                    registry.remove(object_kind.clone(), object_id.clone()).await;
+                    registry
+                        .remove(object_kind.clone(), object_id.clone())
+                        .await;
                     self.object_placement_provider
                         .write()
                         .await

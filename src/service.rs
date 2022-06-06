@@ -14,7 +14,7 @@ use crate::cluster::storage::MembersStorage;
 use crate::object_placement::ObjectPlacementProvider;
 use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
-use crate::{ObjectId, LifecycleMessage};
+use crate::{LifecycleMessage, ObjectId};
 
 #[pin_project]
 pub struct Service {
@@ -185,7 +185,9 @@ mod test {
             address: "0.0.0.0:5000".to_string(),
             registry: Arc::new(RwLock::new(Registry::new())),
             members_storage: Box::new(LocalStorage::default()),
-            object_placement_provider: Arc::new(RwLock::new(LocalObjectPlacementProvider::default())),
+            object_placement_provider: Arc::new(RwLock::new(
+                LocalObjectPlacementProvider::default(),
+            )),
             app_data: Arc::new(AppData::new()),
         }
     }

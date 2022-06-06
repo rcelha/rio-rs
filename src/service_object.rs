@@ -7,7 +7,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::app_data::AppData;
 use crate::client::ClientConnectionManager;
 use crate::cluster::storage::MembersStorage;
-use crate::errors::{ClientError, ServiceObjectLifeCycleError, HandlerError};
+use crate::errors::{ClientError, HandlerError, ServiceObjectLifeCycleError};
 use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender};
 use crate::state::ObjectStateManager;
@@ -26,7 +26,9 @@ pub trait FromId {
 }
 
 #[async_trait]
-pub trait ServiceObject: FromId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad {
+pub trait ServiceObject:
+    FromId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
+{
     async fn send<S, T, V>(
         app_data: &AppData,
         handler_type_id: String,

@@ -2,8 +2,8 @@ use async_trait::async_trait;
 
 use crate::ObjectId;
 
-pub mod sql;
 pub mod local;
+pub mod sql;
 
 pub struct ObjectPlacement {
     pub object_id: ObjectId,

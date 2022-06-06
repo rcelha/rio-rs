@@ -1,5 +1,5 @@
-use metric_aggregator::services::{self, Counter};
 use metric_aggregator::messages;
+use metric_aggregator::services::{self, Counter};
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 use rio_rs::state::sql::SqlState;
