@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     println!("{:#?}", options);
     let rt = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(options.num_clients)
+        //.worker_threads(options.num_clients)
         .enable_all()
         .build()?;
 

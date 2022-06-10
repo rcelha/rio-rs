@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.2
-FROM rust:1.58-slim
+FROM rust:1.61-slim
 ENV PATH="/usr/local/bin:${PATH}"
 
 RUN apt update && apt install -y pkg-config libssl-dev

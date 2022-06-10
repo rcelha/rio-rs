@@ -27,18 +27,6 @@ pub enum ServiceObjectLifeCycleError {
 }
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ClientError {
-    #[error("no servers available")]
-    NoServersAvailable,
-
-    #[error("connectivity error")]
-    Connectivity,
-
-    #[error("unknown client error")]
-    Unknown(String),
-}
-
-#[derive(Error, Debug, PartialEq)]
 pub enum ClientBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
@@ -48,8 +36,10 @@ pub enum ClientBuilderError {
 pub enum ServerBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
+
     #[error("no ObjectPlacementProvider")]
     NoObjectPlacementProvider,
+
     #[error("unknown")]
     Unknown(String),
 }

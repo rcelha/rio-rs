@@ -203,8 +203,12 @@ There are a few things that must be done before v0.1.0:
 - [x] Public API renaming
 - [x] Reduce Boxed objects
 - [x] Create a Server builder
-- [ ] Reduce static lifetimes
 - [ ] Harden networking (only happy path is implemented)
+    - [x] Use tower for client
+    - [ ] Remove unwrap from client and server services
+    - [x] Improve `upsert` performance
+- [ ] client/server keep alive
+- [ ] Reduce static lifetimes
 - [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
 - [ ] Pub/sub

@@ -194,6 +194,7 @@ where
             .await
             .expect("TODO: Failed to bind address");
         println!("Listening on: {}", self.address);
+
         loop {
             let (stream, _) = listener.accept().await.unwrap();
             let mut service: Service<S, P> = self.into();

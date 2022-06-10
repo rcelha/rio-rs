@@ -14,6 +14,7 @@ pub mod server;
 pub mod service;
 pub mod service_object;
 pub mod state;
+pub mod tap_err;
 
 pub use service_object::*;
 
@@ -33,9 +34,9 @@ pub mod prelude {
     pub use super::cluster::membership_protocol::ClusterProvider;
     pub use super::cluster::storage::MembersStorage;
     pub use super::derive::{FromId, ManagedState, Message, TypeName};
-    pub use super::errors::{
-        ClientBuilderError, ClientError, HandlerError, ServiceObjectLifeCycleError,
-    };
+    pub use super::errors::{ClientBuilderError, HandlerError, ServiceObjectLifeCycleError};
+    pub use super::protocol::{ClientError, ResponseError};
+
     pub use super::registry::{Handler, Registry};
 
     pub use super::server::Server;
