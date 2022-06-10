@@ -160,11 +160,13 @@ impl Registry {
         context: Arc<AppData>,
     ) -> Result<Vec<u8>, HandlerError> {
         let callable_key = (type_id.to_string(), message_type_id.to_string());
-        let message_handler = self
-            .handler_map
-            .get(&callable_key)
-            .ok_or(HandlerError::HandlerNotFound)?;
-        let future_result = message_handler(type_id, object_id, message, context);
+        let future_result = {
+            let message_handler = self
+                .handler_map
+                .get(&callable_key)
+                .ok_or(HandlerError::HandlerNotFound)?;
+            message_handler(type_id, object_id, message, context)
+        };
         future_result.await
     }
 

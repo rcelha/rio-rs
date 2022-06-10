@@ -7,7 +7,8 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::app_data::AppData;
 use crate::client::ClientConnectionManager;
 use crate::cluster::storage::MembersStorage;
-use crate::errors::{ClientError, HandlerError, ServiceObjectLifeCycleError};
+use crate::errors::{HandlerError, ServiceObjectLifeCycleError};
+use crate::protocol::ClientError;
 use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender};
 use crate::state::ObjectStateManager;
@@ -29,6 +30,7 @@ pub trait FromId {
 pub trait ServiceObject:
     FromId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
 {
+    /// Send a message to Rio cluster using a client tht is stored in AppData
     async fn send<S, T, V>(
         app_data: &AppData,
         handler_type_id: String,
@@ -43,11 +45,9 @@ pub trait ServiceObject:
         let pool: &Pool<ClientConnectionManager<S>> = app_data.get();
         match pool.get().await {
             Ok(mut client) => client.send(handler_type_id, handler_id, payload).await,
-            Err(RunError::User(error)) => {
-                println!("Aqui?");
-                Err(error)
-            }
-            Err(e) => Err(ClientError::Unknown(e.to_string())),
+            Err(RunError::User(error)) => Err(error),
+            // TODO: might want a time out error in ClientError
+            Err(RunError::TimedOut) => Err(ClientError::Connectivity),
         }
     }
 

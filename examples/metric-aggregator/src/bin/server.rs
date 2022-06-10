@@ -7,13 +7,6 @@ use rio_rs::{prelude::*, state::local::LocalState};
 use sqlx::any::AnyPoolOptions;
 use std::sync::atomic::AtomicUsize;
 
-#[cfg(not(target_env = "msvc"))]
-use jemallocator::Jemalloc;
-
-#[cfg(not(target_env = "msvc"))]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
-
 static USAGE: &str =
     "usage: server ip:port [MEMBERSHIP_CONNECTION_STRING] [PLACEMENT_CONNECTION_STRING]";
 
@@ -36,8 +29,13 @@ async fn main() {
     registry.add_handler::<services::MetricAggregator, messages::GetMetric>();
     registry.add_handler::<services::MetricAggregator, messages::Drop>();
 
+    let num_cpus = std::thread::available_parallelism()
+        .expect("error getting num of CPUs")
+        .get() as u32;
+    let num_cpus = num_cpus * 2;
+
     let pool = SqlMembersStorage::pool()
-        .max_connections(50)
+        .max_connections(num_cpus)
         .connect(&members_storage_connection)
         .await
         .expect("Connection failure");
@@ -51,7 +49,7 @@ async fn main() {
     let cluster = PeerToPeerClusterProvider::new(members_storage, cluster_config);
 
     let pool = SqlObjectPlacementProvider::pool()
-        .max_connections(50)
+        .max_connections(num_cpus)
         .connect(&placement_connection)
         .await
         .expect("Connection failure");
@@ -71,10 +69,8 @@ async fn main() {
     server.app_data(Counter(AtomicUsize::new(0)));
     server.app_data(LocalState::new());
 
-    // let sql_state = SqlState::new(AnyPoio)
-    //
     let sql_state_pool = AnyPoolOptions::new()
-        .max_connections(5)
+        .max_connections(num_cpus)
         .connect("sqlite:///tmp/state.sqlite3?mode=rwc")
         .await
         .expect("TODO: Connection failure");

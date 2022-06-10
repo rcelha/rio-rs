@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::protocol::ClientError;
+
 #[derive(Error, Debug, PartialEq)]
 pub enum HandlerError {
     #[error("object not found")]
@@ -27,18 +29,6 @@ pub enum ServiceObjectLifeCycleError {
 }
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ClientError {
-    #[error("no servers available")]
-    NoServersAvailable,
-
-    #[error("connectivity error")]
-    Connectivity,
-
-    #[error("unknown client error")]
-    Unknown(String),
-}
-
-#[derive(Error, Debug, PartialEq)]
 pub enum ClientBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
@@ -48,10 +38,27 @@ pub enum ClientBuilderError {
 pub enum ServerBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
+
     #[error("no ObjectPlacementProvider")]
     NoObjectPlacementProvider,
+
     #[error("unknown")]
     Unknown(String),
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum ServerError {
+    #[error("bind")]
+    Bind(String),
+
+    #[error("client builder")]
+    ClientBuilder(ClientError),
+
+    #[error("cluster provider")]
+    ClusterProviderServe(ClusterProviderServeError),
+
+    #[error("Run")]
+    Run,
 }
 
 #[derive(Error, Debug, PartialEq)]

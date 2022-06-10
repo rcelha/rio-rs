@@ -8,7 +8,7 @@ autoexamples = false
 [dependencies]
 async-trait = "0.1.51"
 bincode = "1.3.3"
-dashmap = "5.0.0"
+dashmap = "5.3.4"
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -26,7 +26,7 @@ futures = "0.3.0"
 chrono = "0.4.19"
 
 # Store ServiceObject's placements locally
-lru = "0.7.2"
+lru = "0.7.7"
 
 # Client::send needs recursion (for now)
 async-recursion = "0.3.2"

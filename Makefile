@@ -1,6 +1,6 @@
 .PHONY: help
 help:
-	@echo make help|fmt|todo
+	@echo "make help|fmt|todo"
 
 .PHONY: todo
 todo:
@@ -33,19 +33,22 @@ docker-images:
 
 # Tooling
 .PHONY: tools
-tools: cargo-watch flamegraph
+tools: cargo-watch cargo-flamegraph cargo-nextest
 
 .PHONY: cargo-watch
 cargo-watch: $(HOME)/.cargo/bin/cargo-watch
-	@echo done
 
 $(HOME)/.cargo/bin/cargo-watch:
 	cargo install cargo-watch
 
-
-.PHONY: flamegraph
-flamegraph: $(HOME)/.cargo/bin/cargo-flamegraph
-	@echo done
+.PHONY: cargo-flamegraph
+cargo-flamegraph: $(HOME)/.cargo/bin/cargo-flamegraph
 
 $(HOME)/.cargo/bin/cargo-flamegraph:
 	cargo install flamegraph
+
+.PHONY: cargo-nextest
+cargo-nextest: $(HOME)/.cargo/bin/cargo-nextest
+
+$(HOME)/.cargo/bin/cargo-nextest:
+	cargo install cargo-nextest
