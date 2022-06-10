@@ -15,25 +15,29 @@ use std::{
 };
 
 type LockHashMap<K, V> = Arc<DashMap<K, V>>;
+// TODO -> type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
-type BoxedCallback = Box<dyn Fn(&str, &str, &[u8], Arc<AppData>) -> AsyncRet + Send>;
-type BoxedDefault = Box<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>;
+type BoxedCallback = Box<dyn Fn(&str, &str, &[u8], Arc<AppData>) -> AsyncRet + Send + Sync>;
 type BoxedStatic = Box<dyn Fn(Box<dyn Any>) -> Box<dyn Any + Send + Sync> + Send + Sync>;
 
+/// Store objects dynamically, registering handlers for different message types
+///
+/// The registry also offers the possibility of registering loose functions unique by its argument
+/// and return type
 #[derive(Default)]
 pub struct Registry {
     // (ObjectTypeName, ObjectId) -> Box<Obj>
     object_map: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
+
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
     handler_map: DashMap<(String, String), BoxedCallback>,
-    // (ObjectTypeName) -> Fn() -> Box<Object>
-    builder_map: HashMap<String, BoxedDefault>,
 
     // Static Map
     static_fn_map: HashMap<(String, TypeId), BoxedStatic>,
 }
 
+// TODO https://github.com/dtolnay/async-trait/issues/77
 unsafe impl Send for Registry {}
 unsafe impl Sync for Registry {}
 
@@ -51,18 +55,23 @@ impl Registry {
         self.object_map.insert((type_id, k), Box::new(v));
     }
 
-    /// TODO
-    pub fn add_static_fn<T, Argument, Function>(&mut self, static_fn: Function)
+    /// Registers a static function to build a specific from a parameters
+    ///
+    /// The static functions are unique by type (T) and argument type (A)
+    ///
+    /// To call these functions one can use `Registry::call_static_fn` or
+    /// `Registry::call_static_fn_box`
+    pub fn add_static_fn<T, A, F>(&mut self, static_fn: F)
     where
         T: IdentifiableType + 'static + Send + Sync,
-        Argument: Any,
-        Function: Fn(Argument) -> T + 'static + Send + Sync,
+        A: Any,
+        F: Fn(A) -> T + 'static + Send + Sync,
     {
         let type_id = T::user_defined_type_id().to_string();
-        let argument_type_id = TypeId::of::<Argument>();
+        let argument_type_id = TypeId::of::<A>();
         let boxed_fn = Box::new(move |arg: Box<dyn Any>| -> Box<dyn Any + Send + Sync> {
             let cast_arg = arg
-                .downcast::<Argument>()
+                .downcast::<A>()
                 .expect("TODO: Unsupported function called");
             Box::new(static_fn(*cast_arg))
         });
@@ -72,51 +81,43 @@ impl Registry {
             .insert((type_id, argument_type_id), boxed_fn);
     }
 
-    /// TODO
-    pub fn call_static_fn<T, Argument>(&mut self, argument: Argument) -> Option<T>
+    /// Call function from static registry
+    ///
+    /// It looks up the function by its return type (T) + argument type (A)
+    pub fn call_static_fn<T, A>(&mut self, argument: A) -> Option<T>
     where
-        T: IdentifiableType + 'static + Send + Sync + Default,
-        Argument: Any,
+        T: IdentifiableType + 'static + Send + Sync,
+        A: Any,
     {
         let type_id = T::user_defined_type_id().to_string();
-        let argument_type_id = TypeId::of::<Argument>();
+        let argument_type_id = TypeId::of::<A>();
         let ret = self.static_fn_map.get(&(type_id, argument_type_id))?(Box::new(argument));
         let ret = ret.downcast::<T>().ok()?;
         Some(*ret)
     }
 
-    /// TODO
-    pub fn call_static_fn_box<Argument>(
+    /// Same as `Registry::call_static_fn` but the caller can refer to the return type by name,
+    /// instead of using a generic
+    ///
+    /// The return will be an Any boxed into an Option, so the caller needs to downcast it
+    pub fn call_static_fn_box<A>(
         &self,
         type_id: String,
-        argument: Argument,
+        argument: A,
     ) -> Option<Box<dyn Any + Send + Sync>>
     where
-        Argument: Any,
+        A: Any,
     {
-        let argument_type_id = TypeId::of::<Argument>();
+        let argument_type_id = TypeId::of::<A>();
         let ret = self.static_fn_map.get(&(type_id, argument_type_id))?(Box::new(argument));
         Some(ret)
     }
 
-    /// Add a builder of type `T` to the builder map
-    ///
-    /// The builder is just a shortcut to insert a object generated with default to
-    /// the object map
-    pub fn add_builder<T: 'static>(&mut self)
-    where
-        T: IdentifiableType + Default + Send + Sync,
-    {
-        let k = T::user_defined_type_id().to_string();
-        self.builder_map
-            .insert(k, Box::new(move || Box::new(T::default())));
-    }
-
     /// Adds a message (M) handler for a given type (T)
-    pub fn add_handler<T: 'static, M: 'static>(&mut self)
+    pub fn add_handler<T, M>(&mut self)
     where
-        T: 'static + Handler<M> + IdentifiableType + Default + Send + Sync,
-        M: 'static + IdentifiableType + Message + Send,
+        T: 'static + Handler<M> + IdentifiableType + Send + Sync,
+        M: 'static + IdentifiableType + Message + Send + Sync,
     {
         let object_map = self.object_map.clone();
         let type_id = T::user_defined_type_id().to_string();
@@ -146,9 +147,6 @@ impl Registry {
         let boxed_callable: BoxedCallback = Box::new(callable);
         let callable_key = (type_id, message_type_id);
         self.handler_map.insert(callable_key, boxed_callable);
-
-        // TODO only do it once
-        self.add_builder::<T>();
     }
 
     pub async fn send(
@@ -160,23 +158,19 @@ impl Registry {
         context: Arc<AppData>,
     ) -> Result<Vec<u8>, HandlerError> {
         let callable_key = (type_id.to_string(), message_type_id.to_string());
-        let message_handler = self
-            .handler_map
-            .get(&callable_key)
-            .ok_or(HandlerError::HandlerNotFound)?;
-        let future_result = message_handler(type_id, object_id, message, context);
+        let future_result = {
+            let message_handler = self
+                .handler_map
+                .get(&callable_key)
+                .ok_or(HandlerError::HandlerNotFound)?;
+            message_handler(type_id, object_id, message, context)
+        };
         future_result.await
     }
 
     pub async fn has(&self, type_id: &str, object_id: &str) -> bool {
         let object_key = (type_id.to_string(), object_id.to_string());
         self.object_map.get(&object_key).is_some()
-    }
-
-    /// Build and insert new object to the object map
-    pub async fn insert_object(&self, type_id: String, object_id: String) {
-        let default = self.builder_map.get(&type_id).unwrap();
-        self.object_map.insert((type_id, object_id), default());
     }
 
     /// Build and insert new object to the object map
@@ -209,7 +203,8 @@ pub trait IdentifiableType {
 #[async_trait]
 pub trait Handler<M>
 where
-    M: Message,
+    Self: Send + Sync,
+    M: Message + Send + Sync,
 {
     type Returns: Serialize + Sync + Send;
     async fn handle(
@@ -346,9 +341,11 @@ mod test {
 
     #[tokio::test]
     async fn sanity_check() {
-        let _: Box<dyn Any + Send + Sync> = Box::new(Registry::new());
-        let _: Box<dyn Any + Send> = Box::new(Registry::new());
-        let _: Box<dyn Any + Sync> = Box::new(Registry::new());
+        fn is_sync<T: Sync>(_t: T) {}
+        is_sync(Human {});
+        is_sync(HiMessage {});
+        is_sync(Registry::new());
+        is_sync(Box::new(Registry::new()));
 
         let mut registry = Registry::new();
         let obj = Human {};
@@ -487,7 +484,11 @@ mod test {
         let mut registry = Registry::new();
         registry.add_handler::<Human, ErrorMessage>();
         registry
-            .insert_object("Human".to_string(), "john".to_string())
+            .insert_boxed_object(
+                "Human".to_string(),
+                "john".to_string(),
+                Box::new(Human::default()),
+            )
             .await;
         let ret = registry
             .send(
@@ -605,23 +606,16 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_dynamic_insert_object() {
-        let mut registry = Registry::new();
-        registry.add_builder::<Human>();
-        assert!(!registry.has("Human", "john").await);
-        registry
-            .insert_object("Human".to_string(), "john".to_string())
-            .await;
-        assert!(registry.has("Human", "john").await);
-    }
-
-    #[tokio::test]
-    async fn test_automatic_dynamic_insert_object() {
+    async fn test_insert_object() {
         let mut registry = Registry::new();
         registry.add_handler::<Human, HiMessage>();
         assert!(!registry.has("Human", "john").await);
         registry
-            .insert_object("Human".to_string(), "john".to_string())
+            .insert_boxed_object(
+                "Human".to_string(),
+                "john".to_string(),
+                Box::new(Human::default()),
+            )
             .await;
         assert!(registry.has("Human", "john").await);
     }

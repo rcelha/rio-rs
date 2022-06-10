@@ -1,7 +1,6 @@
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use std::sync::Arc;
-use tokio::io::BufReader;
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
@@ -10,7 +9,7 @@ use tower::Service as TowerService;
 
 use crate::app_data::AppData;
 use crate::cluster::storage::MembersStorage;
-use crate::object_placement::ObjectPlacementProvider;
+use crate::object_placement::{ObjectPlacement, ObjectPlacementProvider};
 use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
 use crate::{LifecycleMessage, ObjectId};
@@ -45,7 +44,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
         let app_data = self.app_data.clone();
 
         let result = async move {
-            let server_address = Self::upsert_placement(
+            let server_address = Self::get_or_create_placement(
                 object_placement_provider.clone(),
                 address.clone(),
                 req.handler_type.clone(),
@@ -134,23 +133,34 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
 }
 
 impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<S, P> {
-    async fn upsert_placement(
+    async fn get_or_create_placement(
         object_placement_provider: Arc<RwLock<P>>,
         address: String,
         handler_type: String,
         handler_id: String,
     ) -> String {
-        object_placement_provider
-            .write()
-            .await
-            .upsert(ObjectId(handler_type, handler_id), address)
-            .await
+        let object_id = ObjectId(handler_type, handler_id);
+        let placement_guard = object_placement_provider.read().await;
+        let maybe_server_address = placement_guard.lookup(&object_id).await.take();
+        drop(placement_guard);
+        if let Some(server_address) = maybe_server_address {
+            server_address
+        } else {
+            let new_placement = ObjectPlacement::new(object_id, Some(address.clone()));
+            {
+                object_placement_provider
+                    .write()
+                    .await
+                    .update(new_placement)
+                    .await;
+            };
+            address
+        }
     }
 
     // TODO tune LightDelimitedCodec
     // TODO move this into a transport struct
     pub async fn run(&mut self, stream: TcpStream) {
-        let stream = BufReader::new(stream);
         let codec = LengthDelimitedCodec::new();
         let mut frames = Framed::new(stream, codec);
 

@@ -1,33 +1,42 @@
-use metric_aggregator::messages;
-use metric_aggregator::services::{self, Counter};
+use clap::Parser;
+use ping_pong::messages;
+use ping_pong::services;
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
+use rio_rs::prelude::*;
 use rio_rs::state::sql::SqlState;
-use rio_rs::{prelude::*, state::local::LocalState};
 use sqlx::any::AnyPoolOptions;
-use std::sync::atomic::AtomicUsize;
 
-static USAGE: &str =
-    "usage: server ip:port [MEMBERSHIP_CONNECTION_STRING] [PLACEMENT_CONNECTION_STRING]";
+#[derive(Parser, Debug)]
+struct Args {
+    #[clap(value_parser)]
+    port: String,
+
+    #[clap(short, value_parser)]
+    membership_conn: Option<String>,
+
+    #[clap(short, value_parser)]
+    placement_conn: Option<String>,
+}
 
 #[tokio::main]
 async fn main() {
-    let mut args = std::env::args().skip(1);
-    let addr = args.next().expect(USAGE);
+    let mut args = Args::parse();
+
+    let addr = format!("0.0.0.0:{}", args.port);
+
     let members_storage_connection = args
-        .next()
-        .unwrap_or("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string());
+        .membership_conn
+        .get_or_insert("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string());
+
     let placement_connection = args
-        .next()
-        .unwrap_or("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
+        .placement_conn
+        .get_or_insert("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
     let mut registry = Registry::new();
-    registry.add_static_fn::<services::MetricAggregator, String, _>(FromId::from_id);
-    registry.add_handler::<services::MetricAggregator, LifecycleMessage>();
-    registry.add_handler::<services::MetricAggregator, messages::Ping>();
-    registry.add_handler::<services::MetricAggregator, messages::Metric>();
-    registry.add_handler::<services::MetricAggregator, messages::GetMetric>();
-    registry.add_handler::<services::MetricAggregator, messages::Drop>();
+    registry.add_static_fn::<services::Room, String, _>(FromId::from_id);
+    registry.add_handler::<services::Room, LifecycleMessage>();
+    registry.add_handler::<services::Room, messages::Ping>();
 
     let num_cpus = std::thread::available_parallelism()
         .expect("error getting num of CPUs")
@@ -66,9 +75,6 @@ async fn main() {
         .build()
         .expect("TODO: server builder fail");
 
-    server.app_data(Counter(AtomicUsize::new(0)));
-    server.app_data(LocalState::new());
-
     let sql_state_pool = AnyPoolOptions::new()
         .max_connections(num_cpus)
         .connect("sqlite:///tmp/state.sqlite3?mode=rwc")
@@ -77,5 +83,5 @@ async fn main() {
     let sql_state = SqlState::new(sql_state_pool);
     sql_state.migrate().await;
     server.app_data(sql_state);
-    server.run().await;
+    server.run().await.unwrap();
 }

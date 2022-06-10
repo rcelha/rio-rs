@@ -203,16 +203,21 @@ There are a few things that must be done before v0.1.0:
 - [x] Public API renaming
 - [x] Reduce Boxed objects
 - [x] Create a Server builder
-- [ ] Reduce static lifetimes
 - [ ] Harden networking (only happy path is implemented)
+    - [x] Use tower for client
+    - [x] Remove unwrap from client and server services
+    - [x] Improve `upsert` performance
+    - [ ] Add more extensive tests to client/server integration
+- [ ] Client/server keep alive
+- [ ] Reduce static lifetimes
 - [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
 - [ ] Pub/sub
 - [ ] Placement strategies
 - [ ] Dockerized examples
 - [ ] Supervision
-- [ ] Regular actors (anonym actors)
+- [ ] Ephemeral objects (aka regular actors)
 - [ ] Code of conduct
 - [ ] Remove magic numbers
 - [ ] Object TTL
-- [ ] Support service background task
+- [x] Support service background task

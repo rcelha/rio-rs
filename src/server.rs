@@ -10,7 +10,7 @@ use crate::app_data::AppData;
 use crate::client::ClientConnectionManager;
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembersStorage;
-use crate::errors::ServerBuilderError;
+use crate::errors::{ServerBuilderError, ServerError};
 use crate::object_placement::ObjectPlacementProvider;
 use crate::registry::Registry;
 use crate::service::Service;
@@ -132,6 +132,8 @@ where
     }
 }
 
+type ServerResult<T> = Result<T, ServerError>;
+
 impl<S, C, P> Server<S, C, P>
 where
     S: MembersStorage + 'static,
@@ -163,41 +165,44 @@ where
     }
 
     /// Run the server forever
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self) -> ServerResult<()> {
         let pool_manager =
             ClientConnectionManager::new(self.cluster_provider.members_storage().clone());
         let client_pool = Pool::builder()
             .max_size(self.client_pool_size)
             .build(pool_manager)
             .await
-            .expect("TODO: client builder error");
+            .map_err(|err| ServerError::ClientBuilder(err))?;
         self.app_data(client_pool);
 
         let (admin_sender, admin_receiver) = mpsc::unbounded_channel::<AdminCommands>();
         self.app_data(admin_sender);
 
         tokio::select! {
-            _ = self.accept() => {
-                println!("serve finished first");
+            accept_result = self.accept() => {
+                accept_result?;
             }
-            _ = self.cluster_provider.serve(&self.address)  => {
-                println!("cluster provider serve finished first");
+            cluster_provider_serve_result = self.cluster_provider.serve(&self.address)  => {
+                cluster_provider_serve_result.map_err(|e| ServerError::ClusterProviderServe(e))?;
             }
             _ = self.consume_admin_commands(admin_receiver) => {
                 println!("admin command serve finished first");
             }
         };
+        Ok(())
     }
 
-    async fn accept(&self) {
+    async fn accept(&self) -> ServerResult<()> {
         let listener = TcpListener::bind(&self.address)
             .await
-            .expect("TODO: Failed to bind address");
+            .map_err(|err| ServerError::Bind(err.to_string()))?;
+
         println!("Listening on: {}", self.address);
+
         loop {
-            let (stream, _) = listener.accept().await.unwrap();
+            let (stream, _) = listener.accept().await.map_err(|_| ServerError::Run)?;
             let mut service: Service<S, P> = self.into();
-            service.ready().await.expect("TODO: Accept error");
+            service.ready().await.map_err(|_| ServerError::Run)?;
             tokio::spawn(async move { service.run(stream).await });
         }
     }
