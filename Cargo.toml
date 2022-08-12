@@ -39,3 +39,10 @@ bb8 = "0.7.1"
 
 # DB
 sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "sqlite", "postgres", "any", "chrono" ] }
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["async_tokio"] }
+
+[[bench]]
+name = "benchmark"
+harness = false

@@ -4,6 +4,7 @@
 #![doc = include_str!("../README.md")]
 
 pub mod app_data;
+pub mod channel_registry;
 pub mod client;
 pub mod cluster;
 pub mod errors;
