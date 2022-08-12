@@ -10,6 +10,7 @@ pub mod errors;
 pub mod object_placement;
 pub mod protocol;
 pub mod registry;
+pub mod channel_registry;
 pub mod server;
 pub mod service;
 pub mod service_object;
