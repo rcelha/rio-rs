@@ -5,6 +5,7 @@ edition = "2018"
 license-file = "LICENSE"
 autoexamples = false
 repository = "https://github.com/rcelha/rio-rs"
+description = "Distributed stateful service framework"
 
 [dependencies]
 async-trait = "0.1.57"
