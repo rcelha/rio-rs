@@ -1,3 +1,5 @@
+$(shell ln -sf ${PWD}/pre-commit ${PWD}/.git/hooks/)
+
 .PHONY: help
 help:
 	@echo "make help|fmt|todo"
