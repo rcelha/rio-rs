@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use crate::protocol::ClientError;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum HandlerError {
     #[error("object not found")]
     ObjectNotFound,
@@ -22,19 +22,19 @@ pub enum HandlerError {
     Unknown,
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServiceObjectLifeCycleError {
     #[error("unknown error")]
     Unknown,
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClientBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServerBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
@@ -46,7 +46,7 @@ pub enum ServerBuilderError {
     Unknown(String),
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServerError {
     #[error("bind")]
     Bind(String),
@@ -61,7 +61,7 @@ pub enum ServerError {
     Run,
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum MembershipError {
     #[error("upstream error")]
     Upstream(String),
@@ -76,7 +76,7 @@ impl From<sqlx::Error> for MembershipError {
     }
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClusterProviderServeError {
     #[error("can't communicate with membership provider's storage")]
     MembershipProviderError(String),

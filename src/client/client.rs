@@ -156,7 +156,7 @@ where
         match &self.active_servers {
             None => return Err(ClientError::NoServersAvailable),
             Some(active_servers) => {
-                if active_servers.len() == 0 {
+                if active_servers.is_empty() {
                     return Err(ClientError::NoServersAvailable);
                 }
 
@@ -180,14 +180,12 @@ where
 
         // If there are no stream for the address, create a new one
         // This is on a nested block so it controlls the guards in `self.stream`
-        {
-            if let None = self.streams.get(address) {
-                let stream = TcpStream::connect(&address).await.map_err(|x| {
-                    ClientError::Unknown(format!("(Address {}) - {:?}", address, x))
-                })?;
-                let stream = Framed::new(stream, LengthDelimitedCodec::new());
-                self.streams.insert(address.to_string(), stream);
-            }
+        if self.streams.get(address).is_none() {
+            let stream = TcpStream::connect(&address)
+                .await
+                .map_err(|x| ClientError::Unknown(format!("(Address {}) - {:?}", address, x)))?;
+            let stream = Framed::new(stream, LengthDelimitedCodec::new());
+            self.streams.insert(address.to_string(), stream);
         };
 
         self.streams
@@ -454,7 +452,7 @@ mod test {
     #[tokio::test]
     async fn test_service_clone() {
         let client = client_with_members().await;
-        let _ = client.clone();
+        let _ = client;
     }
 
     // TODO integration tests
