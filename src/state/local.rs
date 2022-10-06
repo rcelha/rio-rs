@@ -8,7 +8,7 @@ use serde::Serialize;
 /// `LocalState` is a state provider for testing purposes
 ///
 /// It stores all the serialized states into a single `DashMap`
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LocalState {
     data: DashMap<(String, String, String), String>,
 }

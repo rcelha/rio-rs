@@ -111,7 +111,7 @@ where
 
     pub fn build(self) -> Result<Server<S, C, P>, ServerBuilderError> {
         let address = self.address;
-        let registry = self.registry.unwrap_or_else(|| Registry::new());
+        let registry = self.registry.unwrap_or_else(Registry::new);
         let cluster_provider = self
             .cluster_provider
             .ok_or(ServerBuilderError::NoMembersStorage)?;
@@ -172,7 +172,7 @@ where
             .max_size(self.client_pool_size)
             .build(pool_manager)
             .await
-            .map_err(|err| ServerError::ClientBuilder(err))?;
+            .map_err(ServerError::ClientBuilder)?;
         self.app_data(client_pool);
 
         let (admin_sender, admin_receiver) = mpsc::unbounded_channel::<AdminCommands>();
@@ -183,7 +183,7 @@ where
                 accept_result?;
             }
             cluster_provider_serve_result = self.cluster_provider.serve(&self.address)  => {
-                cluster_provider_serve_result.map_err(|e| ServerError::ClusterProviderServe(e))?;
+                cluster_provider_serve_result.map_err(ServerError::ClusterProviderServe)?;
             }
             _ = self.consume_admin_commands(admin_receiver) => {
                 println!("admin command serve finished first");
@@ -228,15 +228,15 @@ where
     }
 }
 
-impl<S: MembersStorage, C: ClusterProvider<S>, P: ObjectPlacementProvider> Into<Service<S, P>>
-    for &Server<S, C, P>
+impl<S: MembersStorage, C: ClusterProvider<S>, P: ObjectPlacementProvider> From<&Server<S, C, P>>
+    for Service<S, P>
 {
-    fn into(self) -> Service<S, P> {
-        let address = self.address.clone();
-        let registry = self.registry.clone();
-        let object_placement_provider = self.object_placement_provider.clone();
-        let app_data = self.app_data.clone();
-        let members_storage = self.cluster_provider.members_storage().clone();
+    fn from(server: &Server<S, C, P>) -> Self {
+        let address = server.address.clone();
+        let registry = server.registry.clone();
+        let object_placement_provider = server.object_placement_provider.clone();
+        let app_data = server.app_data.clone();
+        let members_storage = server.cluster_provider.members_storage().clone();
 
         Service {
             address,

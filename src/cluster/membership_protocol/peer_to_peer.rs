@@ -86,7 +86,7 @@ where
         local_storage.push(member.clone()).await?;
         let mut client = Client::new(local_storage);
 
-        if let Err(_) = client.ping().await {
+        if (client.ping().await).is_err() {
             self.members_storage()
                 .notify_failure(member.ip(), member.port())
                 .await?;

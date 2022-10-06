@@ -48,7 +48,7 @@ impl From<HandlerError> for ResponseEnvelope {
     }
 }
 
-#[derive(Debug, PartialEq, Error, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Error, Serialize, Deserialize)]
 pub enum ResponseError {
     #[error("ServiceObject is in another server")]
     Redirect(String),
@@ -78,7 +78,7 @@ impl From<HandlerError> for ResponseError {
     }
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClientError {
     #[error("server response error")]
     ResponseError(ResponseError),

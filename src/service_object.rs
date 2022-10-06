@@ -64,7 +64,7 @@ pub trait ServiceObject:
     }
 
     async fn shutdown(&mut self, app_data: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
-        self.before_shutdown(&app_data).await?;
+        self.before_shutdown(app_data).await?;
         let admin_sender = app_data.get::<AdminSender>().clone();
         admin_sender
             .send(AdminCommands::Shutdown(
