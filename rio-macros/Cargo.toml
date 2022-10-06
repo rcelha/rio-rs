@@ -3,6 +3,8 @@ name = "rio-macros"
 version = "0.1.0"
 edition = "2021"
 description = "Proc macros to help developing rio-rs applications"
+license-file = "../LICENSE"
+repository = "https://github.com/rcelha/rio-rs"
 
 [lib]
 proc-macro = true
