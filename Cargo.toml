@@ -16,7 +16,7 @@ thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.8" }
 tokio-util = { version = "0.6", features = ["full"] }
-rio-macros = { path = "./rio-macros" }
+rio-macros = { path = "./rio-macros", version = "0.1.0" }
 tower = { version = "0.4.12", features = ["full"] }
 
 # Need for futures::SyncExt (Framed.send)
@@ -38,4 +38,10 @@ state = "0.5.2"
 bb8 = "0.7.1"
 
 # DB
-sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "sqlite", "postgres", "any", "chrono" ] }
+sqlx = { version = "0.5", features = [
+  "runtime-tokio-native-tls",
+  "sqlite",
+  "postgres",
+  "any",
+  "chrono",
+] }
