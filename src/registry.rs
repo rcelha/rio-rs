@@ -37,10 +37,6 @@ pub struct Registry {
     static_fn_map: HashMap<(String, TypeId), BoxedStatic>,
 }
 
-// TODO https://github.com/dtolnay/async-trait/issues/77
-unsafe impl Send for Registry {}
-unsafe impl Sync for Registry {}
-
 impl Registry {
     pub fn new() -> Registry {
         Registry::default()

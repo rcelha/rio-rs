@@ -180,7 +180,7 @@ impl From<TokenStream2> for StateDefinition {
                         .expect(&format!("No path value for field {:#?}", field));
 
                     if segment.ident != "Option" {
-                        panic!("Attributes decorated with [managed_state] need to be options");
+                        panic!("Attributes decorated with [managed_state] need to be a Option<T>, found {}", segment.ident);
                     }
 
                     match &segment.arguments {
