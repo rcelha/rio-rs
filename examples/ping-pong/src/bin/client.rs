@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .members_storage(members_storage)
         .build()?;
 
-    let _: messages::Pong = client
+    let resp: messages::Pong = client
         .send(
             "Room".to_string(),
             "1".to_string(),
@@ -33,5 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .unwrap();
 
+    println!("Response: {:#?}", resp);
     Ok(())
 }

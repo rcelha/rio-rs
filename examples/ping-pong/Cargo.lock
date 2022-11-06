@@ -45,6 +45,8 @@ dependencies = [
 [[package]]
 name = "async-trait"
 version = "0.1.57"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76464446b8bc32758d7e88ee1a804d9914cd9b1cb264c029899680b0be29826f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -54,8 +56,7 @@ dependencies = [
 [[package]]
 name = "async-trait"
 version = "0.1.57"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76464446b8bc32758d7e88ee1a804d9914cd9b1cb264c029899680b0be29826f"
+source = "git+https://github.com/rcelha/async-trait?branch=feature_add_sync_option_for_future#d258079049b5d69896750d0997ce304ccf8be834"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1150,7 +1151,7 @@ name = "rio-rs"
 version = "0.1.0"
 dependencies = [
  "async-recursion",
- "async-trait 0.1.57",
+ "async-trait 0.1.57 (git+https://github.com/rcelha/async-trait?branch=feature_add_sync_option_for_future)",
  "bb8",
  "bincode",
  "chrono",

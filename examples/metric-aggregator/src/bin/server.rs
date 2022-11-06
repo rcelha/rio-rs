@@ -4,7 +4,6 @@ use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 use rio_rs::state::sql::SqlState;
 use rio_rs::{prelude::*, state::local::LocalState};
-use sqlx::any::AnyPoolOptions;
 use std::sync::atomic::AtomicUsize;
 
 static USAGE: &str =
@@ -69,13 +68,12 @@ async fn main() {
     server.app_data(Counter(AtomicUsize::new(0)));
     server.app_data(LocalState::new());
 
-    let sql_state_pool = AnyPoolOptions::new()
-        .max_connections(num_cpus)
+    let sql_state_pool = SqlState::pool()
         .connect("sqlite:///tmp/state.sqlite3?mode=rwc")
         .await
-        .expect("TODO: Connection failure");
+        .expect("Connection failure");
     let sql_state = SqlState::new(sql_state_pool);
     sql_state.migrate().await;
     server.app_data(sql_state);
-    server.run().await;
+    server.run().await.expect("");
 }

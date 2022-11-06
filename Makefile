@@ -19,9 +19,18 @@ fmt-src:
 
 .PHONY: fmt-examples
 fmt-examples:
+	@echo "Formatting metric-aggregator"
 	cd ./examples/metric-aggregator && cargo fmt
 	cd ./examples/metric-aggregator && cargo fix --allow-dirty --allow-staged
 	cd ./examples/metric-aggregator && cargo c
+	@echo "Formatting black-jack"
+	cd ./examples/black-jack && cargo fmt
+	cd ./examples/black-jack && cargo fix --allow-dirty --allow-staged
+	cd ./examples/black-jack && cargo c
+	@echo "Formatting ping-pong"
+	cd ./examples/ping-pong && cargo fmt
+	cd ./examples/ping-pong && cargo fix --allow-dirty --allow-staged
+	cd ./examples/ping-pong && cargo c
 
 .PHONY: fmt-macros
 fmt-macros:

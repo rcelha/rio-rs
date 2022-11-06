@@ -205,6 +205,9 @@ There are a few things that must be done before v0.1.0:
 - [x] Public API renaming
 - [x] Reduce Boxed objects
 - [x] Create a Server builder
+- [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
+- [ ] Error and panic handling on life cycle hooks (probably kill the object)
+- [ ] Handle panics on messages handling
 - [ ] Include registry configuration in Server builder
 - [ ] Remove need to use `add_static_fn(FromId::from_id)`
 - [ ] Create a getting started tutorial
@@ -227,7 +230,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Pub/sub
 - [ ] Placement strategies
 - [ ] Dockerized examples
-- [ ] Add psql jsonb support
+- [ ] Add pgsql jsonb support
 - [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
 - [ ] Supervision
 - [ ] Ephemeral objects (aka regular actors)
@@ -238,6 +241,6 @@ There are a few things that must be done before v0.1.0:
 - [ ] Matrix test with different backends
 - [ ] Support 'typed' message/response on client
 - [ ] Support ephemeral port
-- [ ] Examples covering most use cases
+- [-] Examples covering most use cases
   - [ ] Background async task on a service
-  - [ ] Background blocking task on a service
+  - [x] Background blocking task on a service (_see_ [examples/black-jack]())

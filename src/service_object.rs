@@ -31,16 +31,18 @@ pub trait ServiceObject:
     FromId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
 {
     /// Send a message to Rio cluster using a client tht is stored in AppData
-    async fn send<S, T, V>(
+    async fn send<S, T, V, H, I>(
         app_data: &AppData,
-        handler_type_id: String,
-        handler_id: String,
+        handler_type_id: &H,
+        handler_id: &I,
         payload: &V,
     ) -> Result<T, ClientError>
     where
         S: MembersStorage + 'static,
         T: DeserializeOwned,
         V: Serialize + IdentifiableType + Send + Sync,
+        H: AsRef<str> + Send + Sync,
+        I: AsRef<str> + Send + Sync,
     {
         let pool: &Pool<ClientConnectionManager<S>> = app_data.get();
         match pool.get().await {
