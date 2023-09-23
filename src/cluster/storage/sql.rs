@@ -29,7 +29,7 @@ impl SqlMembersStorage {
                (
                    ip              TEXT                NOT NULL,
                    port            TEXT                NOT NULL,
-                   last_seen       TIMESTAMP           NOT NULL,
+                   last_seen       TIMESTAMPTZ         NOT NULL,
                    active          BOOLEAN             NOT NULL DEFAULT FALSE,
                    PRIMARY KEY (ip, port)
                )"#,
@@ -39,10 +39,10 @@ impl SqlMembersStorage {
             // Failures table
             r#"CREATE TABLE IF NOT EXISTS cluster_provider_member_failures
                (
-                   id              INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                   id              SERIAL PRIMARY KEY,
                    ip              TEXT                              NOT NULL,
                    port            TEXT                              NOT NULL,
-                   time            TIMESTAMP                         NOT NULL default CURRENT_TIMESTAMP
+                   time            TIMESTAMPTZ                       NOT NULL default CURRENT_TIMESTAMP
                )"#,
             "CREATE INDEX IF NOT EXISTS idx_cluster_provider_member_failures_time ON cluster_provider_member_failures(time)",
             "CREATE INDEX IF NOT EXISTS idx_cluster_provider_member_failures_ip_port ON cluster_provider_member_failures(ip, port)",

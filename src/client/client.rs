@@ -239,16 +239,21 @@ where
     /// Send a request to the cluster transparently (the caller doesn't need to know where the
     /// object is placed)
     #[async_recursion]
-    pub async fn send<T, V>(
+    pub async fn send<T, V, H, I>(
         &mut self,
-        handler_type: String,
-        handler_id: String,
+        handler_type: H,
+        handler_id: I,
         payload: &V,
     ) -> Result<T, ClientError>
     where
         T: DeserializeOwned,
         V: Serialize + IdentifiableType + Send + Sync,
+        H: AsRef<str> + Send + Sync,
+        I: AsRef<str> + Send + Sync,
     {
+        let handler_type = handler_type.as_ref().to_string();
+        let handler_id = handler_id.as_ref().to_string();
+
         // TODO move fetch_active_servers into poll_ready self.ready().await?;
         self.fetch_active_servers().await?;
         let ser_payload = bincode::serialize(&payload)
@@ -273,7 +278,8 @@ where
                     .write()
                     .map_err(|_| ClientError::PlacementLock)?
                     .put((handler_type.clone(), handler_id.clone()), to);
-                self.send::<T, V>(handler_type, handler_id, payload).await
+                self.send::<T, V, _, _>(handler_type, handler_id, payload)
+                    .await
             }
             // Retry so it picks up a new Server on the cluster
             Err(ClientError::ResponseError(ResponseError::DeallocateServiceObject)) => {
@@ -281,7 +287,8 @@ where
                     .write()
                     .map_err(|_| ClientError::PlacementLock)?
                     .pop(&(handler_type.clone(), handler_id.clone()));
-                self.send::<T, V>(handler_type, handler_id, payload).await
+                self.send::<T, V, _, _>(handler_type, handler_id, payload)
+                    .await
             }
             Err(err) => Err(err),
         }

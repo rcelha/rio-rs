@@ -46,6 +46,8 @@ impl Handler<HelloMessage> for HelloWorldService {
 
 To run your application you need to spin up your servers, the `Server`
 
+<!-- TODO: Include example of other databases -->
+
 ```rust
 use rio_rs::prelude::*;
 use rio_rs::cluster::storage::sql::{SqlMembersStorage};
@@ -120,7 +122,7 @@ async fn main() {
     );
 
     // Run the server
-    // server.serve().await;
+    // server.run().await;
 }
 ```
 
@@ -203,11 +205,24 @@ There are a few things that must be done before v0.1.0:
 - [x] Public API renaming
 - [x] Reduce Boxed objects
 - [x] Create a Server builder
-- [ ] Harden networking (only happy path is implemented)
-    - [x] Use tower for client
-    - [x] Remove unwrap from client and server services
-    - [x] Improve `upsert` performance
-    - [ ] Add more extensive tests to client/server integration
+- [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
+- [ ] Error and panic handling on life cycle hooks (probably kill the object)
+- [ ] Handle panics on messages handling
+- [ ] Include registry configuration in Server builder
+- [ ] Remove need to use `add_static_fn(FromId::from_id)`
+- [ ] Create a getting started tutorial
+  - [ ] Cargo init
+  - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
+  - [ ] Write a server
+  - [ ] Write a client
+  - [ ] Add service and messages
+  - [ ] Cargo run --bin server
+  - [ ] Cargo run --bin client
+  - [ ] Life cycle
+  - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
+  - [ ] Cargo test?
+- [ ] Make all sql statements compatible with sqlite, mysql and pgsql
+- [ ] Add more extensive tests to client/server integration
 - [ ] Client/server keep alive
 - [ ] Reduce static lifetimes
 - [ ] Increase public API test coverage
@@ -215,9 +230,17 @@ There are a few things that must be done before v0.1.0:
 - [ ] Pub/sub
 - [ ] Placement strategies
 - [ ] Dockerized examples
+- [ ] Add pgsql jsonb support
+- [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
 - [ ] Supervision
 - [ ] Ephemeral objects (aka regular actors)
 - [ ] Code of conduct
 - [ ] Remove magic numbers
 - [ ] Object TTL
 - [x] Support service background task
+- [ ] Matrix test with different backends
+- [ ] Support 'typed' message/response on client
+- [ ] Support ephemeral port
+- [-] Examples covering most use cases
+  - [ ] Background async task on a service
+  - [x] Background blocking task on a service (_see_ [examples/black-jack]())

@@ -30,15 +30,15 @@ impl MetricAggregator {
     async fn propagate_to_tags(&self, app_data: &Arc<AppData>, tags: &str, value: i32) {
         let _: Vec<messages::MetricResponse> =
             futures::future::join_all(tags.split(",").filter(|x| !x.trim().is_empty()).map(
-                |i| async {
+                |i| async move {
                     let sub_message = messages::Metric {
                         tags: "".to_string(),
                         value,
                     };
-                    Self::send::<SqlMembersStorage, _, _>(
+                    Self::send::<SqlMembersStorage, _, _, _, _>(
                         &app_data,
-                        "MetricAggregator".to_string(),
-                        i.to_string(),
+                        &"MetricAggregator",
+                        &i,
                         &sub_message,
                     )
                     .await
@@ -78,7 +78,7 @@ impl Handler<messages::Metric> for MetricAggregator {
             .await;
 
         match self.metric_stats.as_mut() {
-            Some(mut stats) => {
+            Some(stats) => {
                 stats.count += 1;
                 stats.sum += message.value;
                 stats.min = i32::min(stats.min, message.value);

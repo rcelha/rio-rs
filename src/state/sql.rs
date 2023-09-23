@@ -2,7 +2,11 @@ use crate::errors::LoadStateError;
 use async_trait::async_trait;
 use futures::TryFutureExt;
 use serde::{de::DeserializeOwned, Serialize};
-use sqlx::{self, any::AnyRow, AnyPool, Row};
+use sqlx::{
+    self,
+    any::{AnyPoolOptions, AnyRow},
+    AnyPool, Row,
+};
 
 use super::{StateLoader, StateSaver};
 
@@ -12,6 +16,10 @@ pub struct SqlState {
 }
 
 impl SqlState {
+    pub fn pool() -> AnyPoolOptions {
+        AnyPoolOptions::new()
+    }
+
     pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
