@@ -1,4 +1,4 @@
-# Rio
+# rio-rs
 
 Distributed stateful services inspired by Orleans
 
@@ -40,49 +40,20 @@ impl Handler<HelloMessage> for HelloWorldService {
         Ok(HelloResponse {})
     }
 }
+
 ```
 
 ## Running Server
 
 To run your application you need to spin up your servers, the `Server`
 
-<!-- TODO: Include example of other databases -->
+TODO: Include example of other databases
 
 ```rust
 use rio_rs::prelude::*;
 use rio_rs::cluster::storage::sql::{SqlMembersStorage};
 use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 
-# // Copied from the snippet above
-# use async_trait::async_trait;
-# use serde::{Deserialize, Serialize};
-# use std::sync::Arc;
-#
-# #[derive(TypeName, Message, Deserialize, Serialize)]
-# pub struct HelloMessage {
-#     pub name: String
-# }
-#
-# #[derive(TypeName, Message, Deserialize, Serialize)]
-# pub struct HelloResponse {}
-#
-# #[derive(TypeName, WithId, Default)]
-# pub struct HelloWorldService {
-#     pub id: String,
-# }
-#
-# #[async_trait]
-# impl Handler<HelloMessage> for HelloWorldService{
-#     type Returns = HelloResponse;
-#     async fn handle(
-#         &mut self,
-#         message: HelloMessage,
-#         app_data: Arc<AppData>,
-#     ) -> Result<Self::Returns, HandlerError> {
-#         println!("Hello world");
-#         Ok(HelloResponse {})
-#     }
-# }
 
 #[tokio::main]
 async fn main() {
@@ -131,40 +102,10 @@ async fn main() {
 Communicating with the cluster is just a matter of sending the serialized known messages via TCP.
 The [`client`] module provides an easy way of achieving this:
 
-```no_run
+```rust
 use rio_rs::prelude::*;
 use rio_rs::cluster::storage::sql::{SqlMembersStorage};
 
-# // Copied from the snippet above
-# use async_trait::async_trait;
-# use serde::{Deserialize, Serialize};
-# use std::sync::Arc;
-#
-# #[derive(TypeName, Message, Deserialize, Serialize)]
-# pub struct HelloMessage {
-#     pub name: String
-# }
-#
-# #[derive(TypeName, Message, Deserialize, Serialize)]
-# pub struct HelloResponse {}
-#
-# #[derive(TypeName, WithId, Default)]
-# pub struct HelloWorldService {
-#     pub id: String,
-# }
-#
-# #[async_trait]
-# impl Handler<HelloMessage> for HelloWorldService {
-#     type Returns = HelloResponse;
-#     async fn handle(
-#         &mut self,
-#         message: HelloMessage,
-#         app_data: Arc<AppData>,
-#     ) -> Result<Self::Returns, HandlerError> {
-#         println!("Hello world");
-#         Ok(HelloResponse {})
-#     }
-# }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -193,6 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+---
+
 ## Roadmap
 
 There are a few things that must be done before v0.1.0:
@@ -205,13 +148,23 @@ There are a few things that must be done before v0.1.0:
 - [x] Public API renaming
 - [x] Reduce Boxed objects
 - [x] Create a Server builder
-- [ ] Pub/sub
+- [x] Remove need to use `add_static_fn(FromId::from_id)` -> Removed in favour of `Registry::add_type`
+- [x] Support service background task
+- [x] Pub/sub
+- [x] Examples covering most use cases
+  - [x] Background async task on a service
+  - [x] Background blocking task on a service (_see_ [black-jack](./examples/black-jack))
+  - [x] Pub/sub (_see_ [black-jack](./examples/black-jack))
+- [ ] Re-organize workspace
+- [ ] Allow `ServiceObject` trait without state persistence
+- [ ] Feature: Create server from config
+- [ ] Bypass clustering for self messages
+- [ ] Bypass networking for local messages
+- [ ] Move all the client to user tower
 - [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
 - [ ] Error and panic handling on life cycle hooks (probably kill the object)
 - [ ] Handle panics on messages handling
 - [ ] Include registry configuration in Server builder
-- [x] Remove need to use `add_static_fn(FromId::from_id)`
-    - Removed in favour of `Registry::add_type`
 - [ ] Create a getting started tutorial
   - [ ] Cargo init
   - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
@@ -225,24 +178,20 @@ There are a few things that must be done before v0.1.0:
   - [ ] Cargo test?
 - [ ] Make all sql statements compatible with sqlite, mysql and pgsql
 - [ ] Add more extensive tests to client/server integration
+- [ ] Increase public API test coverage
 - [ ] Client/server keep alive
 - [ ] Reduce static lifetimes
-- [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
 - [ ] Placement strategies (nodes work with different sets of trait objects)
 - [ ] Dockerized examples
 - [ ] Add pgsql jsonb support
 - [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
 - [ ] Supervision
-- [ ] Ephemeral objects (aka regular actors)
-- [ ] Code of conduct
+- [ ] Ephemeral objects (aka regular - local - actors)
 - [ ] Remove magic numbers
 - [ ] Object TTL
-- [x] Support service background task
 - [ ] Matrix test with different backends
 - [?] Support 'typed' message/response on client
-- [?] Support ephemeral port
-- [ ] Remove the need for an Option<T> value for [managed_state] attributes (as long as it has a 'Default')
-- [-] Examples covering most use cases
-  - [ ] Background async task on a service
-  - [x] Background blocking task on a service (_see_ [examples/black-jack]())
+- [ ] Support ephemeral port
+- [ ] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
+- [ ] Code of conduct

@@ -5,14 +5,17 @@ use std::{
 };
 
 use async_trait::async_trait;
-use rio_rs::{prelude::*, state::sql::SqlState};
+use rio_rs::{
+    app_data::AppDataExt, message_router::MessageRouter, prelude::*,
+    protocol::pubsub::SubscriptionResponse, registry::IdentifiableType, state::sql::SqlState,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     game_server::{
         build_app, AdminCommand, GameServerConfig, GameServerRequest, GameServerResponse,
     },
-    messages,
+    messages::{self, PlayerPush},
 };
 
 static MAX_PLAYERS: usize = 3;
@@ -30,6 +33,7 @@ pub struct GameTable {
 
     // Game Server stuff
     pub thread_join_handler: Option<JoinHandle<()>>,
+    pub msg_receiver_join_handler: Option<JoinHandle<()>>,
     pub response_rx: Option<crossbeam_channel::Receiver<GameServerResponse>>,
     pub request_tx: Option<crossbeam_channel::Sender<GameServerRequest>>,
 }
@@ -42,23 +46,42 @@ impl GameTable {
             .expect("Cant save state");
     }
 
-    fn start_game_server(&mut self) {
+    fn start_game_server(&mut self, app_data: Arc<AppData>) {
         let (command_tx, command_rx) = crossbeam_channel::unbounded();
         let (message_tx, message_rx) = crossbeam_channel::unbounded();
+        let (changes_tx, changes_rx) = crossbeam_channel::unbounded();
 
         let handler = thread::spawn(move || {
             let mut app = build_app(
                 message_tx,
                 command_rx,
+                changes_tx,
                 Some(GameServerConfig {
                     turn_duration_in_seconds: 10.0,
                 }),
             );
             app.run();
         });
+
+        let inner_app_data = app_data.clone();
+        let my_id = self.id.clone();
+        let msg_receiver_join_handler = thread::spawn(move || {
+            while let Ok(i) = changes_rx.recv() {
+                let router = inner_app_data.get_or_default::<MessageRouter>();
+                let type_id = Self::user_defined_type_id();
+                let message = PlayerPush(i);
+                let byte_message = bincode::serialize(&message).unwrap();
+                let packed_message = SubscriptionResponse {
+                    body: Ok(byte_message),
+                };
+                router.publish(type_id.to_string(), my_id.clone(), packed_message);
+            }
+        });
+
         self.thread_join_handler = Some(handler);
         self.response_rx = Some(message_rx);
         self.request_tx = Some(command_tx);
+        self.msg_receiver_join_handler = Some(msg_receiver_join_handler);
     }
 
     fn send_player_command(&mut self, command: GameServerRequest) -> GameServerResponse {
@@ -73,16 +96,22 @@ impl GameTable {
 
 #[async_trait]
 impl ServiceObject for GameTable {
-    async fn after_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn after_load(
+        &mut self,
+        app_data: Arc<AppData>,
+    ) -> Result<(), ServiceObjectLifeCycleError> {
         if self.state.is_none() {
             self.state = Some(Default::default())
         }
 
-        self.start_game_server();
+        self.start_game_server(app_data);
         Ok(())
     }
 
-    async fn before_shutdown(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn before_shutdown(
+        &mut self,
+        _: Arc<AppData>,
+    ) -> Result<(), ServiceObjectLifeCycleError> {
         if let Some(tx) = self.request_tx.take() {
             tx.send(GameServerRequest::Admin(AdminCommand::Quit)).ok();
         }
@@ -90,6 +119,11 @@ impl ServiceObject for GameTable {
         if let Some(handler) = self.thread_join_handler.take() {
             handler.join().ok();
         }
+
+        if let Some(handler) = self.msg_receiver_join_handler.take() {
+            handler.join().ok();
+        }
+
         Ok(())
     }
 }

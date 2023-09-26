@@ -29,7 +29,7 @@ impl Cassino {
 
 #[async_trait]
 impl ServiceObject for Cassino {
-    async fn after_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn after_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
         if self.state.is_none() {
             self.state = Some(Default::default())
         }
@@ -55,14 +55,9 @@ impl Handler<messages::JoinGame> for Cassino {
         loop {
             let last_id = self.state.as_ref().unwrap().table_ids.last().unwrap();
             let table_response: messages::JoinGameResponse =
-                Self::send::<SqlMembersStorage, _, _, _, _>(
-                    &app_data,
-                    &"GameTable",
-                    last_id,
-                    &message,
-                )
-                .await
-                .unwrap();
+                Self::send::<SqlMembersStorage, _, _>(&app_data, &"GameTable", last_id, &message)
+                    .await
+                    .unwrap();
 
             if table_response.user_ids.contains(&message.user_id) {
                 return Ok(table_response);

@@ -235,7 +235,7 @@ impl From<TokenStream2> for StateDefinition {
 }
 
 /// Implements State for you struct's attributes. Creating set_state and get_state for each
-/// attributed decorated with #[managed_state]
+/// attribute decorated with `#[managed_state]`
 ///
 /// ```ignore
 /// #[derive(Default, WithId, TypeName, ManagedState)]

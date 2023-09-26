@@ -35,7 +35,7 @@ impl MetricAggregator {
                         tags: "".to_string(),
                         value,
                     };
-                    Self::send::<SqlMembersStorage, _, _, _, _>(
+                    Self::send::<SqlMembersStorage, _, _>(
                         &app_data,
                         &"MetricAggregator",
                         &i,
@@ -51,7 +51,7 @@ impl MetricAggregator {
 
 #[async_trait]
 impl ServiceObject for MetricAggregator {
-    async fn after_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn after_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
         if self.metric_stats.is_none() {
             self.metric_stats = Some(MetricStats::default())
         }
@@ -156,7 +156,7 @@ impl Handler<messages::Drop> for MetricAggregator {
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
         println!("got shudown");
-        self.shutdown(&app_data).await.expect("TODO shutdown");
+        self.shutdown(app_data).await.expect("TODO shutdown");
         Ok(())
     }
 }

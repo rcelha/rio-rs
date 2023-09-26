@@ -25,7 +25,7 @@ impl Handler<messages::Ping> for Room {
     ) -> Result<Self::Returns, HandlerError> {
         let request_count = self.request_count.fetch_add(1, Ordering::Relaxed);
         if request_count >= 2 {
-            self.shutdown(&app_data).await.expect("TODO shutdown");
+            self.shutdown(app_data).await.expect("TODO shutdown");
         }
         Ok(messages::Pong {
             ping_id: message.ping_id,

@@ -23,7 +23,7 @@ impl Member {
             ip,
             port,
             active: false,
-            last_seen: Utc.timestamp(1_500_000_000, 0),
+            last_seen: Utc.timestamp_opt(1_500_000_000, 0).unwrap(),
         }
     }
     pub fn set_active(&mut self, active: bool) {
@@ -119,7 +119,7 @@ impl MembersStorage for LocalStorage {
 
     async fn remove(&self, ip: &str, port: &str) -> MembershipUnitResult {
         let mut guard = self.members.write().await;
-        guard.retain(|x| x.ip() == ip && x.port() == port);
+        guard.retain(|x| x.ip() != ip || x.port() != port);
         Ok(())
     }
 
@@ -144,8 +144,8 @@ impl MembersStorage for LocalStorage {
         let guard = self.failures.read().await;
         let items = guard
             .iter()
-            .cloned()
             .filter(|(ip_, port_, ..)| ip_ == ip && port_ == port)
+            .cloned()
             .map(|x| x.2)
             .collect();
         Ok(items)
@@ -179,7 +179,20 @@ mod test {
     }
 
     #[tokio::test]
-    async fn sanity_check() {
-        let _storage = storage().await;
+    async fn local_storage_clone_keep_members() {
+        let storage = storage().await;
+        let second_storage = storage.clone();
+
+        let members = storage.members().await.unwrap();
+        assert_eq!(members.len(), 6);
+        let members = second_storage.members().await.unwrap();
+        assert_eq!(members.len(), 6);
+
+        second_storage.remove("0.0.0.0", "5005").await.unwrap();
+
+        let members = storage.members().await.unwrap();
+        assert_eq!(members.len(), 5);
+        let members = second_storage.members().await.unwrap();
+        assert_eq!(members.len(), 5);
     }
 }

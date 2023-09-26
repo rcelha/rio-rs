@@ -2,7 +2,7 @@ use super::errors::HandlerError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestEnvelope {
     pub handler_type: String,
     pub handler_id: String,
@@ -48,7 +48,7 @@ impl From<HandlerError> for ResponseEnvelope {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
 pub enum ResponseError {
     #[error("ServiceObject is in another server")]
     Redirect(String),
@@ -114,5 +114,20 @@ pub enum ClientError {
 impl From<::std::io::Error> for ClientError {
     fn from(error: ::std::io::Error) -> Self {
         ClientError::IoError(error.to_string())
+    }
+}
+
+pub mod pubsub {
+    use super::*;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct SubscriptionRequest {
+        pub handler_type: String,
+        pub handler_id: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct SubscriptionResponse {
+        pub body: Result<Vec<u8>, ResponseError>,
     }
 }
