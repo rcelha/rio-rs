@@ -19,8 +19,6 @@ type LockHashMap<K, V> = Arc<DashMap<K, V>>;
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
 type BoxedCallback = Box<dyn Fn(&str, &str, &[u8], Arc<AppData>) -> AsyncRet + Send + Sync>;
-type BoxedStatic = Box<dyn Fn(Box<dyn Any>) -> Box<dyn Any + Send + Sync> + Send + Sync>;
-type BoxedDefault = Box<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>;
 type BoxedDefaultWithId = Box<dyn Fn(String) -> Box<dyn Any + Send + Sync> + Send + Sync>;
 
 /// Store objects dynamically, registering handlers for different message types

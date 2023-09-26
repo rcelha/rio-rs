@@ -35,7 +35,7 @@ fmt-macros: (_fmt "./rio-macros")
 fmt-examples: (_fmt "./examples/black-jack") (_fmt "./examples/ping-pong") (_fmt "./examples/metric-aggregator")
 
 # Formats all the projects and examples
-fmt-all: fmt fmt-macros fmt-examples
+fmt-all: fmt fmt-macros fmt-examples generate-readme
 
 # Runs tests for the main project
 test:
@@ -59,3 +59,21 @@ install-tools:
 	cargo install cargo-watch
 	cargo install flamegraph
 	cargo install cargo-nextest
+	cargo install cargo-readme
+	cargo install simple-http-server
+
+# Generates the README.md file
+generate-readme:
+	cargo readme > README.md
+
+# Generate docs and run a server for preview
+YELLOW:='\033[0;33m'
+NC:='\033[0m'
+serve-docs:
+	cargo doc
+	@echo -e "you can open your docs at {{YELLOW}}http://$(hostname):8000/rio_rs/{{NC}}"
+	simple-http-server --nocache -i ./target/doc
+
+# Run serve-docs, and refresh it when the code changes
+serve-docs-watch:
+	cargo watch -s 'just serve-docs'

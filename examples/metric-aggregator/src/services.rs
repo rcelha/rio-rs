@@ -35,7 +35,7 @@ impl MetricAggregator {
                         tags: "".to_string(),
                         value,
                     };
-                    Self::send::<SqlMembersStorage, _, _, _, _>(
+                    Self::send::<SqlMembersStorage, _, _>(
                         &app_data,
                         &"MetricAggregator",
                         &i,

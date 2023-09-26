@@ -14,11 +14,31 @@ use state::Container;
 ///
 /// # Example
 /// ```rust
-/// # use rio_rs::app_data::AppData;
+/// # use rio_rs::app_data::{AppData, AppDataExt};
 /// let app_data = AppData::new();
 /// app_data.set("Test".to_string());
 ///
 /// let value = app_data.get::<String>();
 /// assert_eq!(value, "Test");
+///
+/// let value = app_data.get_or_default::<usize>();
+/// assert_eq!(value, &0);
 /// ```
 pub type AppData = Container!(Send + Sync);
+
+pub trait AppDataExt {
+    fn get_or_default<T: Default + Send + Sync + 'static>(&self) -> &T;
+}
+
+impl AppDataExt for AppData {
+    fn get_or_default<T: Default + Send + Sync + 'static>(&self) -> &T {
+        match self.try_get::<T>() {
+            Some(value) => value,
+            None => {
+                let value = T::default();
+                self.set(value);
+                self.get::<T>()
+            }
+        }
+    }
+}

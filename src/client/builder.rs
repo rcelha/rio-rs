@@ -6,8 +6,8 @@
 use crate::cluster::storage::MembersStorage;
 use crate::errors::ClientBuilderError;
 
-use super::client::Client;
 use super::pool::ClientConnectionManager;
+use super::Client;
 use super::DEFAULT_TIMEOUT_MILLIS;
 
 /// Helper Struct to build clients from configuration
