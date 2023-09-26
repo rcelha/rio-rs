@@ -241,8 +241,8 @@ There are a few things that must be done before v0.1.0:
 - [x] Support service background task
 - [ ] Matrix test with different backends
 - [?] Support 'typed' message/response on client
-- [?] Support ephemeral port
-- [ ] Remove the need for an Option<T> value for [managed_state] attributes (as long as it has a 'Default')
+- [ ] Support ephemeral port
+- [ ] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
 - [-] Examples covering most use cases
   - [ ] Background async task on a service
   - [x] Background blocking task on a service (_see_ [examples/black-jack]())

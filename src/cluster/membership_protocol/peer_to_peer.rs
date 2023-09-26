@@ -123,6 +123,17 @@ where
 
     /// TODO if communication with MembersStorage fails, this server should be able to keep running
     /// TODO it shouldn't bring dead servers back to life
+    ///
+    /// Membership Algorithm
+    ///
+    /// At every `self.config.interval_secs` the server runs a check agains each server in the
+    /// cluster
+    ///
+    /// It creates a task for each cluster member, each task will test connectivity for a given
+    /// member and update its state in the storage
+    ///
+    /// If the test fails `self.config.num_failures_threshold` times, the member is flagged
+    /// as inactive in the `MembersStorage`
     async fn serve(&self, address: &str) -> Result<(), ClusterProviderServeError> {
         let sleep_period = std::time::Duration::from_secs(self.config.interval_secs);
         let socket_address = SocketAddr::from_str(address)
@@ -137,8 +148,10 @@ where
         loop {
             let members = self.get_sorted_members().await?;
             let test_members = self.get_members_to_monitor(address, &members);
-
             let t0 = SystemTime::now();
+
+            // Tests reachability and talks to the MembersStorage to set
+            // servers as active or inactive
             let future_member_tests = test_members.into_iter().map(|test_member| async move {
                 self.test_member(&test_member).await?;
                 if self.is_broken(&test_member).await? {
@@ -154,11 +167,11 @@ where
             });
             futures::future::join_all(future_member_tests).await;
 
+            // Wait for the remaining of 'config.interval_secs'
             let elapsed = t0.elapsed().expect("fail to get elapsed time");
             let remaning_sleep_period = sleep_period.saturating_sub(elapsed);
             if remaning_sleep_period > Duration::ZERO {
                 tokio::time::sleep(remaning_sleep_period).await;
-            } else {
             }
         }
     }

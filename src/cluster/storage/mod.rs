@@ -144,8 +144,8 @@ impl MembersStorage for LocalStorage {
         let guard = self.failures.read().await;
         let items = guard
             .iter()
-            .cloned()
             .filter(|(ip_, port_, ..)| ip_ == ip && port_ == port)
+            .cloned()
             .map(|x| x.2)
             .collect();
         Ok(items)

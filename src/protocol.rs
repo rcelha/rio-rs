@@ -116,3 +116,18 @@ impl From<::std::io::Error> for ClientError {
         ClientError::IoError(error.to_string())
     }
 }
+
+pub mod pubsub {
+    use super::*;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct SubscriptionRequest {
+        pub handler_type: String,
+        pub handler_id: String,
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct SubscriptionResponse {
+        pub body: Result<Vec<u8>, ResponseError>,
+    }
+}

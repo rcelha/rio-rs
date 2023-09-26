@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use crate::object_placement::{ObjectPlacement, ObjectPlacementProvider};
 use crate::ObjectId;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LocalObjectPlacementProvider {}
 
 #[async_trait]
