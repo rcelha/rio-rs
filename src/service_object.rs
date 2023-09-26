@@ -13,6 +13,7 @@ use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender};
 use crate::state::ObjectStateManager;
 
+/// TODO docs
 pub struct ObjectId(pub String, pub String);
 
 impl ObjectId {
@@ -21,14 +22,27 @@ impl ObjectId {
     }
 }
 
-pub trait FromId {
-    fn from_id(id: String) -> Self;
+/// TODO docs
+pub trait WithId {
+    fn set_id(&mut self, id: String);
     fn id(&self) -> &str;
 }
 
+/// ServiceObjects are the objects that will respond to various types of messages through
+/// the Rio Server
+///
+/// The server stores each ServiceObject onto a registry and control their life cycle
+///
+/// There are a few requirements in oder to implement a ServiceObject:
+///     - Default
+///     - WithId
+///     - IdentifiableType
+///     - ObjectStateManager
+///     - ServiceObjectStateLoad
+/// TODO docs
 #[async_trait]
 pub trait ServiceObject:
-    FromId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
+    Default + WithId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
 {
     /// Send a message to Rio cluster using a client tht is stored in AppData
     async fn send<S, T, V, H, I>(

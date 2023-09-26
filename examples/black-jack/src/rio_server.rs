@@ -23,8 +23,8 @@ pub async fn build_server(
 
     // Configure types on the server's registry
     let mut registry = Registry::new();
-    registry.add_static_fn::<Cassino, String, _>(FromId::from_id);
-    registry.add_static_fn::<GameTable, String, _>(FromId::from_id);
+    registry.add_type::<Cassino>();
+    registry.add_type::<GameTable>();
     registry.add_handler::<Cassino, LifecycleMessage>();
     registry.add_handler::<Cassino, JoinGame>();
     registry.add_handler::<GameTable, LifecycleMessage>();

@@ -19,7 +19,7 @@ pub struct MetricStats {
     pub min: i32,
 }
 
-#[derive(Debug, Default, TypeName, FromId, ManagedState)]
+#[derive(Debug, Default, TypeName, WithId, ManagedState)]
 pub struct MetricAggregator {
     pub id: String,
     #[managed_state(provider = SqlState)]

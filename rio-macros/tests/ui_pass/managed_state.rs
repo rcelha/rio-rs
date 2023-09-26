@@ -1,7 +1,7 @@
 use rio_macros::*;
-use rio_rs::ServiceObject;
 use rio_rs::state::local::LocalState;
 use rio_rs::state::ObjectStateManager;
+use rio_rs::ServiceObject;
 
 #[derive(ManagedState)]
 struct Test {}
@@ -12,7 +12,7 @@ struct TestVec(Vec<usize>);
 #[derive(TypeName, serde::Serialize, serde::Deserialize)]
 struct NotTestVec(Vec<usize>);
 
-#[derive(Default, FromId, TypeName, ManagedState)]
+#[derive(Default, WithId, TypeName, ManagedState)]
 struct Test2 {
     id: String,
     #[managed_state]
@@ -21,7 +21,7 @@ struct Test2 {
     // not_tests: Option<NotTestVec>,
 }
 
-#[derive(Default, FromId, TypeName, ManagedState)]
+#[derive(Default, WithId, TypeName, ManagedState)]
 struct TestProvider {
     id: String,
     #[managed_state(provider = LocalState)]

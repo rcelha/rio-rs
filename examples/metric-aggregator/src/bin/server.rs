@@ -21,7 +21,7 @@ async fn main() {
         .unwrap_or("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
     let mut registry = Registry::new();
-    registry.add_static_fn::<services::MetricAggregator, String, _>(FromId::from_id);
+    registry.add_type::<services::MetricAggregator>();
     registry.add_handler::<services::MetricAggregator, LifecycleMessage>();
     registry.add_handler::<services::MetricAggregator, messages::Ping>();
     registry.add_handler::<services::MetricAggregator, messages::Metric>();

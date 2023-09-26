@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use super::*;
 
-#[derive(Debug, Default, TypeName, FromId)]
+#[derive(Debug, Default, TypeName, WithId)]
 pub struct Room {
     pub id: String,
     pub request_count: AtomicUsize,

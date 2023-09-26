@@ -83,8 +83,8 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
                 let new_object = registry
                     .read()
                     .await
-                    .call_static_fn_box(req.handler_type.clone(), req.handler_id.clone())
-                    .unwrap();
+                    .new_from_type(&req.handler_type, req.handler_id.clone())
+                    .expect("TODO");
 
                 registry
                     .read()

@@ -2,7 +2,7 @@
 
 use crate::errors::LoadStateError;
 use crate::registry::IdentifiableType;
-use crate::{FromId, ServiceObject};
+use crate::{ServiceObject, WithId};
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -51,7 +51,7 @@ pub trait ObjectStateManager {
     where
         T: IdentifiableType + Serialize + DeserializeOwned,
         S: StateLoader,
-        Self: State<T> + IdentifiableType + FromId + Send + Sync,
+        Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
         let object_kind = Self::user_defined_type_id();
         let object_id = self.id();
@@ -69,7 +69,7 @@ pub trait ObjectStateManager {
     where
         T: IdentifiableType + Serialize + DeserializeOwned + Sync,
         S: StateSaver,
-        Self: State<T> + IdentifiableType + FromId + Send + Sync,
+        Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
         let object_kind = Self::user_defined_type_id();
         let object_id = self.id();
@@ -114,12 +114,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use rio_macros::{FromId, ManagedState, TypeName};
-    use serde::Deserialize;
-
-    use crate::FromId;
-
     use super::*;
+    use rio_macros::{ManagedState, TypeName, WithId};
+    use serde::Deserialize;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -152,7 +149,7 @@ mod test {
 
     #[tokio::test]
     async fn model_call() -> TestResult {
-        #[derive(Debug, Default, FromId, TypeName, ManagedState)]
+        #[derive(Debug, Default, WithId, TypeName, ManagedState)]
         #[rio_path = "crate"]
         struct Person {
             id: String,
@@ -186,7 +183,7 @@ mod test {
         let local_state = local::LocalState::new();
 
         {
-            let mut person = Person::from_id("foo".to_string());
+            let mut person = Person::default();
             person.person_state = Some(PersonState {
                 name: "Foo".to_string(),
                 age: 22,
@@ -198,7 +195,7 @@ mod test {
             person.save_all_states(&local_state).await?;
         }
         {
-            let mut person = Person::from_id("foo".to_string());
+            let mut person = Person::default();
             person.load_all_states(&local_state).await?;
             assert!(person.person_state.is_some());
             assert!(person.legal_state.is_some());

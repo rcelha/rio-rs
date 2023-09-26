@@ -19,10 +19,10 @@ pub mod tap_err;
 pub use service_object::*;
 
 pub mod derive {
-    pub use rio_macros::FromId;
     pub use rio_macros::ManagedState;
     pub use rio_macros::Message;
     pub use rio_macros::TypeName;
+    pub use rio_macros::WithId;
 }
 
 pub mod prelude {
@@ -33,7 +33,7 @@ pub mod prelude {
     };
     pub use super::cluster::membership_protocol::ClusterProvider;
     pub use super::cluster::storage::MembersStorage;
-    pub use super::derive::{FromId, ManagedState, Message, TypeName};
+    pub use super::derive::{ManagedState, Message, TypeName, WithId};
     pub use super::errors::{ClientBuilderError, HandlerError, ServiceObjectLifeCycleError};
     pub use super::protocol::{ClientError, ResponseError};
 
@@ -42,9 +42,9 @@ pub mod prelude {
     pub use super::server::Server;
     pub use super::server::ServerBuilder;
     pub use super::state::ObjectStateManager;
-    pub use super::FromId;
     pub use super::LifecycleMessage;
     pub use super::ObjectId;
     pub use super::ServiceObject;
     pub use super::ServiceObjectStateLoad;
+    pub use super::WithId;
 }

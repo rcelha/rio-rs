@@ -1,0 +1,7 @@
+error: proc-macro derive panicked
+ --> tests/ui_fail/with_id.rs:3:19
+  |
+3 | #[derive(Default, WithId)]
+  |                   ^^^^^^
+  |
+  = help: message: StructWithId doesn't have an `id` attribute of type `String`

@@ -22,7 +22,7 @@ pub struct TableState {
     pub players: HashSet<String>,
 }
 
-#[derive(Default, Debug, TypeName, FromId, ManagedState)]
+#[derive(Default, Debug, TypeName, WithId, ManagedState)]
 pub struct GameTable {
     pub id: String,
     #[managed_state(provider = SqlState)]

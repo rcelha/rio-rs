@@ -2,12 +2,12 @@
 //!
 //! Provides storage for objects and maps their callables to handle registered message types
 
-use crate::{app_data::AppData, errors::HandlerError};
+use crate::{app_data::AppData, errors::HandlerError, WithId};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
-    any::{type_name, Any, TypeId},
+    any::{type_name, Any},
     collections::HashMap,
     future::Future,
     pin::Pin,
@@ -20,6 +20,8 @@ type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
 type BoxedCallback = Box<dyn Fn(&str, &str, &[u8], Arc<AppData>) -> AsyncRet + Send + Sync>;
 type BoxedStatic = Box<dyn Fn(Box<dyn Any>) -> Box<dyn Any + Send + Sync> + Send + Sync>;
+type BoxedDefault = Box<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>;
+type BoxedDefaultWithId = Box<dyn Fn(String) -> Box<dyn Any + Send + Sync> + Send + Sync>;
 
 /// Store objects dynamically, registering handlers for different message types
 ///
@@ -33,8 +35,8 @@ pub struct Registry {
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
     handler_map: DashMap<(String, String), BoxedCallback>,
 
-    // Static Map
-    static_fn_map: HashMap<(String, TypeId), BoxedStatic>,
+    /// TODO
+    type_map: HashMap<String, BoxedDefaultWithId>,
 }
 
 impl Registry {
@@ -51,61 +53,23 @@ impl Registry {
         self.object_map.insert((type_id, k), Box::new(v));
     }
 
-    /// Registers a static function to build a specific from a parameters
-    ///
-    /// The static functions are unique by type (T) and argument type (A)
-    ///
-    /// To call these functions one can use `Registry::call_static_fn` or
-    /// `Registry::call_static_fn_box`
-    pub fn add_static_fn<T, A, F>(&mut self, static_fn: F)
+    /// TODO
+    pub fn add_type<T>(&mut self)
     where
-        T: IdentifiableType + 'static + Send + Sync,
-        A: Any,
-        F: Fn(A) -> T + 'static + Send + Sync,
+        T: IdentifiableType + 'static + Send + Sync + Default + WithId,
     {
         let type_id = T::user_defined_type_id().to_string();
-        let argument_type_id = TypeId::of::<A>();
-        let boxed_fn = Box::new(move |arg: Box<dyn Any>| -> Box<dyn Any + Send + Sync> {
-            let cast_arg = arg
-                .downcast::<A>()
-                .expect("TODO: Unsupported function called");
-            Box::new(static_fn(*cast_arg))
+        let boxed_fn = Box::new(move |id: String| -> Box<dyn Any + Send + Sync> {
+            let mut value = T::default();
+            value.set_id(id);
+            Box::new(value)
         });
-
-        let _ = self
-            .static_fn_map
-            .insert((type_id, argument_type_id), boxed_fn);
+        self.type_map.insert(type_id, boxed_fn);
     }
 
-    /// Call function from static registry
-    ///
-    /// It looks up the function by its return type (T) + argument type (A)
-    pub fn call_static_fn<T, A>(&mut self, argument: A) -> Option<T>
-    where
-        T: IdentifiableType + 'static + Send + Sync,
-        A: Any,
-    {
-        let type_id = T::user_defined_type_id().to_string();
-        let argument_type_id = TypeId::of::<A>();
-        let ret = self.static_fn_map.get(&(type_id, argument_type_id))?(Box::new(argument));
-        let ret = ret.downcast::<T>().ok()?;
-        Some(*ret)
-    }
-
-    /// Same as `Registry::call_static_fn` but the caller can refer to the return type by name,
-    /// instead of using a generic
-    ///
-    /// The return will be an Any boxed into an Option, so the caller needs to downcast it
-    pub fn call_static_fn_box<A>(
-        &self,
-        type_id: String,
-        argument: A,
-    ) -> Option<Box<dyn Any + Send + Sync>>
-    where
-        A: Any,
-    {
-        let argument_type_id = TypeId::of::<A>();
-        let ret = self.static_fn_map.get(&(type_id, argument_type_id))?(Box::new(argument));
+    /// TODO
+    pub fn new_from_type(&self, type_id: &str, id: String) -> Option<Box<dyn Any + Send + Sync>> {
+        let ret = self.type_map.get(type_id)?(id);
         Some(ret)
     }
 
@@ -219,16 +183,23 @@ mod test {
     use tokio::sync::RwLock;
 
     #[derive(Default, Debug, PartialEq)]
-    struct Human {}
+    struct Human {
+        pub id: String,
+    }
+
     impl IdentifiableType for Human {
         fn user_defined_type_id() -> &'static str {
             "Human"
         }
     }
 
-    impl From<String> for Human {
-        fn from(_: String) -> Self {
-            Human {}
+    impl WithId for Human {
+        fn set_id(&mut self, id: String) {
+            self.id = id;
+        }
+
+        fn id(&self) -> &str {
+            &self.id
         }
     }
 
@@ -338,13 +309,13 @@ mod test {
     #[tokio::test]
     async fn sanity_check() {
         fn is_sync<T: Sync>(_t: T) {}
-        is_sync(Human {});
+        is_sync(Human::default());
         is_sync(HiMessage {});
         is_sync(Registry::new());
         is_sync(Box::new(Registry::new()));
 
         let mut registry = Registry::new();
-        let obj = Human {};
+        let obj = Human::default();
         registry.add("john".to_string(), obj).await;
         registry.add_handler::<Human, HiMessage>();
         registry.add_handler::<Human, GoodbyeMessage>();
@@ -389,7 +360,7 @@ mod test {
     #[tokio::test]
     async fn test_return() {
         let mut registry = Registry::new();
-        let obj = Human {};
+        let obj = Human::default();
         registry.add("john".to_string(), obj).await;
         registry.add_handler::<Human, HiMessage>();
         let ret = registry
@@ -408,7 +379,7 @@ mod test {
     #[tokio::test]
     async fn test_return_error() {
         let mut registry = Registry::new();
-        let obj = Human {};
+        let obj = Human::default();
         registry.add("john".to_string(), obj).await;
         registry.add_handler::<Human, ErrorMessage>();
         let ret = registry
@@ -429,7 +400,7 @@ mod test {
     #[tokio::test]
     async fn test_not_registered_message() {
         let mut registry = Registry::new();
-        let obj = Human {};
+        let obj = Human::default();
         registry.add("john".to_string(), obj).await;
         let ret = registry
             .send(
@@ -548,7 +519,7 @@ mod test {
         let join_handler = tokio::spawn(async move {
             let mut registry = Registry::new();
             registry.add_handler::<Human, HiMessage>();
-            let obj = Human {};
+            let obj = Human::default();
             registry.add("john".to_string(), obj).await;
             registry
                 .send(
@@ -569,7 +540,7 @@ mod test {
     async fn test_send_sync_lock() {
         let mut registry = Registry::new();
         registry.add_handler::<Human, HiMessage>();
-        let obj = Human {};
+        let obj = Human::default();
         registry.add("john".to_string(), obj).await;
         let registry = Arc::new(RwLock::new(registry));
         let inner_registry = Arc::clone(&registry);
@@ -595,7 +566,7 @@ mod test {
     #[tokio::test]
     async fn test_has_object() {
         let mut registry = Registry::new();
-        let obj = Human {};
+        let obj = Human::default();
         registry.add("john".to_string(), obj).await;
         assert!(registry.has("Human", "john").await);
         assert!(!registry.has("Human", "not john").await);
@@ -617,18 +588,11 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_static_fn() {
+    async fn test_new_from_type() {
         let mut registry = Registry::new();
-        registry.add_static_fn::<Human, String, _>(From::<String>::from);
-        let new_human: Option<Human> = registry.call_static_fn("Oi".to_string());
-        assert!(new_human.is_some());
-
-        let boxed_human = registry.call_static_fn_box("Human".to_string(), "Oi".to_string());
-        assert!(boxed_human.is_some());
-
-        assert_eq!(
-            new_human.unwrap(),
-            *boxed_human.unwrap().downcast::<Human>().unwrap()
-        );
+        registry.add_type::<Human>();
+        let boxed_human = registry.new_from_type("Human", "1".to_string()).unwrap();
+        let human = boxed_human.downcast::<Human>().unwrap();
+        assert_eq!(human.id(), "1");
     }
 }

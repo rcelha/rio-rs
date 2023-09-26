@@ -23,7 +23,7 @@ pub struct HelloMessage {
 #[derive(TypeName, Message, Deserialize, Serialize)]
 pub struct HelloResponse {}
 
-#[derive(TypeName, FromId, Default)]
+#[derive(TypeName, WithId, Default)]
 pub struct HelloWorldService {
     pub id: String,
 }
@@ -66,7 +66,7 @@ use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 # #[derive(TypeName, Message, Deserialize, Serialize)]
 # pub struct HelloResponse {}
 #
-# #[derive(TypeName, FromId, Default)]
+# #[derive(TypeName, WithId, Default)]
 # pub struct HelloWorldService {
 #     pub id: String,
 # }
@@ -90,7 +90,7 @@ async fn main() {
 
     // Configure types on the server's registry
     let mut registry = Registry::new();
-    registry.add_static_fn::<HelloWorldService, String, _>(FromId::from_id);
+    registry.add_type::<HelloWorldService>();
     registry.add_handler::<HelloWorldService, HelloMessage>();
 
     // Configure the Cluster Membership provider
@@ -148,7 +148,7 @@ use rio_rs::cluster::storage::sql::{SqlMembersStorage};
 # #[derive(TypeName, Message, Deserialize, Serialize)]
 # pub struct HelloResponse {}
 #
-# #[derive(TypeName, FromId, Default)]
+# #[derive(TypeName, WithId, Default)]
 # pub struct HelloWorldService {
 #     pub id: String,
 # }
@@ -205,11 +205,13 @@ There are a few things that must be done before v0.1.0:
 - [x] Public API renaming
 - [x] Reduce Boxed objects
 - [x] Create a Server builder
+- [ ] Pub/sub
 - [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
 - [ ] Error and panic handling on life cycle hooks (probably kill the object)
 - [ ] Handle panics on messages handling
 - [ ] Include registry configuration in Server builder
-- [ ] Remove need to use `add_static_fn(FromId::from_id)`
+- [x] Remove need to use `add_static_fn(FromId::from_id)`
+    - Removed in favour of `Registry::add_type`
 - [ ] Create a getting started tutorial
   - [ ] Cargo init
   - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
@@ -227,8 +229,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Reduce static lifetimes
 - [ ] Increase public API test coverage
 - [ ] 100% documentation of public API
-- [ ] Pub/sub
-- [ ] Placement strategies
+- [ ] Placement strategies (nodes work with different sets of trait objects)
 - [ ] Dockerized examples
 - [ ] Add pgsql jsonb support
 - [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
@@ -239,8 +240,9 @@ There are a few things that must be done before v0.1.0:
 - [ ] Object TTL
 - [x] Support service background task
 - [ ] Matrix test with different backends
-- [ ] Support 'typed' message/response on client
-- [ ] Support ephemeral port
+- [?] Support 'typed' message/response on client
+- [?] Support ephemeral port
+- [ ] Remove the need for an Option<T> value for [managed_state] attributes (as long as it has a 'Default')
 - [-] Examples covering most use cases
   - [ ] Background async task on a service
   - [x] Background blocking task on a service (_see_ [examples/black-jack]())

@@ -5,11 +5,16 @@ _ := `ln -sf ${PWD}/pre-commit ${PWD}/.git/hooks/`
 
 # Prints this message
 help:
-    @just --list
+	@just --list
 
 # Prints the TODOs found throughout the repository
 todo:
 	@ag --rust -Q 'expect("TODO'
+
+# Prints missing docs
+todo-docs:
+	@ag --rust '/// TODO'
+
 
 _fmt WORKDIR:
 	#!/usr/bin/env bash
@@ -42,9 +47,9 @@ test-macros:
 
 # Runs tests for all the example projects
 test-examples:
-	cargo nextest run  --manifest-path ./examples/black-jack/Cargo.toml 
+	cargo nextest run  --manifest-path ./examples/black-jack/Cargo.toml
 	cargo nextest run  --manifest-path ./examples/ping-pong/Cargo.toml
-	cargo nextest run  --manifest-path ./examples/metric-aggregator/Cargo.toml 
+	cargo nextest run  --manifest-path ./examples/metric-aggregator/Cargo.toml
 
 # Tests all the projects and examples
 test-all: test test-macros test-examples

@@ -11,7 +11,7 @@ pub struct CassinoState {
     pub table_ids: Vec<String>,
 }
 
-#[derive(Default, Debug, TypeName, FromId, ManagedState)]
+#[derive(Default, Debug, TypeName, WithId, ManagedState)]
 pub struct Cassino {
     pub id: String,
     #[managed_state(provider = SqlState)]

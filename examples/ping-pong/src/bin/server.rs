@@ -34,7 +34,7 @@ async fn main() {
         .get_or_insert("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
     let mut registry = Registry::new();
-    registry.add_static_fn::<services::Room, String, _>(FromId::from_id);
+    registry.add_type::<services::Room>();
     registry.add_handler::<services::Room, LifecycleMessage>();
     registry.add_handler::<services::Room, messages::Ping>();
 
