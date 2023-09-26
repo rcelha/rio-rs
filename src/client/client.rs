@@ -25,6 +25,8 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tower::Service as TowerService;
 
 use crate::cluster::storage::MembersStorage;
+
+use crate::protocol::pubsub::{SubscriptionRequest, SubscriptionResponse};
 use crate::protocol::{ClientError, RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::IdentifiableType;
 
@@ -64,6 +66,7 @@ where
     type Error = ClientError;
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
 
+    /// TODO
     fn poll_ready(
         &mut self,
         _: &mut std::task::Context<'_>,
@@ -71,6 +74,7 @@ where
         std::task::Poll::Ready(Ok(()))
     }
 
+    /// TODO
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let mut this = self.clone();
         Box::pin(async move {
@@ -92,6 +96,7 @@ where
                         Err(err) => Err(ClientError::ResponseError(err)),
                     }
                 }
+                // TODO: Add more granularity to ClientError
                 Some(Err(e)) => Err(ClientError::Unknown(e.to_string())),
                 None => Err(ClientError::Unknown("Unknown error".to_string())),
             }
@@ -105,6 +110,7 @@ impl<S> Client<S>
 where
     S: 'static + MembersStorage,
 {
+    /// TODO
     pub fn new(members_storage: S) -> Self {
         Client {
             members_storage,
@@ -118,7 +124,8 @@ where
     }
 
     /// Fetch a list of active servers if it hasn't done yet, or if the current list is too old
-    async fn fetch_active_servers(&mut self) -> ClientResult<()> {
+    /// TODO
+    pub async fn fetch_active_servers(&mut self) -> ClientResult<()> {
         if self.active_servers.is_some() && self.ts_active_servers_refresh > 0 {
             return Ok(());
         }
@@ -133,6 +140,7 @@ where
 
         self.active_servers = Some(active_servers);
         self.ts_active_servers_refresh = 1;
+        println!("self active servers {:?}", self.active_servers);
         Ok(())
     }
 
@@ -238,6 +246,7 @@ where
 
     /// Send a request to the cluster transparently (the caller doesn't need to know where the
     /// object is placed)
+    /// TODO
     #[async_recursion]
     pub async fn send<T, V, H, I>(
         &mut self,
@@ -291,6 +300,44 @@ where
                     .await
             }
             Err(err) => Err(err),
+        }
+    }
+
+    // TODO
+    //  - returns async iter
+    //  - redirect?
+    //  - use dedicated connection
+    //  - move this logic into a tower service
+    //  - support moving service object (after you connect to a node and the handler you are
+    //    listening to moves to some other node)
+    pub async fn subscribe<H, I>(&mut self, handler_type: H, handler_id: I)
+    where
+        H: AsRef<str> + Send + Sync,
+        I: AsRef<str> + Send + Sync,
+    {
+        let handler_type = handler_type.as_ref().to_string();
+        let handler_id = handler_id.as_ref().to_string();
+        self.fetch_active_servers().await.unwrap();
+
+        let mut stream = self
+            .service_object_stream(&handler_type, &handler_id)
+            .await
+            .unwrap();
+
+        let req = SubscriptionRequest {
+            handler_type,
+            handler_id,
+        };
+        let ser_request = bincode::serialize(&req).unwrap();
+
+        println!("sending");
+        stream.send(ser_request.into()).await.unwrap();
+        println!("sent");
+        while let Some(v) = stream.next().await {
+            let vv: SubscriptionResponse = bincode::deserialize(&v.unwrap()).unwrap();
+            println!("V={:?};", vv.body);
+            vv.body
+                .expect("TODO handle error when transform this into an async iter");
         }
     }
 

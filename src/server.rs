@@ -12,18 +12,33 @@ use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembersStorage;
 use crate::errors::{ServerBuilderError, ServerError};
 use crate::object_placement::ObjectPlacementProvider;
+use crate::protocol::pubsub::SubscriptionRequest;
+use crate::protocol::RequestEnvelope;
 use crate::registry::Registry;
 use crate::service::Service;
 use crate::ObjectId;
 
+/// Internal commands, e.g., shutdown a service object
 #[derive(Debug)]
 pub enum AdminCommands {
+    // Shutdown(hander_type, handler_id)
     Shutdown(String, String),
 }
 
+/// Channel for [AdminCommands]
 pub type AdminReceiver = mpsc::UnboundedReceiver<AdminCommands>;
+
+/// Channel for [AdminCommands]
 pub type AdminSender = mpsc::UnboundedSender<AdminCommands>;
 
+/// Application Server. It handles object registration ([Registry]),
+/// clustering (through [ClusterProvider]s), server state (via [AppData]),
+/// and more.
+///
+/// It handles various types of request: [AdminCommands], [RequestEnvelope], and
+/// [SubscriptionRequest].
+///
+/// More of it can be seen in [Server::run].
 pub struct Server<S, C, P>
 where
     S: MembersStorage + 'static,
@@ -165,6 +180,13 @@ where
     }
 
     /// Run the server forever
+    ///
+    /// This is the main loop for a Rio server. It will handle a few types of future concurrently:
+    /// - New TCP connections from clients
+    /// - [AdminCommands] messages from running objects
+    /// - [ClusterProvider] server loop
+    ///
+    /// If any of these fails, the server stops running with a [ServerError]
     pub async fn run(&mut self) -> ServerResult<()> {
         let pool_manager =
             ClientConnectionManager::new(self.cluster_provider.members_storage().clone());
@@ -197,12 +219,20 @@ where
             .await
             .map_err(|err| ServerError::Bind(err.to_string()))?;
 
-        println!("Listening on: {}", self.address);
+        let bind = listener.local_addr().expect("TODO");
+        println!("Listening on: {:}", bind);
 
         loop {
             let (stream, _) = listener.accept().await.map_err(|_| ServerError::Run)?;
             let mut service: Service<S, P> = self.into();
-            service.ready().await.map_err(|_| ServerError::Run)?;
+
+            ServiceExt::<RequestEnvelope>::ready(&mut service)
+                .await
+                .map_err(|_| ServerError::Run)?;
+            ServiceExt::<SubscriptionRequest>::ready(&mut service)
+                .await
+                .map_err(|_| ServerError::Run)?;
+
             tokio::spawn(async move { service.run(stream).await });
         }
     }

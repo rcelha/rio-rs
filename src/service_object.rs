@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bb8::{Pool, RunError};
+use rio_macros::{Message, TypeName};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::app_data::AppData;
@@ -13,7 +14,10 @@ use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender};
 use crate::state::ObjectStateManager;
 
-/// TODO docs
+/// Internal representation of an object id.
+///
+/// It is stuct name + the object id (as in [WithId]).
+/// It is used lookups across tthis project
 pub struct ObjectId(pub String, pub String);
 
 impl ObjectId {
@@ -22,7 +26,11 @@ impl ObjectId {
     }
 }
 
-/// TODO docs
+/// Common interface to get a string Id for an object
+///
+/// This is particularly useful for the registry, as every object
+/// in the registry needs to have an Id for retrieval
+// TODO move it out of the service_object module
 pub trait WithId {
     fn set_id(&mut self, id: String);
     fn id(&self) -> &str;
@@ -100,6 +108,9 @@ pub trait ServiceObjectStateLoad {
     }
 }
 
+/// TODO
+///     - docs
+///     - use macros
 #[derive(Debug, Serialize, Deserialize)]
 pub enum LifecycleMessage {
     Load,
@@ -141,3 +152,8 @@ where
         }
     }
 }
+
+/// TODO
+#[derive(Default, Debug, Message, TypeName, Serialize, Deserialize)]
+#[rio_path = "crate"]
+pub struct HandleSubscription {}
