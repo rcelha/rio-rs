@@ -64,7 +64,7 @@ where
 /// # use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 /// # use rio_rs::registry::Registry;
 /// # use rio_rs::cluster::membership_protocol::local::LocalClusterProvider;
-/// # use rio_rs::cluster::storage::LocalStorage;
+/// # use rio_rs::cluster::storage::local::LocalStorage;
 /// # async fn run_server() {
 /// #
 /// let mut server = ServerBuilder::default()

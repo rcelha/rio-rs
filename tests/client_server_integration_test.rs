@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use futures::{pin_mut, Future, StreamExt};
+use futures::{pin_mut, Future, FutureExt, StreamExt};
 use lazy_static::lazy_static;
 use rio_macros::{Message, TypeName, WithId};
 
@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::time::sleep;
 
-use rio_rs::cluster::storage::LocalStorage;
+use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 
 // TODO use ephemeral ports
@@ -140,7 +140,16 @@ async fn run_integration_test<Fut>(
         test_fn().await;
     };
 
-    let server_futures: Vec<_> = servers.iter_mut().map(|s| s.run()).collect();
+    let server_futures: Vec<_> = servers
+        .iter_mut()
+        .map(|s| {
+            //
+            s.run().map(|server_result| {
+                println!("Server Result {:?}", server_result);
+                server_result
+            })
+        })
+        .collect();
     let servers_single_future = futures::future::join_all(server_futures);
 
     tokio::select! {

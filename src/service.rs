@@ -308,9 +308,15 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
 
                     // TODO handle termination
                     while let Some(value) = StreamExt::next(&mut stream).await {
-                        let ser_value = bincode::serialize(&value).expect("TODO");
-                        frames.send(ser_value.into()).await.expect("TODO");
+                        let ser_value = bincode::serialize(&value).expect("Serialization error");
+                        let send_result = frames.send(ser_value.into()).await;
+                        if let Err(err) = send_result {
+                            println!("Fail to send data back to client, finishing the stream");
+                            println!("  Error: {}", err);
+                            break;
+                        }
                     }
+                    println!("Stream closed");
                 }
             }
         }
@@ -334,7 +340,7 @@ mod test {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::cluster::storage::LocalStorage;
+    use crate::cluster::storage::local::LocalStorage;
     use crate::object_placement::local::LocalObjectPlacementProvider;
     use crate::prelude::HandlerError;
     use crate::registry::Handler;

@@ -70,7 +70,7 @@ impl<S: MembersStorage + 'static> ClientBuilder<S> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::cluster::storage::LocalStorage;
+    use crate::cluster::storage::local::LocalStorage;
 
     #[tokio::test]
     async fn test_default_builder() {

@@ -5,7 +5,8 @@ use std::{net::SocketAddr, str::FromStr};
 
 use crate::client::Client;
 use crate::cluster::membership_protocol::ClusterProvider;
-use crate::cluster::storage::{LocalStorage, Member, MembersStorage};
+use crate::cluster::storage::local::LocalStorage;
+use crate::cluster::storage::{Member, MembersStorage};
 use crate::errors::ClusterProviderServeError;
 
 /// Marks a node as inactive if we have more than `num_failures_threshold` in the past
@@ -180,7 +181,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::cluster::storage::LocalStorage;
     use std::collections::HashMap;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;

@@ -83,8 +83,14 @@ where
                     }
                 }
                 // TODO: Add more granularity to ClientError
-                Some(Err(e)) => Err(ClientError::Unknown(e.to_string())),
-                None => Err(ClientError::Unknown("Unknown error".to_string())),
+                Some(Err(e)) => {
+                    let new_err = ClientError::Unknown(format!("Strea Error {}", e));
+                    Err(new_err)
+                }
+                None => {
+                    let err = ClientError::Unknown("Stream finished".to_string());
+                    Err(err)
+                }
             }
         })
     }

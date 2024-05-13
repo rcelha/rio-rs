@@ -8,6 +8,7 @@
 
 mod builder;
 mod pool;
+pub mod subscription_tower_services;
 pub mod tower_services;
 
 use async_stream::stream;
@@ -16,14 +17,12 @@ pub use pool::ClientConnectionManager;
 
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
-use futures::SinkExt;
 use futures::{Stream, StreamExt};
 use lru::LruCache;
 use rand::{prelude::SliceRandom, thread_rng};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashSet;
-use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -31,9 +30,11 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tower::Service as TowerService;
 
 use crate::cluster::storage::MembersStorage;
-use crate::protocol::pubsub::{SubscriptionRequest, SubscriptionResponse};
+use crate::protocol::pubsub::SubscriptionRequest;
 use crate::protocol::{ClientError, RequestEnvelope, ResponseError};
 use crate::registry::IdentifiableType;
+
+use self::subscription_tower_services::SubscriptionStream;
 
 pub const DEFAULT_TIMEOUT_MILLIS: u64 = 500;
 
@@ -61,6 +62,7 @@ where
     placement: Arc<RwLock<LruCache<(String, String), String>>>,
 }
 
+/*
 pub struct SubscriptionStream<T>
 where
     T: DeserializeOwned,
@@ -121,12 +123,13 @@ where
         })
     }
 }
+*/
 
 type ClientResult<T> = Result<T, ClientError>;
 
 impl<S> Client<S>
 where
-    S: 'static + MembersStorage,
+    S: 'static + MembersStorage + Unpin,
 {
     /// TODO
     pub fn new(members_storage: S) -> Self {
@@ -275,6 +278,13 @@ where
                 }
             }
         };
+
+        // TODO it should write a new placement when there wasn't a cached value
+        // self.placement
+        //     .write()
+        //     .unwrap()
+        //     .put(object_id, address.clone());
+
         Ok(address)
     }
 
@@ -331,24 +341,28 @@ where
         })
     }
 
-    async fn _subscribe<'a, T>(
+    async fn _subscribe<'a>(
         &'a mut self,
         handler_type: &str,
         handler_id: &str,
-        address: &str,
-    ) -> SubscriptionStream<T>
+    ) -> SubscriptionStream
     where
         Self: 'a,
-        T: DeserializeOwned + std::marker::Unpin + 'a + std::fmt::Debug,
     {
-        let mut svc_stream = self.pop_server_stream(&address.to_string()).await.unwrap();
         let req = SubscriptionRequest {
             handler_type: handler_type.to_string(),
             handler_id: handler_id.to_string(),
         };
-        let ser_request = bincode::serialize(&req).unwrap();
-        svc_stream.send(ser_request.into()).await.unwrap();
-        SubscriptionStream::<T>::new(svc_stream)
+        let mut tower_svc = subscription_tower_services::SubscriptionService::new(self.clone());
+        tower_svc.call(req).await.expect("TODO")
+        // let mut svc_stream = self.pop_server_stream(&address.to_string()).await.unwrap();
+        // let req = SubscriptionRequest {
+        //     handler_type: handler_type.to_string(),
+        //     handler_id: handler_id.to_string(),
+        // };
+        // let ser_request = bincode::serialize(&req).unwrap();
+        // svc_stream.send(ser_request.into()).await.unwrap();
+        // SubscriptionStream::<T>::new(svc_stream)
     }
 
     /// <div class="warning">
@@ -375,30 +389,39 @@ where
     {
         let handler_type = handler_type.as_ref().to_string();
         let handler_id = handler_id.as_ref().to_string();
-        let address = self
-            .get_service_object_address(&handler_type, &handler_id)
-            .await;
 
         stream! {
             // TODO test this
-            let mut address = match address {
-                Ok(v) => v,
-                Err(e) => {
-                    yield Err(e);
-                    return;
-                }
-            };
-
             loop {
-                let mut subscription_stream = self._subscribe(&handler_type, &handler_id, &address).await;
+                let mut subscription_stream = self._subscribe(&handler_type, &handler_id).await;
                 while let Some(v) = subscription_stream.next().await {
-                    if let Err(ResponseError::Redirect(to)) = v {
-                        address = to;
+                    // TODO
+                    if let Err(ClientError::ResponseError(ResponseError::Redirect(to))) = v {
+                        println!("found another one {}", to);
+                        for i in self.placement.read().unwrap().iter() {
+                            println!("i {:?}", i);
+                        }
+
+                        self
+                            .placement
+                            .write()
+                            .map_err(|_| ClientError::PlacementLock)?
+                            .put((handler_type.clone(), handler_id.clone()), to);
+
+                        println!("update placement");
+                        for i in self.placement.read().unwrap().iter() {
+                            println!("i {:?}", i);
+                        }
+
+
                         break;
                     }
                     let i = match v {
-                        Ok(v) => Ok(v),
-                        Err(err) => Err(ClientError::ResponseError(err)),
+                        Ok(v) => {
+                            let final_value: T = bincode::deserialize(&v).expect("TODO");
+                            Ok(final_value)
+                        },
+                        Err(err) => Err(err),
 
                     };
                     yield i;
@@ -442,7 +465,7 @@ mod test {
     use super::*;
     use crate::{
         cluster::storage::{
-            LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
+            local::LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
         },
         errors::MembershipError,
     };

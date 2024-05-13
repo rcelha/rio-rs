@@ -120,7 +120,7 @@ impl From<::std::io::Error> for ClientError {
 pub mod pubsub {
     use super::*;
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SubscriptionRequest {
         pub handler_type: String,
         pub handler_id: String,
