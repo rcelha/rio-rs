@@ -59,6 +59,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Remove magic numbers
 - [ ] Object TTL
 - [ ] Matrix test with different backends
+- [ ] Replace prints with logging
 - [?] Support 'typed' message/response on client
 - [ ] Support ephemeral port
 - [ ] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
