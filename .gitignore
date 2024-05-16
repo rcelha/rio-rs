@@ -1,2 +1,4 @@
 /target
 .vim/
+.DS_Store
+/Cargo.lock

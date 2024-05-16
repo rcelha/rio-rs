@@ -1,11 +1,15 @@
-use black_jack::game_server::GameServerRequest;
+use black_jack::game_server::{
+    GameServerRequest, GameServerResponse, GameServerStates, TableState,
+};
 use black_jack::messages::{JoinGame, JoinGameResponse, PlayerCommand, PlayerCommandResponse};
 
 use clap::Parser;
+use futures::{pin_mut, StreamExt};
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::prelude::*;
-use std::io::Write;
+use std::process::exit;
 use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::time::sleep;
 
 #[derive(Parser, Debug)]
@@ -47,39 +51,124 @@ async fn main() -> anyhow::Result<()> {
     let table: JoinGameResponse = client.send("Cassino", "*", &msg).await?;
     println!("Table #{:#?}", table);
 
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout();
+    let stdin = tokio::io::stdin();
+    let mut buffered_stdin = BufReader::new(stdin);
     let mut command = "h".to_string();
 
-    loop {
-        print!("Insert your command ('h' for help): ");
-        stdout.flush()?;
-        command.clear();
-        stdin.read_line(&mut command)?;
+    let mut inner_client = client.clone();
+    let inner_table_id = table.table_id.clone();
 
-        let command = match command.trim() {
-            "s" => black_jack::game_server::PlayerCommand::GetState,
-            "!" => black_jack::game_server::PlayerCommand::Hit,
-            "x" => black_jack::game_server::PlayerCommand::Stand,
-            "q" => break,
-            _ => {
-                println!("Help: ");
-                println!("");
-                println!("- h       Print this message");
-                println!("- s       Get the table's current state");
-                println!("- !       Hit it");
-                println!("- x       Stand");
-                println!("- q       Exit program");
-                continue;
+    let subscription = inner_client
+        .subscribe::<GameServerStates, _, _>("GameTable", inner_table_id)
+        .await;
+    pin_mut!(subscription);
+    while let Some(data) = subscription.next().await {
+        match data {
+            Ok(ref v) => {
+                //
+                match v.0.last() {
+                    Some(GameServerResponse::State(
+                        table_state,
+                        current_player,
+                        player_list,
+                        hands,
+                        winners,
+                    )) => {
+                        if table_state == &TableState::Wait {
+                            println!("Waiting for players to join");
+                            continue;
+                        }
+
+                        if table_state == &TableState::Settling {
+                            println!("Settling te scores");
+                            continue;
+                        }
+
+                        if table_state == &TableState::Done {
+                            println!("Game is over");
+                            println!("---");
+                            let dealer_total: u8 = hands.last().unwrap().iter().sum();
+                            println!(
+                                "The DEALER hand is {:?} ({})",
+                                hands.last().unwrap(),
+                                dealer_total
+                            );
+
+                            for i in 0..player_list.len() {
+                                let i_player_id = player_list.get(i).unwrap();
+                                let i_hand = hands.get(i).unwrap();
+                                let i_total: u8 = i_hand.iter().sum();
+                                let i_result = winners.get(i).unwrap();
+
+                                println!("---");
+                                println!("The {} hand is {:?} ({})", i_player_id, i_hand, i_total);
+                                match i_result {
+                                    black_jack::game_server::Winner::Dealer => {
+                                        println!("The Dealer won agains {}", i_player_id);
+                                    }
+                                    black_jack::game_server::Winner::Player => {
+                                        println!("The player {} won", i_player_id);
+                                    }
+                                    black_jack::game_server::Winner::Tie => {
+                                        println!(
+                                            "The player {} has tied with the DEALER",
+                                            i_player_id
+                                        );
+                                    }
+                                }
+                            }
+                            exit(0);
+                        }
+
+                        if current_player.is_empty() {
+                            println!("The DEALER is playing");
+                        } else if current_player != &user_id {
+                            println!("{} is currently playing", current_player);
+                        } else {
+                            println!("It is your turn baby");
+                            loop {
+                                println!("Insert your command:");
+                                println!("  - `!` Hit it");
+                                println!("  - `x` Stand");
+
+                                command.clear();
+                                let timeout_result =
+                                    tokio::time::timeout(Duration::from_secs(9), async {
+                                        buffered_stdin.read_line(&mut command).await.ok();
+                                    })
+                                    .await;
+
+                                if timeout_result.is_err() {
+                                    println!("Timeout, you 'standed'");
+                                    break;
+                                }
+
+                                let command = match command.trim() {
+                                    "s" => black_jack::game_server::PlayerCommand::GetState,
+                                    "!" => black_jack::game_server::PlayerCommand::Hit,
+                                    "x" => black_jack::game_server::PlayerCommand::Stand,
+                                    _ => {
+                                        continue;
+                                    }
+                                };
+                                let msg = PlayerCommand(GameServerRequest::Player(
+                                    user_id.clone(),
+                                    command,
+                                ));
+                                let resp: PlayerCommandResponse = client
+                                    .send("GameTable", &table.table_id, &msg)
+                                    .await
+                                    .unwrap();
+                                println!("Server Response {:#?}", resp);
+                                break;
+                            }
+                        }
+                    }
+                    _ => (),
+                }
             }
+            _ => {}
         };
-
-        let msg = PlayerCommand(GameServerRequest::Player(user_id.clone(), command));
-        let resp: PlayerCommandResponse = client
-            .send("GameTable", &table.table_id, &msg)
-            .await
-            .unwrap();
-        println!("Server Response {:#?}", resp);
     }
 
     Ok(())

@@ -13,7 +13,10 @@ use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender};
 use crate::state::ObjectStateManager;
 
-/// TODO docs
+/// Internal representation of an object id.
+///
+/// It is stuct name + the object id (as in [WithId]).
+/// It is used lookups across tthis project
 pub struct ObjectId(pub String, pub String);
 
 impl ObjectId {
@@ -22,7 +25,11 @@ impl ObjectId {
     }
 }
 
-/// TODO docs
+/// Common interface to get a string Id for an object
+///
+/// This is particularly useful for the registry, as every object
+/// in the registry needs to have an Id for retrieval
+// TODO move it out of the service_object module
 pub trait WithId {
     fn set_id(&mut self, id: String);
     fn id(&self) -> &str;
@@ -45,42 +52,55 @@ pub trait ServiceObject:
     Default + WithId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
 {
     /// Send a message to Rio cluster using a client tht is stored in AppData
-    async fn send<S, T, V, H, I>(
+    async fn send<S, T, V>(
         app_data: &AppData,
-        handler_type_id: &H,
-        handler_id: &I,
+        handler_type_id: impl ToString + Send + Sync,
+        handler_id: impl ToString + Send + Sync,
         payload: &V,
     ) -> Result<T, ClientError>
     where
         S: MembersStorage + 'static,
-        T: DeserializeOwned,
+        T: DeserializeOwned + Send + Sync,
         V: Serialize + IdentifiableType + Send + Sync,
-        H: AsRef<str> + Send + Sync,
-        I: AsRef<str> + Send + Sync,
     {
         let pool: &Pool<ClientConnectionManager<S>> = app_data.get();
+
         match pool.get().await {
-            Ok(mut client) => client.send(handler_type_id, handler_id, payload).await,
+            Ok(mut client) => {
+                client
+                    .send(
+                        &handler_type_id.to_string(),
+                        &handler_id.to_string(),
+                        payload,
+                    )
+                    .await
+            }
             Err(RunError::User(error)) => Err(error),
             // TODO: might want a time out error in ClientError
             Err(RunError::TimedOut) => Err(ClientError::Connectivity),
         }
     }
 
-    async fn before_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn before_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 
-    async fn after_load(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn after_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 
-    async fn before_shutdown(&mut self, _: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
+    async fn before_shutdown(
+        &mut self,
+        _: Arc<AppData>,
+    ) -> Result<(), ServiceObjectLifeCycleError> {
         Ok(())
     }
 
-    async fn shutdown(&mut self, app_data: &AppData) -> Result<(), ServiceObjectLifeCycleError> {
-        self.before_shutdown(app_data).await?;
+    async fn shutdown(
+        &mut self,
+        app_data: Arc<AppData>,
+    ) -> Result<(), ServiceObjectLifeCycleError> {
+        self.before_shutdown(app_data.clone()).await?;
         let admin_sender = app_data.get::<AdminSender>().clone();
         admin_sender
             .send(AdminCommands::Shutdown(
@@ -100,6 +120,9 @@ pub trait ServiceObjectStateLoad {
     }
 }
 
+/// TODO
+///     - docs
+///     - use macros
 #[derive(Debug, Serialize, Deserialize)]
 pub enum LifecycleMessage {
     Load,
@@ -126,13 +149,13 @@ where
     ) -> Result<Self::Returns, crate::errors::HandlerError> {
         match message {
             LifecycleMessage::Load => {
-                self.before_load(&context)
+                self.before_load(context.clone())
                     .await
                     .map_err(HandlerError::LyfecycleError)?;
-                self.load(&context)
+                self.load(context.clone().as_ref())
                     .await
                     .map_err(HandlerError::LyfecycleError)?;
-                self.after_load(&context)
+                self.after_load(context.clone())
                     .await
                     .map_err(HandlerError::LyfecycleError)?;
 

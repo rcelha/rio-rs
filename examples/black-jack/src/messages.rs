@@ -1,7 +1,7 @@
 use rio_rs::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::game_server::{GameServerRequest, GameServerResponse};
+use crate::game_server::{GameServerRequest, GameServerResponse, GameServerStates};
 
 #[derive(Debug, TypeName, Serialize, Deserialize, Message)]
 pub struct JoinGame {
@@ -19,3 +19,6 @@ pub struct PlayerCommand(pub GameServerRequest);
 
 #[derive(Debug, TypeName, Serialize, Deserialize, Message)]
 pub struct PlayerCommandResponse(pub GameServerResponse);
+
+#[derive(Debug, TypeName, Serialize, Deserialize, Message)]
+pub struct PlayerPush(pub GameServerStates);

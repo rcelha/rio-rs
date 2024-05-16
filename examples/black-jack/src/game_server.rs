@@ -227,6 +227,44 @@ fn pool_commands(
     }
 }
 
+/// Print the stats of friendly players when they change
+fn check_res_changed(
+    players: Res<PlayerList>,
+    table_state: Res<TableState>,
+    table: Res<Table>,
+    current_player: Res<CurrentPlayer>,
+    game_results: Res<GameResults>,
+    message_sender: Res<crossbeam_channel::Sender<GameServerStates>>,
+) {
+    if players.is_changed()
+        || table_state.is_changed()
+        || table.is_changed()
+        || current_player.is_changed()
+        || game_results.is_changed()
+    {
+        let mut hands = vec![];
+        let results = game_results.iter().cloned().collect();
+
+        if table_state.as_ref() == &TableState::Done {
+            for (_, player) in table.players.iter() {
+                let hand: Vec<u8> = player.0.iter().map(|x| x.value()).collect();
+                hands.push(hand);
+            }
+            let hand: Vec<u8> = table.dealer.0.iter().map(|x| x.value()).collect();
+            hands.push(hand);
+        }
+
+        let msg = GameServerResponse::State(
+            table_state.clone(),
+            current_player.clone(),
+            players.clone(),
+            hands,
+            results,
+        );
+        message_sender.send(GameServerStates(vec![msg])).ok();
+    }
+}
+
 // Not implemented: Double, Split, Surrender
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PlayerCommand {
@@ -267,6 +305,9 @@ pub enum GameServerResponse {
     Empty,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GameServerStates(pub Vec<GameServerResponse>);
+
 pub struct GameServerConfig {
     pub turn_duration_in_seconds: f32,
 }
@@ -301,6 +342,7 @@ impl Plugin for GameServer {
             .insert_resource(player_list)
             .insert_resource(TableState::Wait)
             .insert_resource(GameResults::new())
+            .add_system(check_res_changed)
             .add_system(pool_commands)
             .add_system(finish_join_stage)
             .add_system(settle)
@@ -311,12 +353,14 @@ impl Plugin for GameServer {
 pub fn build_app(
     tx: crossbeam_channel::Sender<GameServerResponse>,
     rx: crossbeam_channel::Receiver<GameServerRequest>,
+    changes_tx: crossbeam_channel::Sender<GameServerStates>,
     config: Option<GameServerConfig>,
 ) -> App {
     let config = config.unwrap_or_else(Default::default);
     let mut app = App::new();
     app.insert_resource(rx);
     app.insert_resource(tx);
+    app.insert_resource(changes_tx);
     app.add_plugins(MinimalPlugins)
         .add_plugin(GameServer { config });
     app
@@ -328,10 +372,11 @@ mod test {
 
     #[test]
     fn sanity_check() {
-        let (res_tx, _res_rx) = crossbeam_channel::bounded(1_000);
-        let (_req_tx, req_rx) = crossbeam_channel::bounded(1_000);
+        let (res_tx, _) = crossbeam_channel::bounded(1_000);
+        let (_, req_rx) = crossbeam_channel::bounded(1_000);
+        let (changes_tx, _) = crossbeam_channel::bounded(1_000);
 
-        let _app = build_app(res_tx, req_rx, None);
+        let _app = build_app(res_tx, req_rx, changes_tx, None);
     }
 
     #[derive(Clone)]
@@ -340,17 +385,22 @@ mod test {
         pub response_rx: crossbeam_channel::Receiver<GameServerResponse>,
         pub request_tx: crossbeam_channel::Sender<GameServerRequest>,
         pub request_rx: crossbeam_channel::Receiver<GameServerRequest>,
+        pub changes_tx: crossbeam_channel::Sender<GameServerStates>,
+        pub changes_rx: crossbeam_channel::Receiver<GameServerStates>,
     }
 
     impl AppTest {
         fn new() -> AppTest {
             let (response_tx, response_rx) = crossbeam_channel::bounded(1_000);
             let (request_tx, request_rx) = crossbeam_channel::bounded(1_000);
+            let (changes_tx, changes_rx) = crossbeam_channel::bounded(1_000);
             AppTest {
                 response_tx,
                 response_rx,
                 request_tx,
                 request_rx,
+                changes_tx,
+                changes_rx,
             }
         }
 
@@ -358,6 +408,7 @@ mod test {
             build_app(
                 self.response_tx,
                 self.request_rx,
+                self.changes_tx,
                 Some(GameServerConfig {
                     turn_duration_in_seconds: 1.0,
                 }),
