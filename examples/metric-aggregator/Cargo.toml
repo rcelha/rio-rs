@@ -3,11 +3,9 @@ name = "metric-aggregator"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 async-trait = "0.1.51"
-rio-rs = { path = "../.." }
+rio-rs = { path = "../../rio-rs" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 futures = "0.3.0"
