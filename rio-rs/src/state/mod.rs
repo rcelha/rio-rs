@@ -1,8 +1,11 @@
 #![doc = include_str!("README.md")]
 
+use std::marker::PhantomData;
+
+use crate::app_data::AppData;
 use crate::errors::LoadStateError;
 use crate::registry::IdentifiableType;
-use crate::{ServiceObject, WithId};
+use crate::{app_data, ServiceObject, WithId};
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -109,6 +112,30 @@ where
         state_type: &str,
     ) -> Result<T, LoadStateError> {
         state_loader.load(object_kind, object_id, state_type).await
+    }
+}
+
+pub struct StatePersistencyMapper<S, T, M> {
+    pub(crate) name: String,
+    _phantom: PhantomData<(S, T, M)>,
+}
+
+impl<S, T, M> StatePersistencyMapper<S, T, M>
+where
+    S: StateLoader + StateSaver + 'static,
+    T: IdentifiableType,
+    M: Serialize + DeserializeOwned,
+{
+    pub fn new(name: String) -> Self {
+        let _phantom = PhantomData;
+        Self { name, _phantom }
+    }
+
+    pub async fn load(&self, app_data: &AppData, object_id: String) -> Result<M, LoadStateError> {
+        let state = app_data.get::<S>();
+        let object_kind = T::user_defined_type_id();
+        let le_state: M = state.load(object_kind, &object_id, &self.name).await?;
+        Ok(le_state)
     }
 }
 

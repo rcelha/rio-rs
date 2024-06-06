@@ -1,8 +1,9 @@
 use metric_aggregator::messages;
-use metric_aggregator::services::{self, Counter};
+use metric_aggregator::services::{self, Counter, MetricAggregator, MetricStats};
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 use rio_rs::state::sql::SqlState;
+use rio_rs::state::StatePersistencyMapper;
 use rio_rs::{prelude::*, state::local::LocalState};
 use std::sync::atomic::AtomicUsize;
 
@@ -75,5 +76,11 @@ async fn main() {
     let sql_state = SqlState::new(sql_state_pool);
     sql_state.migrate().await;
     server.app_data(sql_state);
+
+    let mapper = StatePersistencyMapper::<SqlState, MetricAggregator, MetricStats>::new(
+        "metric_stats".to_string(),
+    );
+    server.app_data(mapper);
+
     server.run().await.expect("");
 }

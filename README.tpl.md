@@ -4,6 +4,131 @@
 
 ---
 
+How it is:
+
+```rust
+#[derive(Debug, Default, TypeName, WithId, ManagedState)]
+pub struct MetricAggregator {
+    pub id: String,
+    #[managed_state(provider = SqlState)]
+    pub metric_stats: Option<MetricStats>,
+}
+
+
+#[async_trait]
+impl Handler<messages::Metric> for MetricAggregator {
+    type Returns = messages::MetricResponse;
+    async fn handle(
+        &mut self,
+        message: messages::Metric,
+        app_data: Arc<AppData>,
+    ) -> Result<Self::Returns, HandlerError> {
+        let state_saver = app_data.get::<SqlState>();
+        self.save_state(state_saver).await?;
+        Ok(messages::MetricResponse {
+           sum: 1,
+           avg: 1,
+           max: 1,
+           min: 1
+        })
+    }
+}
+```
+
+How I want it to be:
+
+```rust
+#[derive(Debug, Default, TypeName, WithId, ManagedState)]
+pub struct MetricAggregator {
+    pub id: String,
+    #[managed_state]
+    pub metric_stats: MetricStats,
+}
+
+
+#[async_trait]
+impl Handler<messages::Metric> for MetricAggregator {
+    type Returns = messages::MetricResponse;
+    async fn handle(
+        &mut self,
+        message: messages::Metric,
+        app_data: Arc<AppData>,
+    ) -> Result<Self::Returns, HandlerError> {
+        self.save_state<MetricStats>().await?;
+        Ok(messages::MetricResponse {
+           sum: 1,
+           avg: 1,
+           max: 1,
+           min: 1
+        })
+    }
+}
+
+// Server
+/// ...
+server.configure_state<MetricAggregator, MetricStats, SqlState>(SqlStateConfig::sqlite("sqlite:///tmp/test.sqlite3"));
+server.run().await?;
+/// ...
+```
+
+If you want to have more than one attribute persisted with the same type?
+
+```rust
+type OldMetricStats = MetricStats; // I don't know if this would work
+// or
+pub struct OldMetricStats(pub MetricStats);
+impl Deref for OldMetricStats {
+  type Target = MetricStats;
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+// or
+custom_derive! {
+    #[derive(NewtypeFrom, NewtypeDeref, NewtypeDerefMut)]
+    pub struct OldMetricStats(MetricStats);
+}
+
+#[derive(Debug, Default, TypeName, WithId, ManagedState)]
+pub struct MetricAggregator {
+    pub id: String,
+    #[managed_state]
+    pub metric_stats: MetricStats,
+    #[managed_state]
+    pub old_metric_stats: OldMetricStats,
+}
+
+
+#[async_trait]
+impl Handler<messages::Metric> for MetricAggregator {
+    type Returns = messages::MetricResponse;
+    async fn handle(
+        &mut self,
+        message: messages::Metric,
+        app_data: Arc<AppData>,
+    ) -> Result<Self::Returns, HandlerError> {
+        self.save_state<MetricStats>().await?;
+        self.save_state<OldMetricStats>().await?;
+        Ok(messages::MetricResponse {
+           sum: 1,
+           avg: 1,
+           max: 1,
+           min: 1
+        })
+    }
+}
+
+// Server
+/// ...
+server.configure_state<MetricAggregator, MetricStats, SqlState>(SqlStateConfig::sqlite("sqlite:///tmp/test.sqlite3"));
+server.configure_state<MetricAggregator, OldMetricStats, LocalState>(LocalStateConfig::default());
+server.run().await?;
+/// ...
+`
+
+
+---
+
 ## Roadmap
 
 There are a few things that must be done before v0.1.0:
@@ -64,3 +189,4 @@ There are a few things that must be done before v0.1.0:
 - [ ] Support ephemeral port
 - [ ] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
 - [ ] Code of conduct
+```
