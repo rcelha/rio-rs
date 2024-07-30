@@ -46,8 +46,11 @@ impl SqlState {
 }
 
 #[async_trait]
-impl StateLoader for SqlState {
-    async fn load<T: DeserializeOwned>(
+impl<T> StateLoader<T> for SqlState
+where
+    T: DeserializeOwned,
+{
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,

@@ -100,6 +100,7 @@ impl ServiceObject for GameTable {
         &mut self,
         app_data: Arc<AppData>,
     ) -> Result<(), ServiceObjectLifeCycleError> {
+        self.load(&app_data).await.ok();
         if self.state.is_none() {
             self.state = Some(Default::default())
         }
