@@ -37,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
         &options.sql_state_conn,
     )
     .await?;
+    server.bind().await?;
     server.run().await?;
     Ok(())
 }

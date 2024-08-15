@@ -33,6 +33,7 @@ impl PeerToPeerClusterConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct PeerToPeerClusterProvider<T>
 where
     T: MembersStorage,

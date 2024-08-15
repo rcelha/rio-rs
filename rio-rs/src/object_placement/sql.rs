@@ -5,6 +5,7 @@ use sqlx::{self, Row};
 use super::{ObjectPlacement, ObjectPlacementProvider};
 use crate::ObjectId;
 
+#[derive(Clone)]
 pub struct SqlObjectPlacementProvider {
     pool: AnyPool,
 }

@@ -22,7 +22,7 @@ impl ObjectPlacement {
 }
 
 #[async_trait]
-pub trait ObjectPlacementProvider: Send + Sync {
+pub trait ObjectPlacementProvider: Send + Sync + Clone {
     async fn update(&self, object_placement: ObjectPlacement);
     async fn lookup(&self, object_id: &ObjectId) -> Option<String>;
     async fn clean_server(&self, address: String);

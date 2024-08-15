@@ -10,6 +10,7 @@ pub mod peer_to_peer;
 #[async_trait]
 pub trait ClusterProvider<T>
 where
+    Self: Clone,
     T: MembersStorage,
 {
     fn members_storage(&self) -> &T;

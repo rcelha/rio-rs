@@ -1,3 +1,4 @@
+///! TODO
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
@@ -17,6 +18,7 @@ use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
 use crate::{LifecycleMessage, ObjectId};
 
+/// TODO
 pub struct Service<S: MembersStorage, P: ObjectPlacementProvider> {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
@@ -111,6 +113,9 @@ impl Stream for SubscriptionResponseIter {
         let this = self.get_mut();
         this.receiver_stream.poll_next_unpin(_cx).map(|i| {
             if let Some(result) = i {
+                if result.is_err() {
+                    println!("Error on stream recv {:?}", result);
+                }
                 // TODO error handling
                 // TODO deal with redirect
                 // TODO deal with objects being removed from the current host!
