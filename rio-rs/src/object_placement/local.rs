@@ -1,3 +1,5 @@
+//! In-memory implementation of the trait [ObjectPlacementProvider]
+
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -8,6 +10,7 @@ use crate::ObjectId;
 
 type PlacementMap = Arc<RwLock<HashMap<String, String>>>;
 
+/// In-memory implementation of the trait [ObjectPlacementProvider]
 #[derive(Default, Clone)]
 pub struct LocalObjectPlacementProvider {
     placement: PlacementMap,

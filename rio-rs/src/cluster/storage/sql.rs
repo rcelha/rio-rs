@@ -1,3 +1,11 @@
+//! MembersStorage implementation to work with relational databases
+//!
+//! This uses [sqlx] under the hood
+//!
+//! <div class="warning">
+//! Not fully compatible with all SQL databases
+//! </div>
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use futures::TryFutureExt;
@@ -6,20 +14,45 @@ use sqlx::{self, Row};
 
 use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
 
+/// MembersStorage implementation to work with relational databases
 #[derive(Clone)]
 pub struct SqlMembersStorage {
     pool: AnyPool,
 }
 
 impl SqlMembersStorage {
+    /// Builds a [SqlMembersStorage] from a [sqlx]'s [AnyPool]
     pub fn new(pool: AnyPool) -> SqlMembersStorage {
         SqlMembersStorage { pool }
     }
 
+    /// Pool builder, so one doesn't need to include sqlx as a dependency
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rio_rs::cluster::storage::sql::SqlMembersStorage;
+    /// # async fn test_fn() {
+    /// let pool = SqlMembersStorage::pool()
+    ///     .max_connections(num_cpus)
+    ///     .connect("sqlite::memory:")
+    ///     .await
+    ///     .expect("Connection failure");
+    /// let members_storage = SqlMembersStorage::new(pool);
+    /// # }
+    /// ```
     pub fn pool() -> AnyPoolOptions {
         AnyPoolOptions::new()
     }
 
+    /// Run the schema/data migrations for this membership storage.
+    ///
+    /// For now, the Rio server doesn't run this at start-up and it needs
+    /// to be invoked on manually in the server's setup.
+    ///
+    /// <div class="warning">
+    /// This is likely to change into a generic setup step
+    /// </div>
     pub async fn migrate(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
 

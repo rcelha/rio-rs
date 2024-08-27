@@ -26,6 +26,7 @@ use state::Container;
 /// ```
 pub type AppData = Container!(Send + Sync);
 
+/// Set of utilities to work with [state] crate
 pub trait AppDataExt {
     fn get_or_default<T: Default + Send + Sync + 'static>(&self) -> &T;
 }

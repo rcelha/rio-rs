@@ -1,3 +1,5 @@
+//! Rio server
+
 use std::convert::{TryFrom, TryInto};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
@@ -51,7 +53,7 @@ where
     P: ObjectPlacementProvider,
 {
     /// Address given by the user
-    #[builder(default = r#""0.0.0.0:0".to_string()"#)]
+    #[builder(setter(into, strip_option), default = r#""0.0.0.0:0".to_string()"#)]
     address: String,
 
     /// TCP listener for the main server
@@ -66,7 +68,7 @@ where
     #[builder(default = "10")]
     client_pool_size: u32,
 
-    #[builder(default = "PhantomData {}")]
+    #[builder(default = "PhantomData {}", setter(skip))]
     _marker: PhantomData<S>,
 }
 
@@ -78,7 +80,7 @@ where
 /// # use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 /// # use rio_rs::registry::Registry;
 /// # use rio_rs::cluster::membership_protocol::local::LocalClusterProvider;
-/// # use rio_rs::cluster::storage::LocalStorage;
+/// # use rio_rs::cluster::storage::local::LocalStorage;
 /// # async fn run_server() {
 /// #
 /// let mut server = ServerBuilder::default()
@@ -350,13 +352,14 @@ where
 mod test {
     use super::*;
     use crate::cluster::membership_protocol::local::LocalClusterProvider;
-    use crate::cluster::storage::LocalStorage;
+    use crate::cluster::storage::local::LocalStorage;
     use crate::object_placement::local::LocalObjectPlacementProvider;
     use crate::registry::Registry;
 
     #[tokio::test]
     async fn client_builder_sanity_check() {
         let _server = NewServerBuilder::default()
+            .address("0.0.0.0:80")
             .registry(Arc::new(RwLock::new(Registry::default())))
             .app_data(Arc::new(Default::default()))
             .cluster_provider(LocalClusterProvider {

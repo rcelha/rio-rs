@@ -3,6 +3,7 @@ use futures::{pin_mut, Future, StreamExt};
 use rio_macros::{Message, TypeName, WithId};
 
 use rio_rs::app_data::AppDataExt;
+use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::message_router::MessageRouter;
 use rio_rs::prelude::*;
 use rio_rs::protocol::pubsub::SubscriptionResponse;
@@ -12,7 +13,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-use rio_rs::cluster::storage::LocalStorage;
 use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 
 #[derive(Default, WithId, TypeName)]

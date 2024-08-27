@@ -1,5 +1,4 @@
-//!
-//! There is a pooled client. The client also does proper placement lookups and controls its own
+//! This is a pooled client. The client also does proper placement lookups and controls its own
 //! caching strategy
 
 use async_trait::async_trait;
@@ -12,12 +11,19 @@ use super::Client;
 use super::ClientBuilder;
 use super::DEFAULT_TIMEOUT_MILLIS;
 
-/// TODO: Move cache out of the Client struct so we can share the cache across all connections in
-/// the pool
+/// Struct to help implementing pooling with bb8
+///
+/// <div class="warning">
+///
+/// # TODO
+/// - Move the cache out of the Client struct so we can share the cache across all connections in the pool
+///
+/// </div>
 pub struct ClientConnectionManager<S: MembersStorage> {
     pub(crate) members_storage: S,
     pub(crate) timeout_millis: u64,
 }
+
 impl<S: MembersStorage + 'static> ClientConnectionManager<S> {
     pub fn new(members_storage: S) -> Self {
         ClientConnectionManager {
@@ -52,5 +58,35 @@ impl<S: MembersStorage + 'static> ManageConnection for ClientConnectionManager<S
 
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use bb8::Pool;
+
+    use crate::cluster::storage::local::LocalStorage;
+    use crate::cluster::storage::Member;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn basic_usage() {
+        let local_members_storage = LocalStorage::default();
+        local_members_storage
+            .push(Member::new("0.0.0.0".to_string(), "9999".to_string()))
+            .await
+            .unwrap();
+
+        let manager = ClientConnectionManager::new(local_members_storage);
+        let client = Pool::builder().build(manager).await.unwrap();
+
+        let mut conn_1 = client.get().await.unwrap();
+        let conn_2 = client.get().await.unwrap();
+
+        conn_1.fetch_active_servers().await.unwrap();
+
+        assert_eq!(conn_1.members_storage.members().await.unwrap().len(), 1);
+        assert_eq!(conn_2.members_storage.members().await.unwrap().len(), 1);
     }
 }

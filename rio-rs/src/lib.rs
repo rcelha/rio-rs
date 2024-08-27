@@ -204,6 +204,7 @@ pub mod tap_err;
 
 pub use service_object::*;
 
+/// Re-exports of [rio_macros]
 pub mod derive {
     pub use rio_macros::ManagedState;
     pub use rio_macros::Message;

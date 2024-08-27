@@ -1,7 +1,10 @@
+//! Repository of all error types for this crate using [thiserror]
 use thiserror::Error;
 
 use crate::protocol::ClientError;
 
+/// Message handling error. It occurs, mostly, from the object look up to
+/// the end of its execution
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum HandlerError {
     #[error("object not found")]
@@ -22,18 +25,25 @@ pub enum HandlerError {
     Unknown,
 }
 
+/// Represents errors that occur in the lifecyle functions of an object.
+/// This is, in most of the [ServiceObject](crate::service_object::ServiceObject)
+/// hook functions
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServiceObjectLifeCycleError {
     #[error("unknown error")]
     Unknown,
 }
 
+/// Errors triggered while building an [crate::client::Client] using
+/// [crate::client::ClientBuilder]
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClientBuilderError {
     #[error("no MembersStorage provided")]
     NoMembersStorage,
 }
 
+/// Errors triggered while building a [crate::server::Server] using
+/// [crate::server::ServerBuilder]
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServerBuilderError {
     #[error("no MembersStorage provided")]
@@ -46,6 +56,7 @@ pub enum ServerBuilderError {
     Unknown(String),
 }
 
+/// Represent errors that  happen during the [crate::server::Server] setup
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServerError {
     #[error("bind")]
@@ -61,6 +72,8 @@ pub enum ServerError {
     Run,
 }
 
+/// Error type for the cluster redevouz/membeship trait
+/// ([crate::cluster::storage::MembersStorage])
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum MembershipError {
     #[error("upstream error")]
@@ -76,6 +89,8 @@ impl From<sqlx::Error> for MembershipError {
     }
 }
 
+/// Error type for the serve function of the cluster provider algorith trait
+/// ([crate::cluster::membership_protocol::ClusterProvider])
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClusterProviderServeError {
     #[error("can't communicate with membership provider's storage")]
@@ -94,6 +109,7 @@ impl From<MembershipError> for ClusterProviderServeError {
     }
 }
 
+/// Error type for service object state management
 #[derive(Error, Debug)]
 pub enum LoadStateError {
     #[error("object not found")]
