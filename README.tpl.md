@@ -23,9 +23,9 @@ There are a few things that must be done before v0.1.0:
   - [x] Background async task on a service
   - [x] Background blocking task on a service (_see_ [black-jack](./examples/black-jack))
   - [x] Pub/sub (_see_ [black-jack](./examples/black-jack))
-- [ ] Re-organize workspace
+- [x] Re-organize workspace
 - [ ] Allow `ServiceObject` trait without state persistence
-- [ ] Feature: Create server from config
+- [ ] Create server from config
 - [ ] Bypass clustering for self messages
 - [ ] Bypass networking for local messages
 - [ ] Move all the client to user tower
@@ -61,6 +61,8 @@ There are a few things that must be done before v0.1.0:
 - [ ] Matrix test with different backends
 - [ ] Replace prints with logging
 - [?] Support 'typed' message/response on client
-- [ ] Support ephemeral port
+- [x] Support ephemeral port
 - [ ] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
 - [ ] Code of conduct
+- [ ] Metrics and Tracing
+- [ ] Deny allocations based on system resources

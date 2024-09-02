@@ -1,3 +1,5 @@
+//! In-memory ClusterProvider for testing.
+
 use async_trait::async_trait;
 use std::time::Duration;
 
@@ -8,6 +10,7 @@ use crate::{cluster::storage::MembersStorage, errors::ClusterProviderServeError}
 ///
 /// This is only for tests, and it is doesn't offer real
 /// cluster capabilities
+#[derive(Clone)]
 pub struct LocalClusterProvider<T> {
     pub members_storage: T,
 }

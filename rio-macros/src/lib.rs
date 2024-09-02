@@ -1,3 +1,6 @@
+//! Derive macros to automatically implement the most common
+//! traits from [rio_rs]
+
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
@@ -17,6 +20,8 @@ use syn::PathSegment;
 use syn::Stmt;
 use syn::{parse2, ItemStruct, Lit, Meta, MetaNameValue};
 
+/// Helper function to allow changing what is the
+/// name of the [rio_rs] crate
 fn get_crate_path(ast: &ItemStruct) -> Ident2 {
     let mut rio_rs = format_ident!("rio_rs");
 
@@ -37,6 +42,45 @@ fn get_crate_path(ast: &ItemStruct) -> Ident2 {
     rio_rs
 }
 
+/// Implements the trait [rio_rs::registry::IdentifiableType]
+///
+/// # Examples
+///
+/// ```
+/// # use rio_macros::TypeName;
+/// # use rio_rs::registry::IdentifiableType;
+/// #[derive(Default, TypeName)]
+/// struct MyType {
+///     attr1: String
+/// }
+/// assert_eq!(MyType::user_defined_type_id(), "MyType");
+/// ```
+///
+/// You can also override the type name (to avoid collision):
+///
+/// ```
+/// # use rio_macros::TypeName;
+/// # use rio_rs::registry::IdentifiableType;
+/// mod mod1 {
+///     # use rio_macros::TypeName;
+///     # use rio_rs::registry::IdentifiableType;
+///     #[derive(Default, TypeName)]
+///     pub struct MyType {
+///         attr1: String
+///     }
+/// }
+/// mod mod2 {
+///     # use rio_macros::TypeName;
+///     # use rio_rs::registry::IdentifiableType;
+///     #[derive(Default, TypeName)]
+///     #[type_name = "MySecondType"]
+///     pub struct MyType {
+///         attr1: String
+///     }
+/// }
+/// assert_eq!(mod1::MyType::user_defined_type_id(), "MyType");
+/// assert_eq!(mod2::MyType::user_defined_type_id(), "MySecondType");
+/// ```
 #[proc_macro_derive(TypeName, attributes(type_name, rio_path))]
 pub fn derive_type_name(tokens: TokenStream) -> TokenStream {
     let input = TokenStream2::from(tokens);
@@ -71,6 +115,22 @@ pub fn derive_type_name(tokens: TokenStream) -> TokenStream {
     TokenStream::from(output)
 }
 
+/// Implements the [rio_rs::registry::Message] trait for the
+/// struct. This is a blank implementation
+///
+///
+/// # Examples
+///
+/// ```
+/// # use rio_macros::Message;
+/// // # use rio_rs::registry::Message;
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Default, Message, Serialize, Deserialize)]
+/// struct MyMessage {
+///     name: String
+/// }
+/// ```
 #[proc_macro_derive(Message, attributes(rio_path))]
 pub fn derive_message(tokens: TokenStream) -> TokenStream {
     let input = TokenStream2::from(tokens);
@@ -84,6 +144,33 @@ pub fn derive_message(tokens: TokenStream) -> TokenStream {
     TokenStream::from(output)
 }
 
+/// This macro implements [rio_rs::service_object::WithId], which is needed
+/// for writing services using the framework
+///
+/// Rio relies on messages with identifiable types and types
+/// that expose and id field
+///
+/// To get this macro to work, the struct needs to have an `id` attribute (String)
+///
+/// If you want to have another type as the id (although its external APIs *needs* to be a
+/// [String] and [str]), you will need to implement the trait manually and handle the converstion
+/// # Examples
+///
+/// ```
+/// # use rio_rs::WithId;
+/// # use rio_macros::*;
+/// #
+/// #[derive(Default, WithId)]
+/// struct MyService {
+///     id: String,
+///     name: String
+/// }
+///
+/// let mut my_service_one = MyService::default();
+/// assert_eq!(my_service_one.id, "");
+/// my_service_one.set_id("one".to_string());
+/// assert_eq!(my_service_one.id, "one");
+/// ```
 #[proc_macro_derive(WithId, attributes(rio_path))]
 pub fn derive_with_id(tokens: TokenStream) -> TokenStream {
     let input = TokenStream2::from(tokens);

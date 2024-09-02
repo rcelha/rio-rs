@@ -1,3 +1,11 @@
+//! SQL implementation of the trait [ObjectPlacementProvider] to work with relational databases
+//!
+//! This uses [sqlx] under the hood
+//!
+//! <div class="warning">
+//! Not fully compatible with all SQL databases
+//! </div>
+
 use async_trait::async_trait;
 use sqlx::any::{AnyPool, AnyPoolOptions};
 use sqlx::{self, Row};
@@ -5,19 +13,43 @@ use sqlx::{self, Row};
 use super::{ObjectPlacement, ObjectPlacementProvider};
 use crate::ObjectId;
 
+#[derive(Clone)]
 pub struct SqlObjectPlacementProvider {
     pool: AnyPool,
 }
 
 impl SqlObjectPlacementProvider {
-    pub fn pool() -> AnyPoolOptions {
-        AnyPoolOptions::new()
-    }
-
     pub fn new(pool: AnyPool) -> Self {
         SqlObjectPlacementProvider { pool }
     }
 
+    /// Pool builder, so one doesn't need to include sqlx as a dependency
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
+    /// # async fn test_fn() {
+    /// let pool = SqlObjectPlacementProvider::pool()
+    ///     .max_connections(num_cpus)
+    ///     .connect("sqlite::memory:")
+    ///     .await
+    ///     .expect("Connection failure");
+    /// let object_placement = SqlObjectPlacementProvider::new(pool);
+    /// # }
+    /// ```
+    pub fn pool() -> AnyPoolOptions {
+        AnyPoolOptions::new()
+    }
+
+    /// Run the schema/data migrations for this membership storage.
+    ///
+    /// For now, the Rio server doesn't run this at start-up and it needs
+    /// to be invoked on manually in the server's setup.
+    ///
+    /// <div class="warning">
+    /// This is likely to change into a generic setup step
+    /// </div>
     pub async fn migrate(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
         sqlx::query(

@@ -1,3 +1,8 @@
+//! ClusterProvider that uses peer-to-peer communication to identify which
+//! nodes are healthy.
+//!
+//! This is a gossip based protocol, similar to the one described in Orleans (MS).
+
 use async_trait::async_trait;
 use chrono::Utc;
 use std::time::{Duration, SystemTime};
@@ -5,7 +10,8 @@ use std::{net::SocketAddr, str::FromStr};
 
 use crate::client::Client;
 use crate::cluster::membership_protocol::ClusterProvider;
-use crate::cluster::storage::{LocalStorage, Member, MembersStorage};
+use crate::cluster::storage::local::LocalStorage;
+use crate::cluster::storage::{Member, MembersStorage};
 use crate::errors::ClusterProviderServeError;
 
 /// Marks a node as inactive if we have more than `num_failures_threshold` in the past
@@ -33,6 +39,8 @@ impl PeerToPeerClusterConfig {
     }
 }
 
+/// Gossip-based [ClusterProvider]
+#[derive(Clone)]
 pub struct PeerToPeerClusterProvider<T>
 where
     T: MembersStorage,
@@ -82,6 +90,8 @@ where
     }
 
     async fn test_member(&self, member: &Member) -> Result<(), ClusterProviderServeError> {
+        // Client needs a MembersStorage, so we create a in-memory one
+        // for local use only
         let local_storage = LocalStorage::default();
         local_storage.push(member.clone()).await?;
         let mut client = Client::new(local_storage);
@@ -121,9 +131,6 @@ where
         &self.members_storage
     }
 
-    /// TODO if communication with MembersStorage fails, this server should be able to keep running
-    /// TODO it shouldn't bring dead servers back to life
-    ///
     /// Membership Algorithm
     ///
     /// At every `self.config.interval_secs` the server runs a check agains each server in the
@@ -134,6 +141,16 @@ where
     ///
     /// If the test fails `self.config.num_failures_threshold` times, the member is flagged
     /// as inactive in the `MembersStorage`
+    ///
+    ///
+    /// <div class="warning">
+    ///
+    /// # TODO
+    ///
+    /// 1. _If communication with MembersStorage fails, this server should be able to keep running_
+    /// 1. _It shouldn't bring dead servers back to life_
+    ///
+    /// </div>
     async fn serve(&self, address: &str) -> Result<(), ClusterProviderServeError> {
         let sleep_period = std::time::Duration::from_secs(self.config.interval_secs);
         let socket_address = SocketAddr::from_str(address)
@@ -180,7 +197,6 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::cluster::storage::LocalStorage;
     use std::collections::HashMap;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;

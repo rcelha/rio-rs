@@ -1,28 +1,19 @@
 use async_trait::async_trait;
 use futures::{pin_mut, Future, StreamExt};
-use lazy_static::lazy_static;
 use rio_macros::{Message, TypeName, WithId};
 
 use rio_rs::app_data::AppDataExt;
+use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::message_router::MessageRouter;
 use rio_rs::prelude::*;
 use rio_rs::protocol::pubsub::SubscriptionResponse;
 use rio_rs::registry::IdentifiableType;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-use rio_rs::cluster::storage::LocalStorage;
 use rio_rs::object_placement::local::LocalObjectPlacementProvider;
-
-// TODO use ephemeral ports
-lazy_static! {
-    static ref PORTS: Arc<RwLock<Vec<String>>> = {
-        let ports: Vec<_> = (4444..5000).map(|x| x.to_string()).collect();
-        Arc::new(RwLock::new(ports))
-    };
-}
 
 #[derive(Default, WithId, TypeName)]
 struct MockService {
@@ -84,7 +75,6 @@ type LocalServer =
 async fn build_server(
     members_storage: LocalStorage,
     object_placement_provider: LocalObjectPlacementProvider,
-    port: &str,
 ) -> LocalServer {
     let mut registry = Registry::new();
     registry.add_type::<MockService>();
@@ -93,12 +83,14 @@ async fn build_server(
 
     let membership_provider =
         PeerToPeerClusterProvider::new(members_storage.clone(), Default::default());
-    Server::new(
-        format!("0.0.0.0:{}", port),
+    let mut server = Server::new(
+        "0.0.0.0:0".to_string(),
         registry,
         membership_provider,
         object_placement_provider,
-    )
+    );
+    server.bind().await.expect("Bind Error");
+    server
 }
 
 // Run a test and fail if it takes more then `timeout_seconds`
@@ -113,27 +105,13 @@ async fn run_integration_test<Fut>(
     let mut servers = vec![];
     let object_placement_provider = LocalObjectPlacementProvider::default();
 
-    let mut ports = vec![];
     for _ in 0..num_servers {
-        let port = PORTS
-            .write()
-            .unwrap()
-            .pop()
-            .expect("Run out of ports, increaset the range of static PORTS");
-        ports.push(port);
-    }
-
-    for port in ports.iter() {
-        let server = build_server(
-            members_storage.clone(),
-            object_placement_provider.clone(),
-            port.as_str(),
-        )
-        .await;
+        let server = build_server(members_storage.clone(), object_placement_provider.clone()).await;
         servers.push(server);
     }
 
     let test_fn_with_members = || async move {
+        // Wait for cluster membership storage has some active servers
         while members_storage.active_members().await.unwrap().len() == 0 {
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -152,15 +130,10 @@ async fn run_integration_test<Fut>(
             panic!("Timeout reached");
         }
     };
-
-    // Give the ports back
-    for port in ports {
-        PORTS.write().unwrap().push(port);
-    }
 }
 
 #[tokio::test]
-async fn test_request_response() {
+async fn request_response() {
     let members_storage = LocalStorage::default();
     run_integration_test(5, members_storage.clone(), 1, || async move {
         let mut client = ClientBuilder::new()
@@ -177,7 +150,7 @@ async fn test_request_response() {
 }
 
 #[tokio::test]
-async fn test_request_response_redirectt() {
+async fn request_response_redirectt() {
     let members_storage = LocalStorage::default();
     run_integration_test(5, members_storage.clone(), 10, || async move {
         let mut client = ClientBuilder::new()
@@ -194,7 +167,7 @@ async fn test_request_response_redirectt() {
 }
 
 #[tokio::test]
-async fn test_pubsub() {
+async fn pubsub() {
     let members_storage = LocalStorage::default();
     run_integration_test(5, members_storage.clone(), 1, || async move {
         let another_members_storage = members_storage.clone();
@@ -243,9 +216,9 @@ async fn test_pubsub() {
 }
 
 #[tokio::test]
-async fn test_pubsub_redirect() {
+async fn pubsub_redirect() {
     let members_storage = LocalStorage::default();
-    run_integration_test(5, members_storage.clone(), 10, || async move {
+    run_integration_test(15, members_storage.clone(), 10, || async move {
         let another_members_storage = members_storage.clone();
 
         let publishing_task = tokio::spawn(async move {
@@ -264,26 +237,31 @@ async fn test_pubsub_redirect() {
                         },
                     )
                     .await
-                    .unwrap();
+                    .expect("Send Error");
             }
         });
 
         let mut client = ClientBuilder::new()
             .members_storage(members_storage)
             .build()
-            .unwrap();
+            .expect("Client Build Error");
 
         // Hack to try to cause a redirect
         // This test can have false positives if there is no redirect
         sleep(Duration::from_millis(10)).await;
-        let _resp = client
+        let subscription = client
             .subscribe::<CausePublishMessage, _, _>("MockService", "1")
             .await;
-        pin_mut!(_resp);
+        pin_mut!(subscription);
 
         // it will timeout if it doesn't get the last message
         let mut recv_count = 0;
-        while let Some(Ok(i)) = _resp.next().await {
+        while let Some(message_result) = subscription.next().await {
+            let i = if let Ok(message) = message_result {
+                message
+            } else {
+                break;
+            };
             recv_count += 1;
             if i.text == "hey 99" {
                 break;

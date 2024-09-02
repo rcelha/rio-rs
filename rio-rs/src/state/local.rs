@@ -22,8 +22,11 @@ impl LocalState {
 }
 
 #[async_trait]
-impl StateLoader for LocalState {
-    async fn load<T: DeserializeOwned>(
+impl<T> StateLoader<T> for LocalState
+where
+    T: DeserializeOwned,
+{
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,

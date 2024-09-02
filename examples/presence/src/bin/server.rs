@@ -14,6 +14,7 @@ async fn main() {
         "sqlite:///tmp/presence-placement.sqlite3?mode=rwc",
     )
     .await;
+    server.bind().await.unwrap();
     server.run().await.unwrap();
 }
 

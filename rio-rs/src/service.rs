@@ -1,3 +1,5 @@
+//! Server services
+
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use futures::{Stream, StreamExt};
@@ -17,6 +19,8 @@ use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
 use crate::{LifecycleMessage, ObjectId};
 
+/// Service to respond to Requests from [crate::client::Client]
+#[derive(Clone)]
 pub struct Service<S: MembersStorage, P: ObjectPlacementProvider> {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
@@ -25,18 +29,7 @@ pub struct Service<S: MembersStorage, P: ObjectPlacementProvider> {
     pub(crate) app_data: Arc<AppData>,
 }
 
-impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Clone for Service<S, P> {
-    fn clone(&self) -> Self {
-        Self {
-            address: self.address.clone(),
-            registry: self.registry.clone(),
-            members_storage: self.members_storage.clone(),
-            object_placement_provider: self.object_placement_provider.clone(),
-            app_data: self.app_data.clone(),
-        }
-    }
-}
-
+/// Service implementation to handle [RequestEnvelope] request
 impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
     TowerService<RequestEnvelope> for Service<S, P>
 {
@@ -89,7 +82,8 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
     }
 }
 
-// Pub/sub service impl
+/// This is a iterator to be used on the server to stream
+/// messages back to the client
 #[derive(Debug)]
 pub struct SubscriptionResponseIter {
     receiver_stream: tokio_stream::wrappers::BroadcastStream<SubscriptionResponse>,
@@ -111,6 +105,9 @@ impl Stream for SubscriptionResponseIter {
         let this = self.get_mut();
         this.receiver_stream.poll_next_unpin(_cx).map(|i| {
             if let Some(result) = i {
+                if result.is_err() {
+                    println!("Error on stream recv {:?}", result);
+                }
                 // TODO error handling
                 // TODO deal with redirect
                 // TODO deal with objects being removed from the current host!
@@ -166,7 +163,6 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
     /// Returns the ip:port for where this object is placed
     ///
     /// If the object is not instantiated anywhere, it will allocate locally
-    ///
     async fn get_or_create_placement(&self, handler_type: String, handler_id: String) -> String {
         let object_id = ObjectId(handler_type, handler_id);
         let placement_guard = self.object_placement_provider.read().await;
@@ -332,7 +328,7 @@ mod test {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::cluster::storage::LocalStorage;
+    use crate::cluster::storage::local::LocalStorage;
     use crate::object_placement::local::LocalObjectPlacementProvider;
     use crate::prelude::HandlerError;
     use crate::registry::Handler;

@@ -1,3 +1,5 @@
+//! Module for implementing a Rio service
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -46,7 +48,6 @@ pub trait WithId {
 ///     - IdentifiableType
 ///     - ObjectStateManager
 ///     - ServiceObjectStateLoad
-/// TODO docs
 #[async_trait]
 pub trait ServiceObject:
     Default + WithId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
@@ -120,9 +121,8 @@ pub trait ServiceObjectStateLoad {
     }
 }
 
-/// TODO
-///     - docs
-///     - use macros
+/// [Message] that is sent to the object when it reaches specific
+/// parts of its life cycle
 #[derive(Debug, Serialize, Deserialize)]
 pub enum LifecycleMessage {
     Load,

@@ -1,5 +1,7 @@
 #![doc = include_str!("README.md")]
 
+use std::ops::Deref;
+
 use crate::errors::LoadStateError;
 use crate::registry::IdentifiableType;
 use crate::{ServiceObject, WithId};
@@ -17,13 +19,38 @@ pub mod sql;
 ///
 /// TODO use a reader type instead of String on load fn
 #[async_trait]
-pub trait StateLoader: Sync + Send {
-    async fn load<T: DeserializeOwned>(
+pub trait StateLoader<T>
+where
+    Self: Sync + Send,
+    T: DeserializeOwned,
+{
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
         state_type: &str,
     ) -> Result<T, LoadStateError>;
+}
+
+/// Auto implement [StateLoader] for every type that derefs to a [StateLoader]
+///
+/// This way you can create a wrapper for a [StateLoader] and it will automatically
+/// get this implementation
+#[async_trait]
+impl<O, T, S> StateLoader<O> for T
+where
+    T: Deref<Target = S> + Send + Sync,
+    S: StateLoader<O>,
+    O: DeserializeOwned,
+{
+    async fn load(
+        &self,
+        object_kind: &str,
+        object_id: &str,
+        state_type: &str,
+    ) -> Result<O, LoadStateError> {
+        self.deref().load(object_kind, object_id, state_type).await
+    }
 }
 
 /// The `StateSave` defines an interface to save serialized data into a persistence
@@ -42,6 +69,29 @@ pub trait StateSaver: Sync + Send {
     ) -> Result<(), LoadStateError>;
 }
 
+/// Auto implement [StateSaver] for every type that derefs to a StateSaver
+///
+/// This way you can create a wrapper for a [StateSaver] and it will automatically
+/// get this implementation
+#[async_trait]
+impl<T, S> StateSaver for T
+where
+    T: Deref<Target = S> + Send + Sync,
+    S: StateSaver,
+{
+    async fn save(
+        &self,
+        object_kind: &str,
+        object_id: &str,
+        state_type: &str,
+        data: &(impl Serialize + Send + Sync),
+    ) -> Result<(), LoadStateError> {
+        self.deref()
+            .save(object_kind, object_id, state_type, data)
+            .await
+    }
+}
+
 /// Reponsible for managing states for a specific object
 ///
 /// With this trait one can load/save individual states from an orig (Self) object
@@ -50,7 +100,7 @@ pub trait ObjectStateManager {
     async fn load_state<T, S>(&mut self, state_loader: &S) -> Result<(), LoadStateError>
     where
         T: IdentifiableType + Serialize + DeserializeOwned,
-        S: StateLoader,
+        S: StateLoader<T>,
         Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
         let object_kind = Self::user_defined_type_id();
@@ -79,8 +129,7 @@ pub trait ObjectStateManager {
         if let Some(state_value) = state_value {
             state_saver
                 .save(object_kind, object_id, state_type, &state_value)
-                .await
-                .expect("TODO");
+                .await?;
         }
         Ok(())
     }
@@ -101,7 +150,7 @@ where
     fn get_state(&self) -> Option<&T>;
     fn set_state(&mut self, value: Option<T>);
 
-    async fn load<S: StateLoader + Sync + Send>(
+    async fn load<S: StateLoader<T> + Sync + Send>(
         &self,
         state_loader: &S,
         object_kind: &str,
@@ -161,9 +210,9 @@ mod test {
         impl ObjectStateManager for Person {}
 
         impl Person {
-            async fn load_all_states<S: StateLoader>(
+            async fn load_all_states(
                 &mut self,
-                state_loader: &S,
+                state_loader: &local::LocalState,
             ) -> Result<(), LoadStateError> {
                 self.load_state::<PersonState, _>(state_loader).await?;
                 self.load_state::<LegalPersonState, _>(state_loader).await?;

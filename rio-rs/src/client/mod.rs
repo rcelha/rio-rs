@@ -61,6 +61,7 @@ where
     placement: Arc<RwLock<LruCache<(String, String), String>>>,
 }
 
+/// Stream of subscription messages. This is used for pub/sub.
 pub struct SubscriptionStream<T>
 where
     T: DeserializeOwned,
@@ -442,7 +443,7 @@ mod test {
     use super::*;
     use crate::{
         cluster::storage::{
-            LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
+            local::LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
         },
         errors::MembershipError,
     };

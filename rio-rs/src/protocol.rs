@@ -1,7 +1,10 @@
+//! Client/Server communication protocol
+
 use super::errors::HandlerError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// This is the struct that we serialize and send to the server serialized
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestEnvelope {
     pub handler_type: String,
@@ -26,6 +29,7 @@ impl RequestEnvelope {
     }
 }
 
+/// This is the struct that we serialize and send back to the client
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseEnvelope {
     pub body: Result<Vec<u8>, ResponseError>,
@@ -48,6 +52,7 @@ impl From<HandlerError> for ResponseEnvelope {
     }
 }
 
+/// Error that we serialize back inside of the [ResponseEnvelope]
 #[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
 pub enum ResponseError {
     #[error("ServiceObject is in another server")]
@@ -78,6 +83,8 @@ impl From<HandlerError> for ResponseError {
     }
 }
 
+/// Errors that might occur while building or using the client,
+/// but that are not related no any behaviour on the server
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClientError {
     #[error("server response error")]
@@ -120,12 +127,15 @@ impl From<::std::io::Error> for ClientError {
 pub mod pubsub {
     use super::*;
 
+    /// This is the struct that we serialize and send to the server serialized to request a new
+    /// subscription
     #[derive(Debug, Serialize, Deserialize)]
     pub struct SubscriptionRequest {
         pub handler_type: String,
         pub handler_id: String,
     }
 
+    /// Item that is streamed serialized from the server to the client
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SubscriptionResponse {
         pub body: Result<Vec<u8>, ResponseError>,
