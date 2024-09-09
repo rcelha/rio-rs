@@ -31,7 +31,6 @@ impl SqlObjectPlacementProvider {
     /// # use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
     /// # async fn test_fn() {
     /// let pool = SqlObjectPlacementProvider::pool()
-    ///     .max_connections(num_cpus)
     ///     .connect("sqlite::memory:")
     ///     .await
     ///     .expect("Connection failure");

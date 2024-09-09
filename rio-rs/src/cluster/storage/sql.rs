@@ -34,7 +34,6 @@ impl SqlMembersStorage {
     /// # use rio_rs::cluster::storage::sql::SqlMembersStorage;
     /// # async fn test_fn() {
     /// let pool = SqlMembersStorage::pool()
-    ///     .max_connections(num_cpus)
     ///     .connect("sqlite::memory:")
     ///     .await
     ///     .expect("Connection failure");
@@ -203,7 +202,6 @@ mod test {
 
     async fn members_storage() -> impl MembersStorage {
         let pool = AnyPoolOptions::new()
-            .max_connections(1)
             .connect("sqlite::memory:")
             .await
             .expect("TODO: Connection failure");
