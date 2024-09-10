@@ -23,7 +23,7 @@ pub struct MetricStats {
 pub struct MetricAggregator {
     pub id: String,
     #[managed_state(provider = SqlState)]
-    pub metric_stats: Option<MetricStats>,
+    pub metric_stats: MetricStats,
 }
 
 impl MetricAggregator {
@@ -52,9 +52,6 @@ impl MetricAggregator {
 #[async_trait]
 impl ServiceObject for MetricAggregator {
     async fn after_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
-        if self.metric_stats.is_none() {
-            self.metric_stats = Some(MetricStats::default())
-        }
         Ok(())
     }
 }
@@ -77,37 +74,22 @@ impl Handler<messages::Metric> for MetricAggregator {
         self.propagate_to_tags(&app_data, &message.tags, message.value)
             .await;
 
-        match self.metric_stats.as_mut() {
-            Some(stats) => {
-                stats.count += 1;
-                stats.sum += message.value;
-                stats.min = i32::min(stats.min, message.value);
-                stats.max = i32::max(stats.max, message.value);
-            }
-            None => {
-                println!("no stats found");
-                return Err(HandlerError::LyfecycleError(
-                    rio_rs::errors::ServiceObjectLifeCycleError::Unknown,
-                ));
-            }
-        }
+        self.metric_stats.count += 1;
+        self.metric_stats.sum += message.value;
+        self.metric_stats.min = i32::min(self.metric_stats.min, message.value);
+        self.metric_stats.max = i32::max(self.metric_stats.max, message.value);
 
         self.save_state(state_saver).await.map_err(|_| {
             println!("save error");
             HandlerError::LyfecycleError(rio_rs::errors::ServiceObjectLifeCycleError::Unknown)
         })?;
 
-        self.metric_stats
-            .as_ref()
-            .map(|stats| {
-                Ok(messages::MetricResponse {
-                    sum: stats.sum,
-                    avg: stats.sum / stats.count,
-                    max: stats.max,
-                    min: stats.min,
-                })
-            })
-            .unwrap()
+        Ok(messages::MetricResponse {
+            sum: self.metric_stats.sum,
+            avg: self.metric_stats.sum / self.metric_stats.count,
+            max: self.metric_stats.max,
+            min: self.metric_stats.min,
+        })
     }
 }
 
@@ -119,16 +101,15 @@ impl Handler<messages::GetMetric> for MetricAggregator {
         _: messages::GetMetric,
         _: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
-        let stats = self.metric_stats.as_ref().ok_or(HandlerError::Unknown)?;
         Ok(messages::MetricResponse {
-            sum: stats.sum,
-            avg: if stats.count == 0 {
+            sum: self.metric_stats.sum,
+            avg: if self.metric_stats.count == 0 {
                 0
             } else {
-                stats.sum / stats.count
+                self.metric_stats.sum / self.metric_stats.count
             },
-            max: stats.max,
-            min: stats.min,
+            max: self.metric_stats.max,
+            min: self.metric_stats.min,
         })
     }
 }

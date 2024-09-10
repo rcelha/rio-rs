@@ -15,7 +15,7 @@ pub struct CassinoState {
 pub struct Cassino {
     pub id: String,
     #[managed_state(provider = SqlState)]
-    pub state: Option<CassinoState>,
+    pub state: CassinoState,
 }
 
 impl Cassino {
@@ -28,14 +28,7 @@ impl Cassino {
 }
 
 #[async_trait]
-impl ServiceObject for Cassino {
-    async fn after_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
-        if self.state.is_none() {
-            self.state = Some(Default::default())
-        }
-        Ok(())
-    }
-}
+impl ServiceObject for Cassino {}
 
 #[async_trait]
 impl Handler<messages::JoinGame> for Cassino {
@@ -46,14 +39,14 @@ impl Handler<messages::JoinGame> for Cassino {
         message: messages::JoinGame,
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
-        if self.state.as_ref().unwrap().table_ids.len() == 0 {
+        if self.state.table_ids.len() == 0 {
             let new_uuid = uuid::Uuid::new_v4().to_string();
-            self.state.as_mut().unwrap().table_ids.push(new_uuid);
+            self.state.table_ids.push(new_uuid);
             self.save(&app_data).await;
         }
 
         loop {
-            let last_id = self.state.as_ref().unwrap().table_ids.last().unwrap();
+            let last_id = self.state.table_ids.last().unwrap();
             let table_response: messages::JoinGameResponse =
                 Self::send::<SqlMembersStorage, _, _>(&app_data, &"GameTable", last_id, &message)
                     .await
@@ -63,7 +56,7 @@ impl Handler<messages::JoinGame> for Cassino {
                 return Ok(table_response);
             }
             let new_uuid = uuid::Uuid::new_v4().to_string();
-            self.state.as_mut().unwrap().table_ids.push(new_uuid);
+            self.state.table_ids.push(new_uuid);
             self.save(&app_data).await;
         }
     }

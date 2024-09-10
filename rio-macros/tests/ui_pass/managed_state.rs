@@ -6,10 +6,10 @@ use rio_rs::ServiceObject;
 #[derive(ManagedState)]
 struct Test {}
 
-#[derive(TypeName, serde::Serialize, serde::Deserialize)]
+#[derive(TypeName, serde::Serialize, serde::Deserialize, Default)]
 struct TestVec(Vec<usize>);
 
-#[derive(TypeName, serde::Serialize, serde::Deserialize)]
+#[derive(TypeName, serde::Serialize, serde::Deserialize, Default)]
 struct NotTestVec(Vec<usize>);
 
 #[derive(Default, WithId, TypeName, ManagedState)]
@@ -25,7 +25,7 @@ struct Test2 {
 struct TestProvider {
     id: String,
     #[managed_state(provider = LocalState)]
-    tests: Option<TestVec>,
+    tests: TestVec,
 }
 
 impl ServiceObject for TestProvider {}

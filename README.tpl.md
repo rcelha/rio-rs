@@ -62,7 +62,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Replace prints with logging
 - [?] Support 'typed' message/response on client
 - [x] Support ephemeral port
-- [ ] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
+- [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
 - [ ] Code of conduct
 - [ ] Metrics and Tracing
 - [ ] Deny allocations based on system resources
