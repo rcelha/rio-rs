@@ -17,7 +17,7 @@ pub struct NoopState {}
 pub struct PresenceService {
     id: String,
     #[managed_state(provider = LocalState)]
-    pub state: Option<NoopState>,
+    pub state: NoopState,
 }
 
 #[async_trait]

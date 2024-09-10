@@ -196,7 +196,7 @@ async fn pubsub() {
             .unwrap();
 
         let resp = client
-            .subscribe::<CausePublishMessage, _, _>("MockService", "1")
+            .subscribe::<CausePublishMessage>("MockService", "1")
             .await;
 
         pin_mut!(resp);
@@ -250,7 +250,7 @@ async fn pubsub_redirect() {
         // This test can have false positives if there is no redirect
         sleep(Duration::from_millis(10)).await;
         let subscription = client
-            .subscribe::<CausePublishMessage, _, _>("MockService", "1")
+            .subscribe::<CausePublishMessage>("MockService", "1")
             .await;
         pin_mut!(subscription);
 

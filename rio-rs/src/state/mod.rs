@@ -99,7 +99,7 @@ where
 pub trait ObjectStateManager {
     async fn load_state<T, S>(&mut self, state_loader: &S) -> Result<(), LoadStateError>
     where
-        T: IdentifiableType + Serialize + DeserializeOwned,
+        T: IdentifiableType + Serialize + DeserializeOwned + Default, // neends default cause of trait State
         S: StateLoader<T>,
         Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
@@ -111,13 +111,13 @@ pub trait ObjectStateManager {
             .await
             .or(Err(LoadStateError::ObjectNotFound))?;
 
-        self.set_state(Some(data));
+        self.set_state(data);
         Ok(())
     }
 
     async fn save_state<T, S>(&self, state_saver: &S) -> Result<(), LoadStateError>
     where
-        T: IdentifiableType + Serialize + DeserializeOwned + Sync,
+        T: IdentifiableType + Serialize + DeserializeOwned + Sync + Default, // Needs default cause of trait State
         S: StateSaver,
         Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
@@ -125,12 +125,10 @@ pub trait ObjectStateManager {
         let object_id = self.id();
 
         let state_type = T::user_defined_type_id();
-        let state_value: Option<&T> = self.get_state();
-        if let Some(state_value) = state_value {
-            state_saver
-                .save(object_kind, object_id, state_type, &state_value)
-                .await?;
-        }
+        let state_value: &T = self.get_state();
+        state_saver
+            .save(object_kind, object_id, state_type, &state_value)
+            .await?;
         Ok(())
     }
 }
@@ -140,15 +138,14 @@ impl<T> ObjectStateManager for T where T: ServiceObject {}
 
 /// Trait to define how to get and set states in and out of an object
 ///
-/// One need to implement this trait for each state a object holds. Although the state itself
-/// doesn't need to be an Option, this trait works with `Option<T>` only
+/// One need to implement this trait for each state a object holds
 #[async_trait]
 pub trait State<T>
 where
-    T: Serialize + DeserializeOwned,
+    T: Serialize + DeserializeOwned + Default,
 {
-    fn get_state(&self) -> Option<&T>;
-    fn set_state(&mut self, value: Option<T>);
+    fn get_state(&self) -> &T;
+    fn set_state(&mut self, value: T);
 
     async fn load<S: StateLoader<T> + Sync + Send>(
         &self,
@@ -169,14 +166,19 @@ mod test {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    #[derive(TypeName, Debug, Serialize, Deserialize, PartialEq)]
-    #[rio_path = "crate"]
+    #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
     struct PersonState {
         name: String,
         age: u8,
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq, TypeName)]
+    impl IdentifiableType for Option<PersonState> {
+        fn instance_type_id(&self) -> &'static str {
+            "OptionPersonState"
+        }
+    }
+
+    #[derive(Default, Debug, Serialize, Deserialize, PartialEq, TypeName)]
     #[rio_path = "crate"]
     struct LegalPersonState {
         legal_name: String,
@@ -205,7 +207,7 @@ mod test {
             #[managed_state]
             person_state: Option<PersonState>,
             #[managed_state]
-            legal_state: Option<LegalPersonState>,
+            legal_state: LegalPersonState,
         }
         impl ObjectStateManager for Person {}
 
@@ -214,8 +216,10 @@ mod test {
                 &mut self,
                 state_loader: &local::LocalState,
             ) -> Result<(), LoadStateError> {
-                self.load_state::<PersonState, _>(state_loader).await?;
-                self.load_state::<LegalPersonState, _>(state_loader).await?;
+                let _ = self
+                    .load_state::<Option<PersonState>, _>(state_loader)
+                    .await?;
+                let _ = self.load_state::<LegalPersonState, _>(state_loader).await?;
                 Ok(())
             }
 
@@ -223,7 +227,8 @@ mod test {
                 &mut self,
                 state_saver: &S,
             ) -> Result<(), LoadStateError> {
-                self.save_state::<PersonState, _>(state_saver).await?;
+                self.save_state::<Option<PersonState>, _>(state_saver)
+                    .await?;
                 self.save_state::<LegalPersonState, _>(state_saver).await?;
                 Ok(())
             }
@@ -237,17 +242,17 @@ mod test {
                 name: "Foo".to_string(),
                 age: 22,
             });
-            person.legal_state = Some(LegalPersonState {
+            person.legal_state = LegalPersonState {
                 legal_name: "Foo Bla".to_string(),
                 id_document: "123.123.123-12".to_string(),
-            });
+            };
             person.save_all_states(&local_state).await?;
         }
         {
             let mut person = Person::default();
             person.load_all_states(&local_state).await?;
             assert!(person.person_state.is_some());
-            assert!(person.legal_state.is_some());
+            assert_eq!(&person.legal_state.legal_name, "Foo Bla");
         }
         Ok(())
     }

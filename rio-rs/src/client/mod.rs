@@ -295,17 +295,14 @@ where
 
     /// Send a request to the cluster transparently (the caller doesn't need to know where the
     /// object is placed)
-    pub async fn send<T, V, H, I>(
+    pub async fn send<T>(
         &mut self,
-        handler_type: H,
-        handler_id: I,
-        payload: &V,
+        handler_type: impl AsRef<str>,
+        handler_id: impl AsRef<str>,
+        payload: &(impl Serialize + IdentifiableType + Send + Sync),
     ) -> Result<T, ClientError>
     where
         T: DeserializeOwned,
-        V: Serialize + IdentifiableType + Send + Sync,
-        H: AsRef<str> + Send + Sync,
-        I: AsRef<str> + Send + Sync,
     {
         // TODO move fetch_active_servers into poll_ready self.ready().await?;
         self.fetch_active_servers().await?;
@@ -314,7 +311,7 @@ where
         let handler_id = handler_id.as_ref().to_string();
         let ser_payload = bincode::serialize(&payload)
             .map_err(|e| ClientError::SeralizationError(e.to_string()))?;
-        let message_type = V::user_defined_type_id().to_string();
+        let message_type = payload.instance_type_id().to_string();
 
         let request = RequestEnvelope::new(
             handler_type.clone(),
@@ -352,6 +349,8 @@ where
         SubscriptionStream::<T>::new(svc_stream)
     }
 
+    /// Subscribe to events from a service object
+    ///
     /// <div class="warning">
     /// TODO
     ///
@@ -363,16 +362,14 @@ where
     /// - [x] Use dedicated connection
     ///
     /// </div>
-    pub async fn subscribe<'a, T, H, I>(
+    pub async fn subscribe<'a, T>(
         &'a mut self,
-        handler_type: H,
-        handler_id: I,
+        handler_type: impl AsRef<str>,
+        handler_id: impl AsRef<str>,
     ) -> impl Stream<Item = Result<T, ClientError>> + 'a
     where
         Self: 'a,
         T: DeserializeOwned + std::marker::Unpin + 'a + std::fmt::Debug,
-        H: AsRef<str> + Send + Sync,
-        I: AsRef<str> + Send + Sync,
     {
         let handler_type = handler_type.as_ref().to_string();
         let handler_id = handler_id.as_ref().to_string();

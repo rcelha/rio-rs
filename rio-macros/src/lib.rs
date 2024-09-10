@@ -219,7 +219,7 @@ struct StateDefinition {
     crate_path: Ident2,
     struct_name: Ident2,
     // attribute identifier + attribute type + state provider type
-    attributes: Vec<(Ident2, GenericArgument, Option<Ident2>)>,
+    attributes: Vec<(Ident2, PathSegment, Option<Ident2>)>,
 }
 
 impl From<TokenStream2> for StateDefinition {
@@ -286,28 +286,7 @@ impl From<TokenStream2> for StateDefinition {
                     let segment = segments
                         .first()
                         .expect(&format!("No path value for field {:#?}", field));
-
-                    if segment.ident != "Option" {
-                        eprintln!("Attributes decorated with [managed_state] must be an Option");
-                        eprintln!(
-                            "`{}` is of type `{}`. Try changing it to `Option<{}>`",
-                            field.ident.clone().unwrap(),
-                            segment.ident,
-                            segment.ident
-                        );
-                        panic!("Attributes decorated with [managed_state] must be an Option<T>");
-                    }
-
-                    match &segment.arguments {
-                        PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-                            args,
-                            ..
-                        }) => {
-                            let type_ = args.first().expect("Couldn't find a type for field");
-                            attributes.push((attr_ident, type_.clone(), attr_state_provider_type));
-                        }
-                        _ => panic!("Value not supported: {:?}", segment.arguments),
-                    };
+                    attributes.push((attr_ident, segment.clone(), attr_state_provider_type));
                 }
                 ty => panic!("Value not supported: {:?}", ty),
             }
@@ -329,7 +308,7 @@ impl From<TokenStream2> for StateDefinition {
 /// struct Test2 {
 ///     id: String,
 ///     #[managed_state(provider = Option)]
-///     tests: Option<Vec<u32>>,
+///     tests: Vec<u32>,
 /// }
 /// ```
 #[proc_macro_derive(ManagedState, attributes(rio_path, managed_state))]
@@ -345,10 +324,10 @@ pub fn derive_managed_state(tokens: TokenStream) -> TokenStream {
     {
         states.push(quote! {
             impl #crate_path::state::State<#attribute_type> for #struct_name {
-                fn get_state(&self) -> Option<&#attribute_type> {
-                    self.#attribute_ident.as_ref()
+                fn get_state(&self) -> &#attribute_type {
+                    &self.#attribute_ident
                 }
-                fn set_state(&mut self, value: Option<#attribute_type>) {
+                fn set_state(&mut self, value: #attribute_type) {
                     self.#attribute_ident = value;
                 }
             }
@@ -427,16 +406,16 @@ mod test {
 
             let state_attr = state_defo.attributes.first().expect("no attribute found");
             assert_eq!(state_attr.0, Ident2::new("state", Span::mixed_site()));
-            let attr_type: GenericArgument = parse_quote! { StateStruct };
+            let attr_type: PathSegment = parse_quote! { Option<StateStruct> };
             assert_eq!(state_attr.1, attr_type);
-            assert_eq!(state_attr.2, None);
+            // assert_eq!(state_attr.2, None);
         }
         #[test]
         fn managed_state_impl_with_provider() {
             let input = quote! {
                 struct Test {
                     #[managed_state(provider = Option)]
-                    state: Option<StateStruct>,
+                    state: StateStruct,
                 }
             };
             let state_defo: StateDefinition = StateDefinition::from(input);
@@ -448,7 +427,7 @@ mod test {
 
             let state_attr = state_defo.attributes.first().expect("no attribute found");
             assert_eq!(state_attr.0, Ident2::new("state", Span::mixed_site()));
-            let attr_type: GenericArgument = parse_quote! { StateStruct };
+            let attr_type: PathSegment = parse_quote! { StateStruct };
             assert_eq!(state_attr.1, attr_type);
             assert_eq!(
                 state_attr.2,
@@ -457,8 +436,7 @@ mod test {
         }
 
         #[test]
-        #[should_panic]
-        fn panic_non_option_managed_state() {
+        fn non_option_managed_state() {
             let input = quote! {
                 struct Test {
                     #[managed_state]

@@ -29,7 +29,7 @@ pub struct TableState {
 pub struct GameTable {
     pub id: String,
     #[managed_state(provider = SqlState)]
-    pub state: Option<TableState>,
+    pub state: TableState,
 
     // Game Server stuff
     pub thread_join_handler: Option<JoinHandle<()>>,
@@ -101,10 +101,6 @@ impl ServiceObject for GameTable {
         app_data: Arc<AppData>,
     ) -> Result<(), ServiceObjectLifeCycleError> {
         self.load(&app_data).await.ok();
-        if self.state.is_none() {
-            self.state = Some(Default::default())
-        }
-
         self.start_game_server(app_data);
         Ok(())
     }
@@ -138,10 +134,10 @@ impl Handler<messages::JoinGame> for GameTable {
         message: messages::JoinGame,
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
-        let state = self.state.as_mut().unwrap();
         let mut is_new_player = false;
-        if state.players.len() < MAX_PLAYERS && !state.players.contains(&message.user_id) {
-            state.players.insert(message.user_id.clone());
+        if self.state.players.len() < MAX_PLAYERS && !self.state.players.contains(&message.user_id)
+        {
+            self.state.players.insert(message.user_id.clone());
             is_new_player = true;
         }
 
@@ -153,8 +149,7 @@ impl Handler<messages::JoinGame> for GameTable {
             self.save(&app_data).await;
         }
 
-        let state = self.state.as_mut().unwrap();
-        let user_ids = state.players.iter().cloned().collect();
+        let user_ids = self.state.players.iter().cloned().collect();
 
         Ok(messages::JoinGameResponse {
             table_id: self.id.clone(),
@@ -172,11 +167,9 @@ impl Handler<messages::PlayerCommand> for GameTable {
         message: messages::PlayerCommand,
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
-        let state = self.state.as_mut().unwrap();
-
         let resp = match message.0 {
             GameServerRequest::Player(player_id, player_command) => {
-                if !state.players.contains(&player_id) {
+                if !self.state.players.contains(&player_id) {
                     GameServerResponse::Empty
                 } else {
                     let inner_req = GameServerRequest::Player(player_id, player_command);

@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
     let inner_table_id = table.table_id.clone();
 
     let subscription = inner_client
-        .subscribe::<GameServerStates, _, _>("GameTable", inner_table_id)
+        .subscribe::<GameServerStates>("GameTable", inner_table_id)
         .await;
     pin_mut!(subscription);
     while let Some(data) = subscription.next().await {
