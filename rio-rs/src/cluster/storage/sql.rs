@@ -1,10 +1,6 @@
 //! MembersStorage implementation to work with relational databases
 //!
 //! This uses [sqlx] under the hood
-//!
-//! <div class="warning">
-//! Not fully compatible with all SQL databases
-//! </div>
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -12,7 +8,33 @@ use futures::TryFutureExt;
 use sqlx::any::{AnyPool, AnyPoolOptions, AnyRow};
 use sqlx::{self, Row};
 
+use crate::sql_migration::SqlMigrations;
+
 use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
+
+pub struct PgMembersStorageMigrations {}
+
+impl SqlMigrations for PgMembersStorageMigrations {
+    fn queries() -> Vec<String> {
+        let migrations: Vec<_> = include_str!("./migrations/0001-postgres-init.sql")
+            .split(";")
+            .map(|x| x.to_string())
+            .collect();
+        migrations
+    }
+}
+
+pub struct SqliteMembersStorageMigrations {}
+
+impl SqlMigrations for SqliteMembersStorageMigrations {
+    fn queries() -> Vec<String> {
+        let migrations: Vec<_> = include_str!("./migrations/0001-sqlite-init.sql")
+            .split(";")
+            .map(|x| x.to_string())
+            .collect();
+        migrations
+    }
+}
 
 /// MembersStorage implementation to work with relational databases
 #[derive(Clone)]
@@ -43,52 +65,25 @@ impl SqlMembersStorage {
     pub fn pool() -> AnyPoolOptions {
         AnyPoolOptions::new()
     }
-
-    /// Run the schema/data migrations for this membership storage.
-    ///
-    /// For now, the Rio server doesn't run this at start-up and it needs
-    /// to be invoked on manually in the server's setup.
-    ///
-    /// <div class="warning">
-    /// This is likely to change into a generic setup step
-    /// </div>
-    pub async fn migrate(&self) {
-        let mut transaction = self.pool.begin().await.unwrap();
-
-        let queries = [
-            // Members Table
-            r#"CREATE TABLE IF NOT EXISTS cluster_provider_members
-               (
-                   ip              TEXT                NOT NULL,
-                   port            TEXT                NOT NULL,
-                   last_seen       TIMESTAMPTZ         NOT NULL,
-                   active          BOOLEAN             NOT NULL DEFAULT FALSE,
-                   PRIMARY KEY (ip, port)
-               )"#,
-            "CREATE INDEX IF NOT EXISTS idx_cluster_provider_members_last_seen on cluster_provider_members(last_seen)",
-            "CREATE INDEX IF NOT EXISTS idx_cluster_provider_members_active on cluster_provider_members(active)",
-
-            // Failures table
-            r#"CREATE TABLE IF NOT EXISTS cluster_provider_member_failures
-               (
-                   id              SERIAL PRIMARY KEY,
-                   ip              TEXT                              NOT NULL,
-                   port            TEXT                              NOT NULL,
-                   time            TIMESTAMPTZ                       NOT NULL default CURRENT_TIMESTAMP
-               )"#,
-            "CREATE INDEX IF NOT EXISTS idx_cluster_provider_member_failures_time ON cluster_provider_member_failures(time)",
-            "CREATE INDEX IF NOT EXISTS idx_cluster_provider_member_failures_ip_port ON cluster_provider_member_failures(ip, port)",
-        ];
-
-        for query in queries {
-            sqlx::query(query).execute(&mut transaction).await.unwrap();
-        }
-        transaction.commit().await.unwrap();
-    }
 }
 
 #[async_trait]
 impl MembersStorage for SqlMembersStorage {
+    /// Run the schema/data migrations for this membership storage.
+    async fn prepare(&self) {
+        let mut transaction = self.pool.begin().await.unwrap();
+        let queries = if let Some(_) = self.pool.connect_options().as_postgres() {
+            PgMembersStorageMigrations::queries()
+        } else {
+            SqliteMembersStorageMigrations::queries()
+        };
+
+        for query in queries {
+            sqlx::query(&query).execute(&mut transaction).await.unwrap();
+        }
+        transaction.commit().await.unwrap();
+    }
+
     async fn push(&self, member: Member) -> MembershipUnitResult {
         let last_seen = Utc::now();
         sqlx::query(
@@ -206,7 +201,7 @@ mod test {
             .await
             .expect("TODO: Connection failure");
         let members_storage = SqlMembersStorage::new(pool);
-        members_storage.migrate().await;
+        members_storage.prepare().await;
         members_storage
     }
 

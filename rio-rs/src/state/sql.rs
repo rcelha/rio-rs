@@ -1,4 +1,4 @@
-use crate::errors::LoadStateError;
+use crate::{errors::LoadStateError, sql_migration::SqlMigrations};
 use async_trait::async_trait;
 use futures::TryFutureExt;
 use serde::{de::DeserializeOwned, Serialize};
@@ -9,6 +9,24 @@ use sqlx::{
 };
 
 use super::{StateLoader, StateSaver};
+
+pub struct PgStageMigrations {}
+
+impl SqlMigrations for PgStageMigrations {
+    fn queries() -> Vec<String> {
+        let migration_001 = include_str!("./migrations/0001-postgres-init.sql");
+        vec![migration_001.to_string()]
+    }
+}
+
+pub struct SqliteStateMigrations {}
+
+impl SqlMigrations for SqliteStateMigrations {
+    fn queries() -> Vec<String> {
+        let migration_001 = include_str!("./migrations/0001-sqlite-init.sql");
+        vec![migration_001.to_string()]
+    }
+}
 
 #[derive(Debug)]
 pub struct SqlState {
@@ -26,20 +44,13 @@ impl SqlState {
 
     pub async fn migrate(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
-
-        let queries = [
-            // Table with all state objects
-            r#"CREATE TABLE IF NOT EXISTS state_provider_object_state
-               (
-                   object_kind       TEXT                              NOT NULL,
-                   object_id         TEXT                              NOT NULL,
-                   state_type       TEXT                              NOT NULL,
-                   serialized_state BLOB                              NOT NULL,
-                   PRIMARY KEY (object_kind, object_id, state_type)
-               )"#,
-        ];
+        let queries = if let Some(_) = self.pool.connect_options().as_postgres() {
+            PgStageMigrations::queries()
+        } else {
+            SqliteStateMigrations::queries()
+        };
         for query in queries {
-            sqlx::query(query).execute(&mut transaction).await.unwrap();
+            sqlx::query(&query).execute(&mut transaction).await.unwrap();
         }
         transaction.commit().await.unwrap();
     }
@@ -50,6 +61,10 @@ impl<T> StateLoader<T> for SqlState
 where
     T: DeserializeOwned,
 {
+    async fn prepare(&self) {
+        self.migrate().await;
+    }
+
     async fn load(
         &self,
         object_kind: &str,
@@ -77,6 +92,10 @@ where
 
 #[async_trait]
 impl StateSaver for SqlState {
+    async fn prepare(&self) {
+        self.migrate().await;
+    }
+
     async fn save(
         &self,
         object_kind: &str,
@@ -96,7 +115,7 @@ impl StateSaver for SqlState {
         .bind(object_kind)
         .bind(object_id)
         .bind(state_type)
-        .bind(serialized_data)
+        .bind(serialized_data.bytes().collect::<Vec<_>>())
         .execute(&self.pool)
         .map_err(|_| LoadStateError::Unknown)
         .await

@@ -55,6 +55,8 @@ pub type MembershipUnitResult = Result<(), MembershipError>;
 /// status.
 #[async_trait]
 pub trait MembersStorage: Send + Sync + Clone {
+    async fn prepare(&self) {}
+
     /// Saves a new member to the storage
     async fn push(&self, member: Member) -> MembershipUnitResult;
 

@@ -210,6 +210,12 @@ where
         }
     }
 
+    pub async fn prepare(&self) {
+        self.cluster_provider.members_storage().prepare().await;
+        let object_placement_provider_guard = self.object_placement_provider.read().await;
+        object_placement_provider_guard.prepare().await;
+    }
+
     pub fn app_data<Data>(&mut self, data: Data)
     where
         Data: Send + Sync + 'static,

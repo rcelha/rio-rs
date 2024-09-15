@@ -8,6 +8,8 @@
 
 There are a few things that must be done before v0.1.0:
 
+### Version 0.1.0
+
 - [x] Naive server/client protocol
 - [x] Basic cluster support
 - [x] Basic placement support
@@ -24,14 +26,24 @@ There are a few things that must be done before v0.1.0:
   - [x] Background blocking task on a service (_see_ [black-jack](./examples/black-jack))
   - [x] Pub/sub (_see_ [black-jack](./examples/black-jack))
 - [x] Re-organize workspace
+- [x] Support ephemeral port
+- [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
+- [?] Support 'typed' message/response on client
+- [ ] Error and panic handling on life cycle hooks (probably kill the object)
+- [ ] Handle panics on messages handling
+- [ ] Create a test or example to show re-allocation when servers dies
+- [x] Sqlite support for sql backends
+- [x] PostgreSQL support for sql backends
+
+### Version 0.2.0
+
+- [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 - [ ] Allow `ServiceObject` trait without state persistence
 - [ ] Create server from config
 - [ ] Bypass clustering for self messages
 - [ ] Bypass networking for local messages
 - [ ] Move all the client to user tower
 - [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
-- [ ] Error and panic handling on life cycle hooks (probably kill the object)
-- [ ] Handle panics on messages handling
 - [ ] Include registry configuration in Server builder
 - [ ] Create a getting started tutorial
   - [ ] Cargo init
@@ -44,14 +56,14 @@ There are a few things that must be done before v0.1.0:
   - [ ] Life cycle
   - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
   - [ ] Cargo test?
-- [ ] Make all sql statements compatible with sqlite, mysql and pgsql
+- [ ] MySQL support for sql backends
 - [ ] Add more extensive tests to client/server integration
 - [ ] Increase public API test coverage
 - [ ] Client/server keep alive
 - [ ] Reduce static lifetimes
 - [ ] 100% documentation of public API
 - [ ] Placement strategies (nodes work with different sets of trait objects)
-- [ ] Dockerized examples
+- [~] Dockerized examples
 - [ ] Add pgsql jsonb support
 - [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
 - [ ] Supervision
@@ -60,9 +72,6 @@ There are a few things that must be done before v0.1.0:
 - [ ] Object TTL
 - [ ] Matrix test with different backends
 - [ ] Replace prints with logging
-- [?] Support 'typed' message/response on client
-- [x] Support ephemeral port
-- [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
 - [ ] Code of conduct
 - [ ] Metrics and Tracing
 - [ ] Deny allocations based on system resources

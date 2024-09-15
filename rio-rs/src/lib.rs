@@ -94,7 +94,6 @@
 //!         .await
 //!         .expect("Membership database connection failure");
 //!     let members_storage = SqlMembersStorage::new(pool);
-//!     members_storage.migrate().await;
 //!
 //!     let membership_provider_config = PeerToPeerClusterConfig::default();
 //!     let membership_provider =
@@ -106,7 +105,6 @@
 //!         .await
 //!         .expect("Object placement database connection failure");
 //!     let object_placement_provider = SqlObjectPlacementProvider::new(pool);
-//!     object_placement_provider.migrate().await;
 //!
 //!     // Create the server object
 //!     let mut server = Server::new(
@@ -115,6 +113,7 @@
 //!         membership_provider,
 //!         object_placement_provider,
 //!     );
+//!     server.prepare().await;
 //!
 //!     // Run the server
 //!     // server.run().await;
@@ -164,7 +163,7 @@
 //!         .connect("sqlite::memory:")
 //!         .await?;
 //!     let members_storage = SqlMembersStorage::new(pool);
-//!     # members_storage.migrate().await;
+//!     # members_storage.prepare().await;
 //!
 //!     // Create the client
 //!     let mut client = ClientBuilder::new()
@@ -199,6 +198,7 @@ pub mod registry;
 pub mod server;
 pub mod service;
 pub mod service_object;
+pub mod sql_migration;
 pub mod state;
 pub mod tap_err;
 
