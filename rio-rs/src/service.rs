@@ -2,7 +2,8 @@
 
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
-use futures::{Stream, StreamExt};
+use futures::{FutureExt, Stream, StreamExt};
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use tokio::net::TcpStream;
@@ -55,27 +56,41 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
             address_mismatch.map_or(Ok(()), Err)?;
             this.start_service_object(&req.handler_type, &req.handler_id)
                 .await
-                .expect("TODO");
+                .map_err(|_| ResponseError::Allocate)?;
 
-            let response = this
-                .registry
-                .read()
-                .await
-                .send(
-                    &req.handler_type,
-                    &req.handler_id,
-                    &req.message_type,
-                    &req.payload,
-                    this.app_data.clone(),
-                )
-                .await;
+            let guard = this.registry.read().await;
+            let fut = guard.send(
+                &req.handler_type,
+                &req.handler_id,
+                &req.message_type,
+                &req.payload,
+                this.app_data.clone(),
+            );
+            // TODO review the use of `catch_unwind` and `AssertUnwindSafe`
+            let fut = AssertUnwindSafe(fut);
+            let response = fut.catch_unwind().await;
 
             match response {
-                Ok(body) => Ok(ResponseEnvelope::new(body)),
-                Err(err) => Err(ResponseError::Unknown(format!(
+                Ok(Ok(body)) => Ok(ResponseEnvelope::new(body)),
+                Ok(Err(err)) => Err(ResponseError::Unknown(format!(
                     "[TODO] HandlerError: {}",
                     err
                 ))),
+                Err(_) => {
+                    // When there is a panic, we will 'remove' the service object
+                    // from both the registry and the ObjectPlacementProvider
+                    this.registry
+                        .read()
+                        .await
+                        .remove(req.handler_type.clone(), req.handler_id.clone())
+                        .await;
+                    this.object_placement_provider
+                        .read()
+                        .await
+                        .remove(&ObjectId(req.handler_type.clone(), req.handler_id.clone()))
+                        .await;
+                    Err(ResponseError::Unknown("Panic".to_string()))
+                }
             }
         };
         Box::pin(result)
@@ -239,18 +254,38 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
                 .insert_boxed_object(handler_type.to_string(), handler_id.to_string(), new_object)
                 .await;
 
-            let _ = self
-                .registry
-                .read()
-                .await
-                .send(
-                    handler_type,
-                    handler_id,
+            let lifecycle_result = {
+                let object_guard = self.registry.read().await;
+                let lifecycle_msg = LifecycleMessage::Load;
+                let lifecycle_ser_msg = bincode::serialize(&lifecycle_msg).expect("TODO");
+                let lifecycle_fut = object_guard.send(
+                    &handler_type,
+                    &handler_id,
                     "LifecycleMessage",
-                    &bincode::serialize(&LifecycleMessage::Load).unwrap(),
+                    &lifecycle_ser_msg,
                     self.app_data.clone(),
-                )
-                .await;
+                );
+
+                // Catch panics on LifecycleMessage::Load
+                let lifecycle_fut = AssertUnwindSafe(lifecycle_fut);
+                lifecycle_fut.catch_unwind().await
+            };
+
+            // TODO remove duplicated logic (Self::send)
+            if let Err(_) = lifecycle_result {
+                self.registry
+                    .read()
+                    .await
+                    .remove(handler_type.to_string(), handler_id.to_string())
+                    .await;
+                self.object_placement_provider
+                    .read()
+                    .await
+                    .remove(&ObjectId(handler_type.to_string(), handler_id.to_string()))
+                    .await;
+
+                return Err(());
+            }
         }
         Ok(())
     }

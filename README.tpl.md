@@ -28,9 +28,9 @@ There are a few things that must be done before v0.1.0:
 - [x] Re-organize workspace
 - [x] Support ephemeral port
 - [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
-- [?] Support 'typed' message/response on client
-- [ ] Error and panic handling on life cycle hooks (probably kill the object)
-- [ ] Handle panics on messages handling
+- [ ] Support 'typed' message/response on client (TODO define what this means)
+- [x] Handle panics on messages handling
+- [x] Error and panic handling on life cycle hooks (probably kill the object)
 - [ ] Create a test or example to show re-allocation when servers dies
 - [x] Sqlite support for sql backends
 - [x] PostgreSQL support for sql backends

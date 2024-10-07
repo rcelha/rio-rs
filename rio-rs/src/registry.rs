@@ -319,10 +319,17 @@ mod test {
     #[tokio::test]
     async fn sanity_check() {
         fn is_sync<T: Sync>(_t: T) {}
+        fn is_send<T: Send>(_t: T) {}
+
         is_sync(Human::default());
         is_sync(HiMessage {});
         is_sync(Registry::new());
         is_sync(Box::new(Registry::new()));
+
+        is_send(Human::default());
+        is_send(HiMessage {});
+        is_send(Registry::new());
+        is_send(Box::new(Registry::new()));
 
         let mut registry = Registry::new();
         let obj = Human::default();
