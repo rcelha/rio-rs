@@ -2,7 +2,8 @@
 
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
-use futures::{Stream, StreamExt};
+use futures::{FutureExt, Stream, StreamExt};
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use tokio::net::TcpStream;
@@ -57,25 +58,39 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
                 .await
                 .expect("TODO");
 
-            let response = this
-                .registry
-                .read()
-                .await
-                .send(
-                    &req.handler_type,
-                    &req.handler_id,
-                    &req.message_type,
-                    &req.payload,
-                    this.app_data.clone(),
-                )
-                .await;
+            let guard = this.registry.read().await;
+            let fut = guard.send(
+                &req.handler_type,
+                &req.handler_id,
+                &req.message_type,
+                &req.payload,
+                this.app_data.clone(),
+            );
+            // TODO review the use of `catch_unwind` and `AssertUnwindSafe`
+            let fut = AssertUnwindSafe(fut);
+            let response = fut.catch_unwind().await;
 
             match response {
-                Ok(body) => Ok(ResponseEnvelope::new(body)),
-                Err(err) => Err(ResponseError::Unknown(format!(
+                Ok(Ok(body)) => Ok(ResponseEnvelope::new(body)),
+                Ok(Err(err)) => Err(ResponseError::Unknown(format!(
                     "[TODO] HandlerError: {}",
                     err
                 ))),
+                Err(_) => {
+                    // When there is a panic, we will 'remove' the service object
+                    // from both the registry and the ObjectPlacementProvider
+                    this.registry
+                        .read()
+                        .await
+                        .remove(req.handler_type.clone(), req.handler_id.clone())
+                        .await;
+                    this.object_placement_provider
+                        .read()
+                        .await
+                        .remove(&ObjectId(req.handler_type.clone(), req.handler_id.clone()))
+                        .await;
+                    Err(ResponseError::Unknown("Panic".to_string()))
+                }
             }
         };
         Box::pin(result)

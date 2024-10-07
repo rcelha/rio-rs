@@ -123,6 +123,14 @@ impl Registry {
                 .ok_or(HandlerError::HandlerNotFound)?;
             message_handler(type_id, object_id, message, context)
         };
+        /*
+        let result = future_result.catch_unwind().await;
+        if let Err(_) = result {
+            Err(HandlerError::Unknown("Panico!".to_string()))
+        } else {
+            result.unwrap()
+        }
+        */
         future_result.await
     }
 
@@ -318,7 +326,7 @@ mod test {
 
     #[tokio::test]
     async fn sanity_check() {
-        fn is_sync<T: Sync>(_t: T) {}
+        fn is_sync<T: Sync + Send>(_t: T) {}
         is_sync(Human::default());
         is_sync(HiMessage {});
         is_sync(Registry::new());

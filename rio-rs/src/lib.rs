@@ -201,6 +201,7 @@ pub mod service_object;
 pub mod sql_migration;
 pub mod state;
 pub mod tap_err;
+pub mod test_utils;
 
 pub use service_object::*;
 
