@@ -1,17 +1,35 @@
 //! SQL implementation of the trait [ObjectPlacementProvider] to work with relational databases
 //!
 //! This uses [sqlx] under the hood
-//!
-//! <div class="warning">
-//! Not fully compatible with all SQL databases
-//! </div>
 
 use async_trait::async_trait;
 use sqlx::any::{AnyPool, AnyPoolOptions};
 use sqlx::{self, Row};
 
 use super::{ObjectPlacement, ObjectPlacementProvider};
+use crate::sql_migration::SqlMigrations;
 use crate::ObjectId;
+
+pub struct PgObjectPlacementMigrations {}
+
+impl SqlMigrations for PgObjectPlacementMigrations {
+    fn queries() -> Vec<String> {
+        let migrations = include_str!("./migrations/0001-postgres-init.sql")
+            .split(";")
+            .map(|x| x.to_string())
+            .collect();
+        migrations
+    }
+}
+
+pub struct SqliteObjectPlacementMigrations {}
+
+impl SqlMigrations for SqliteObjectPlacementMigrations {
+    fn queries() -> Vec<String> {
+        let migration_001 = include_str!("./migrations/0001-sqlite-init.sql");
+        vec![migration_001.to_string()]
+    }
+}
 
 #[derive(Clone)]
 pub struct SqlObjectPlacementProvider {
@@ -40,42 +58,27 @@ impl SqlObjectPlacementProvider {
     pub fn pool() -> AnyPoolOptions {
         AnyPoolOptions::new()
     }
-
-    /// Run the schema/data migrations for this membership storage.
-    ///
-    /// For now, the Rio server doesn't run this at start-up and it needs
-    /// to be invoked on manually in the server's setup.
-    ///
-    /// <div class="warning">
-    /// This is likely to change into a generic setup step
-    /// </div>
-    pub async fn migrate(&self) {
-        let mut transaction = self.pool.begin().await.unwrap();
-        sqlx::query(
-            r#"CREATE TABLE IF NOT EXISTS object_placement
-            (
-                struct_name     TEXT                NOT NULL,
-                object_id       TEXT                NOT NULL,
-                server_address  TEXT                NULL,
-
-                PRIMARY KEY (struct_name, object_id)
-            )"#,
-        )
-        .execute(&mut transaction)
-        .await
-        .unwrap();
-
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_object_placement_server_address on object_placement(server_address)")
-            .execute(&mut transaction)
-            .await
-            .unwrap();
-
-        transaction.commit().await.unwrap();
-    }
 }
 
 #[async_trait]
 impl ObjectPlacementProvider for SqlObjectPlacementProvider {
+    /// Run the schema/data migrations for this membership storage.
+    ///
+    /// For now, the Rio server doesn't run this at start-up and it needs
+    /// to be invoked on manually in the server's setup.
+    async fn prepare(&self) {
+        let mut transaction = self.pool.begin().await.unwrap();
+        let queries = if let Some(_) = self.pool.connect_options().as_postgres() {
+            PgObjectPlacementMigrations::queries()
+        } else {
+            SqliteObjectPlacementMigrations::queries()
+        };
+        for query in queries {
+            sqlx::query(&query).execute(&mut transaction).await.unwrap();
+        }
+        transaction.commit().await.unwrap();
+    }
+
     async fn update(&self, object_placement: ObjectPlacement) {
         sqlx::query(
             r#"
@@ -151,7 +154,7 @@ mod test {
     async fn object_placement_provider() -> (AnyPool, impl ObjectPlacementProvider) {
         let pool = pool().await;
         let object_placement_provider = SqlObjectPlacementProvider::new(pool.clone());
-        object_placement_provider.migrate().await;
+        object_placement_provider.prepare().await;
         (pool, object_placement_provider)
     }
 

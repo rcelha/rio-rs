@@ -41,7 +41,6 @@ pub async fn build_server(
         .await
         .unwrap();
     let members_storage = SqlMembersStorage::new(pool);
-    members_storage.migrate().await;
 
     let membership_provider_config = PeerToPeerClusterConfig::default();
     let membership_provider =
@@ -54,7 +53,6 @@ pub async fn build_server(
         .unwrap();
 
     let object_placement_provider = SqlObjectPlacementProvider::new(pool);
-    object_placement_provider.migrate().await;
 
     // Create the server object
     let mut server = Server::new(
@@ -63,6 +61,7 @@ pub async fn build_server(
         membership_provider,
         object_placement_provider,
     );
+    server.prepare().await;
     // LifecycleMessage will try to load object from state
     server.app_data(LocalState::default());
     server

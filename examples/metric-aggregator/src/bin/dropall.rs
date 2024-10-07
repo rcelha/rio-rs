@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     sleep(Duration::from_secs(1)).await;
 
-    members_storage.migrate().await;
+    members_storage.prepare().await;
     let servers = members_storage.active_members().await;
     println!("server: {:?}", servers);
 
