@@ -3,6 +3,7 @@ use metric_aggregator::services::{self, Counter};
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
 use rio_rs::state::sql::SqlState;
+use rio_rs::state::StateSaver;
 use rio_rs::{prelude::*, state::local::LocalState};
 use std::sync::atomic::AtomicUsize;
 
@@ -39,7 +40,6 @@ async fn main() {
         .await
         .expect("Connection failure");
     let members_storage = SqlMembersStorage::new(pool);
-    members_storage.migrate().await;
 
     let mut cluster_config = PeerToPeerClusterConfig::default();
     cluster_config.interval_secs = 5;
@@ -54,7 +54,6 @@ async fn main() {
         .expect("Connection failure");
 
     let object_placement_provider = SqlObjectPlacementProvider::new(pool);
-    object_placement_provider.migrate().await;
 
     let mut server = ServerBuilder::new()
         .address(addr.to_string())
@@ -64,6 +63,7 @@ async fn main() {
         .client_pool_size(10)
         .build()
         .expect("TODO: server builder fail");
+    server.prepare().await;
 
     server.app_data(Counter(AtomicUsize::new(0)));
     server.app_data(LocalState::new());
@@ -73,7 +73,7 @@ async fn main() {
         .await
         .expect("Connection failure");
     let sql_state = SqlState::new(sql_state_pool);
-    sql_state.migrate().await;
+    sql_state.prepare().await;
     server.app_data(sql_state);
     server.bind().await.unwrap();
     server.run().await.expect("");

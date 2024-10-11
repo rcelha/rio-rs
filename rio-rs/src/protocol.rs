@@ -61,6 +61,9 @@ pub enum ResponseError {
     #[error("ServiceObject had to be deallocated")]
     DeallocateServiceObject,
 
+    #[error("ServiceObject could not be allocated")]
+    Allocate,
+
     #[error("unknown execution error")]
     Unknown(String),
 
