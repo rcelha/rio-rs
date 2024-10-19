@@ -99,6 +99,9 @@ pub enum ClientError {
     #[error("the requested server is not available")]
     ServerNotAvailable(String),
 
+    #[error("client was disconnected from the server (no more items on the TCP stream)")]
+    Disconnect,
+
     #[error("rendenvouz is not available")]
     RendevouzUnavailable,
 

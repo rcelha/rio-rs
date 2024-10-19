@@ -19,6 +19,7 @@ use crate::state::ObjectStateManager;
 ///
 /// It is stuct name + the object id (as in [WithId]).
 /// It is used lookups across tthis project
+#[derive(Debug)]
 pub struct ObjectId(pub String, pub String);
 
 impl ObjectId {

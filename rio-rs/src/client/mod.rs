@@ -295,6 +295,11 @@ where
 
     /// Send a request to the cluster transparently (the caller doesn't need to know where the
     /// object is placed)
+    ///
+    ///
+    /// TODO -  When the cached or selected server are not available, it needs to refresh all the
+    ///         cache and try a different server, this process needs to repeat until it finds a new
+    ///         available server
     pub async fn send<T>(
         &mut self,
         handler_type: impl AsRef<str>,
@@ -405,9 +410,10 @@ where
         }
     }
 
-    /// <div class="warning">
-    /// *TODO* remove this?
-    /// </div>
+    /// Connects to a the first server of the MembersStorage
+    ///
+    /// This is used mostly by the PeerToPeerClusterProvider to check whether
+    /// a set of servers is reacheable and alive
     pub async fn ping(&mut self) -> Result<(), ClientError> {
         let servers = self
             .members_storage

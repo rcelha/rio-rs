@@ -181,8 +181,43 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
     async fn get_or_create_placement(&self, handler_type: String, handler_id: String) -> String {
         let object_id = ObjectId(handler_type, handler_id);
         let placement_guard = self.object_placement_provider.read().await;
-        let maybe_server_address = placement_guard.lookup(&object_id).await.take();
+        let mut maybe_server_address = placement_guard.lookup(&object_id).await.take();
         drop(placement_guard);
+
+        // Ensures the placement is on an active server
+        if let Some(server_address) = maybe_server_address.as_ref() {
+            let mut addr_split = server_address.splitn(2, ":");
+            let ip = addr_split.next().unwrap_or_default();
+            let port = addr_split.next().unwrap_or_default();
+
+            // This case should never happen, but writing it here to be handled gracefuly.
+            // It means the placement was stored with bad data, so we remove the record and
+            // take `maybe_server_address` so it picks up a new placement at the end of this
+            // function
+            if ip.is_empty() || port.is_empty() {
+                eprintln!("The object's placement is in a bad state. This is likely a bug on the object placement code");
+                eprintln!("     ObjectId={:?}", object_id);
+                eprintln!("     Address={}", server_address);
+                eprintln!("     IP={}", ip);
+                eprintln!("     Port={}", port);
+
+                let placement_guard = self.object_placement_provider.read().await;
+                placement_guard.remove(&object_id).await;
+                maybe_server_address.take();
+            } else if !self
+                .members_storage
+                .is_active(ip, port)
+                .await
+                .expect("TODO")
+            {
+                let placement_guard = self.object_placement_provider.read().await;
+                placement_guard
+                    .clean_server(server_address.to_string())
+                    .await;
+                maybe_server_address.take();
+            }
+        }
+
         if let Some(server_address) = maybe_server_address {
             server_address
         } else {
@@ -310,7 +345,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
                 (Ok(message), _) => AllRequest::ReqResp(message),
                 (_, Ok(message)) => AllRequest::PubSub(message),
                 _ => {
-                    panic!("TODO")
+                    panic!("TODO: Handle mismatch gracefuly")
                 }
             };
             match either_request {
