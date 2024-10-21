@@ -61,6 +61,9 @@ pub enum ResponseError {
     #[error("ServiceObject had to be deallocated")]
     DeallocateServiceObject,
 
+    #[error("ServiceObject could not be allocated")]
+    Allocate,
+
     #[error("unknown execution error")]
     Unknown(String),
 
@@ -95,6 +98,9 @@ pub enum ClientError {
 
     #[error("the requested server is not available")]
     ServerNotAvailable(String),
+
+    #[error("client was disconnected from the server (no more items on the TCP stream)")]
+    Disconnect,
 
     #[error("rendenvouz is not available")]
     RendevouzUnavailable,

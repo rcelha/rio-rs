@@ -96,7 +96,8 @@ where
         local_storage.push(member.clone()).await?;
         let mut client = Client::new(local_storage);
 
-        if (client.ping().await).is_err() {
+        let ping = client.ping().await;
+        if ping.is_err() {
             self.members_storage()
                 .notify_failure(member.ip(), member.port())
                 .await?;
@@ -185,7 +186,7 @@ where
             futures::future::join_all(future_member_tests).await;
 
             // Wait for the remaining of 'config.interval_secs'
-            let elapsed = t0.elapsed().expect("fail to get elapsed time");
+            let elapsed = t0.elapsed().expect("Fail to get elapsed time");
             let remaning_sleep_period = sleep_period.saturating_sub(elapsed);
             if remaning_sleep_period > Duration::ZERO {
                 tokio::time::sleep(remaning_sleep_period).await;

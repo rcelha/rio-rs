@@ -1,10 +1,11 @@
 use async_trait::async_trait;
-use futures::{pin_mut, Future, StreamExt};
+use futures::{pin_mut, StreamExt};
 use rio_macros::{Message, TypeName, WithId};
 
 use rio_rs::app_data::AppDataExt;
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::message_router::MessageRouter;
+use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 use rio_rs::prelude::*;
 use rio_rs::protocol::pubsub::SubscriptionResponse;
 use rio_rs::registry::IdentifiableType;
@@ -13,7 +14,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-use rio_rs::object_placement::local::LocalObjectPlacementProvider;
+mod server_utils;
+use server_utils::run_integration_test;
 
 #[derive(Default, WithId, TypeName)]
 struct MockService {
@@ -69,206 +71,186 @@ impl Handler<CausePublishMessage> for MockService {
     }
 }
 
-type LocalServer =
-    Server<LocalStorage, PeerToPeerClusterProvider<LocalStorage>, LocalObjectPlacementProvider>;
-
-async fn build_server(
-    members_storage: LocalStorage,
-    object_placement_provider: LocalObjectPlacementProvider,
-) -> LocalServer {
+fn build_registry() -> Registry {
     let mut registry = Registry::new();
     registry.add_type::<MockService>();
     registry.add_handler::<MockService, MockMessage>();
     registry.add_handler::<MockService, CausePublishMessage>();
-
-    let membership_provider =
-        PeerToPeerClusterProvider::new(members_storage.clone(), Default::default());
-    let mut server = Server::new(
-        "0.0.0.0:0".to_string(),
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
-    server.bind().await.expect("Bind Error");
-    server
-}
-
-// Run a test and fail if it takes more then `timeout_seconds`
-async fn run_integration_test<Fut>(
-    timeout_seconds: u64,
-    members_storage: LocalStorage,
-    num_servers: usize,
-    test_fn: impl FnOnce() -> Fut,
-) where
-    Fut: Future<Output = ()>,
-{
-    let mut servers = vec![];
-    let object_placement_provider = LocalObjectPlacementProvider::default();
-
-    for _ in 0..num_servers {
-        let server = build_server(members_storage.clone(), object_placement_provider.clone()).await;
-        servers.push(server);
-    }
-
-    let test_fn_with_members = || async move {
-        // Wait for cluster membership storage has some active servers
-        while members_storage.active_members().await.unwrap().len() == 0 {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-        test_fn().await;
-    };
-
-    let server_futures: Vec<_> = servers.iter_mut().map(|s| s.run()).collect();
-    let servers_single_future = futures::future::join_all(server_futures);
-
-    tokio::select! {
-        _ = servers_single_future => {
-            panic!("A server has died");
-        }
-        _ = test_fn_with_members() => {}
-        _ = tokio::time::sleep(Duration::from_secs(timeout_seconds)) => {
-            panic!("Timeout reached");
-        }
-    };
+    registry
 }
 
 #[tokio::test]
 async fn request_response() {
     let members_storage = LocalStorage::default();
-    run_integration_test(5, members_storage.clone(), 1, || async move {
-        let mut client = ClientBuilder::new()
-            .members_storage(members_storage)
-            .build()
-            .unwrap();
-        let message = MockMessage {
-            text: "hi".to_string(),
-        };
-        let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
-        assert_eq!(&resp.text, "1 received hi");
-    })
+    let object_placement_provider = LocalObjectPlacementProvider::default();
+    run_integration_test(
+        5,
+        &build_registry,
+        members_storage.clone(),
+        object_placement_provider.clone(),
+        1,
+        || async move {
+            let mut client = ClientBuilder::new()
+                .members_storage(members_storage)
+                .build()
+                .unwrap();
+            let message = MockMessage {
+                text: "hi".to_string(),
+            };
+            let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
+            assert_eq!(&resp.text, "1 received hi");
+        },
+    )
     .await;
 }
 
 #[tokio::test]
 async fn request_response_redirectt() {
     let members_storage = LocalStorage::default();
-    run_integration_test(5, members_storage.clone(), 10, || async move {
-        let mut client = ClientBuilder::new()
-            .members_storage(members_storage)
-            .build()
-            .unwrap();
-        let message = MockMessage {
-            text: "hi".to_string(),
-        };
-        let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
-        assert_eq!(&resp.text, "1 received hi");
-    })
+    let object_placement_provider = LocalObjectPlacementProvider::default();
+
+    run_integration_test(
+        5,
+        &build_registry,
+        members_storage.clone(),
+        object_placement_provider.clone(),
+        10,
+        || async move {
+            let mut client = ClientBuilder::new()
+                .members_storage(members_storage)
+                .build()
+                .unwrap();
+            let message = MockMessage {
+                text: "hi".to_string(),
+            };
+            let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
+            assert_eq!(&resp.text, "1 received hi");
+        },
+    )
     .await;
 }
 
 #[tokio::test]
 async fn pubsub() {
     let members_storage = LocalStorage::default();
-    run_integration_test(5, members_storage.clone(), 1, || async move {
-        let another_members_storage = members_storage.clone();
-        let publishing_task = tokio::spawn(async move {
+    let object_placement_provider = LocalObjectPlacementProvider::default();
+
+    run_integration_test(
+        5,
+        &build_registry,
+        members_storage.clone(),
+        object_placement_provider.clone(),
+        1,
+        || async move {
+            let another_members_storage = members_storage.clone();
+            let publishing_task = tokio::spawn(async move {
+                let mut client = ClientBuilder::new()
+                    .members_storage(another_members_storage)
+                    .build()
+                    .unwrap();
+
+                for i in 0..10 {
+                    let _: () = client
+                        .send(
+                            "MockService",
+                            "1",
+                            &CausePublishMessage {
+                                text: format!("hey {}", i),
+                            },
+                        )
+                        .await
+                        .unwrap();
+                }
+            });
             let mut client = ClientBuilder::new()
-                .members_storage(another_members_storage)
+                .members_storage(members_storage)
                 .build()
                 .unwrap();
 
-            for i in 0..10 {
-                let _: () = client
-                    .send(
-                        "MockService",
-                        "1",
-                        &CausePublishMessage {
-                            text: format!("hey {}", i),
-                        },
-                    )
-                    .await
-                    .unwrap();
+            let resp = client
+                .subscribe::<CausePublishMessage>("MockService", "1")
+                .await;
+
+            pin_mut!(resp);
+
+            let mut recv_count = 0;
+            // it will timeout if it doesn't get the last message
+            while let Some(Ok(i)) = resp.next().await {
+                recv_count += 1;
+                if i.text == "hey 9" {
+                    break;
+                }
             }
-        });
-        let mut client = ClientBuilder::new()
-            .members_storage(members_storage)
-            .build()
-            .unwrap();
-
-        let resp = client
-            .subscribe::<CausePublishMessage>("MockService", "1")
-            .await;
-
-        pin_mut!(resp);
-
-        let mut recv_count = 0;
-        // it will timeout if it doesn't get the last message
-        while let Some(Ok(i)) = resp.next().await {
-            recv_count += 1;
-            if i.text == "hey 9" {
-                break;
-            }
-        }
-        assert!(recv_count > 0);
-        publishing_task.abort();
-    })
+            assert!(recv_count > 0);
+            publishing_task.abort();
+        },
+    )
     .await;
 }
 
 #[tokio::test]
 async fn pubsub_redirect() {
     let members_storage = LocalStorage::default();
-    run_integration_test(15, members_storage.clone(), 10, || async move {
-        let another_members_storage = members_storage.clone();
+    let object_placement_provider = LocalObjectPlacementProvider::default();
 
-        let publishing_task = tokio::spawn(async move {
+    run_integration_test(
+        15,
+        &build_registry,
+        members_storage.clone(),
+        object_placement_provider.clone(),
+        10,
+        || async move {
+            let another_members_storage = members_storage.clone();
+
+            let publishing_task = tokio::spawn(async move {
+                let mut client = ClientBuilder::new()
+                    .members_storage(another_members_storage)
+                    .build()
+                    .unwrap();
+
+                for i in 0..100 {
+                    let _: () = client
+                        .send(
+                            "MockService",
+                            "1",
+                            &CausePublishMessage {
+                                text: format!("hey {}", i),
+                            },
+                        )
+                        .await
+                        .expect("Send Error");
+                }
+            });
+
             let mut client = ClientBuilder::new()
-                .members_storage(another_members_storage)
+                .members_storage(members_storage)
                 .build()
-                .unwrap();
+                .expect("Client Build Error");
 
-            for i in 0..100 {
-                let _: () = client
-                    .send(
-                        "MockService",
-                        "1",
-                        &CausePublishMessage {
-                            text: format!("hey {}", i),
-                        },
-                    )
-                    .await
-                    .expect("Send Error");
+            // Hack to try to cause a redirect
+            // This test can have false positives if there is no redirect
+            sleep(Duration::from_millis(10)).await;
+            let subscription = client
+                .subscribe::<CausePublishMessage>("MockService", "1")
+                .await;
+            pin_mut!(subscription);
+
+            // it will timeout if it doesn't get the last message
+            let mut recv_count = 0;
+            while let Some(message_result) = subscription.next().await {
+                let i = if let Ok(message) = message_result {
+                    message
+                } else {
+                    break;
+                };
+                recv_count += 1;
+                if i.text == "hey 99" {
+                    break;
+                }
             }
-        });
-
-        let mut client = ClientBuilder::new()
-            .members_storage(members_storage)
-            .build()
-            .expect("Client Build Error");
-
-        // Hack to try to cause a redirect
-        // This test can have false positives if there is no redirect
-        sleep(Duration::from_millis(10)).await;
-        let subscription = client
-            .subscribe::<CausePublishMessage>("MockService", "1")
-            .await;
-        pin_mut!(subscription);
-
-        // it will timeout if it doesn't get the last message
-        let mut recv_count = 0;
-        while let Some(message_result) = subscription.next().await {
-            let i = if let Ok(message) = message_result {
-                message
-            } else {
-                break;
-            };
-            recv_count += 1;
-            if i.text == "hey 99" {
-                break;
-            }
-        }
-        assert!(recv_count > 0);
-        publishing_task.abort();
-    })
+            assert!(recv_count > 0);
+            publishing_task.abort();
+        },
+    )
     .await;
 }

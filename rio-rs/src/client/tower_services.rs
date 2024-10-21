@@ -82,9 +82,13 @@ where
                         Err(err) => Err(ClientError::ResponseError(err)),
                     }
                 }
+
                 // TODO: Add more granularity to ClientError
                 Some(Err(e)) => Err(ClientError::Unknown(e.to_string())),
-                None => Err(ClientError::Unknown("Unknown error".to_string())),
+
+                // When there are no more items on the stream, it means the TCP stream was
+                // disconnected
+                None => Err(ClientError::Disconnect),
             }
         })
     }
@@ -155,9 +159,15 @@ where
                             .put((handler_type.clone(), handler_id.clone()), to);
                     }
                     // Retry so it picks up a new Server on the cluster
-                    Err(ClientError::ResponseError(ResponseError::DeallocateServiceObject)) => {
+                    Err(
+                        ClientError::ResponseError(ResponseError::DeallocateServiceObject)
+                        | ClientError::Disconnect
+                        | ClientError::ServerNotAvailable(_),
+                    ) => {
                         // Removed the old placement, the next request
                         // will pickup a new placement to try from
+                        inner_service.client.ts_active_servers_refresh = 0; // forces re-fetching the
+                                                                            // active servers
                         inner_service
                             .client
                             .placement

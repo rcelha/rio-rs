@@ -2,7 +2,9 @@
 
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
-use futures::{Stream, StreamExt};
+use futures::{FutureExt, Stream, StreamExt};
+use log::error;
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use tokio::net::TcpStream;
@@ -55,27 +57,41 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
             address_mismatch.map_or(Ok(()), Err)?;
             this.start_service_object(&req.handler_type, &req.handler_id)
                 .await
-                .expect("TODO");
+                .map_err(|_| ResponseError::Allocate)?;
 
-            let response = this
-                .registry
-                .read()
-                .await
-                .send(
-                    &req.handler_type,
-                    &req.handler_id,
-                    &req.message_type,
-                    &req.payload,
-                    this.app_data.clone(),
-                )
-                .await;
+            let guard = this.registry.read().await;
+            let fut = guard.send(
+                &req.handler_type,
+                &req.handler_id,
+                &req.message_type,
+                &req.payload,
+                this.app_data.clone(),
+            );
+            // TODO review the use of `catch_unwind` and `AssertUnwindSafe`
+            let fut = AssertUnwindSafe(fut);
+            let response = fut.catch_unwind().await;
 
             match response {
-                Ok(body) => Ok(ResponseEnvelope::new(body)),
-                Err(err) => Err(ResponseError::Unknown(format!(
+                Ok(Ok(body)) => Ok(ResponseEnvelope::new(body)),
+                Ok(Err(err)) => Err(ResponseError::Unknown(format!(
                     "[TODO] HandlerError: {}",
                     err
                 ))),
+                Err(_) => {
+                    // When there is a panic, we will 'remove' the service object
+                    // from both the registry and the ObjectPlacementProvider
+                    this.registry
+                        .read()
+                        .await
+                        .remove(req.handler_type.clone(), req.handler_id.clone())
+                        .await;
+                    this.object_placement_provider
+                        .read()
+                        .await
+                        .remove(&ObjectId(req.handler_type.clone(), req.handler_id.clone()))
+                        .await;
+                    Err(ResponseError::Unknown("Panic".to_string()))
+                }
             }
         };
         Box::pin(result)
@@ -106,7 +122,7 @@ impl Stream for SubscriptionResponseIter {
         this.receiver_stream.poll_next_unpin(_cx).map(|i| {
             if let Some(result) = i {
                 if result.is_err() {
-                    println!("Error on stream recv {:?}", result);
+                    error!("Error on stream recv {:?}", result);
                 }
                 // TODO error handling
                 // TODO deal with redirect
@@ -166,8 +182,47 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
     async fn get_or_create_placement(&self, handler_type: String, handler_id: String) -> String {
         let object_id = ObjectId(handler_type, handler_id);
         let placement_guard = self.object_placement_provider.read().await;
-        let maybe_server_address = placement_guard.lookup(&object_id).await.take();
+        let mut maybe_server_address = placement_guard.lookup(&object_id).await.take();
         drop(placement_guard);
+
+        // Ensures the placement is on an active server
+        if let Some(server_address) = maybe_server_address.as_ref() {
+            let mut addr_split = server_address.splitn(2, ":");
+            let ip = addr_split.next().unwrap_or_default();
+            let port = addr_split.next().unwrap_or_default();
+
+            // This case should never happen, but writing it here to be handled gracefuly.
+            // It means the placement was stored with bad data, so we remove the record and
+            // take `maybe_server_address` so it picks up a new placement at the end of this
+            // function
+            if ip.is_empty() || port.is_empty() {
+                error!(object_id:? = object_id,
+                       address:%  = server_address,
+                       ip:%  = ip,
+                       port:%  = port;
+                       "The object's placement is in a bad state. This is likely a bug on the object placement code");
+
+                let placement_guard = self.object_placement_provider.read().await;
+                placement_guard.remove(&object_id).await;
+                maybe_server_address.take();
+            }
+            // In case the server in which this object is allocated is inactive/unavailable,
+            // we clean up the server (disassociate all the objects from it), and take
+            // `maybe_server_address` so it picks up a new placement at the end of this function
+            else if !self
+                .members_storage
+                .is_active(ip, port)
+                .await
+                .unwrap_or(false)
+            {
+                let placement_guard = self.object_placement_provider.read().await;
+                placement_guard
+                    .clean_server(server_address.to_string())
+                    .await;
+                maybe_server_address.take();
+            }
+        }
+
         if let Some(server_address) = maybe_server_address {
             server_address
         } else {
@@ -239,18 +294,38 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
                 .insert_boxed_object(handler_type.to_string(), handler_id.to_string(), new_object)
                 .await;
 
-            let _ = self
-                .registry
-                .read()
-                .await
-                .send(
-                    handler_type,
-                    handler_id,
+            let lifecycle_result = {
+                let object_guard = self.registry.read().await;
+                let lifecycle_msg = LifecycleMessage::Load;
+                let lifecycle_ser_msg = bincode::serialize(&lifecycle_msg).expect("TODO");
+                let lifecycle_fut = object_guard.send(
+                    &handler_type,
+                    &handler_id,
                     "LifecycleMessage",
-                    &bincode::serialize(&LifecycleMessage::Load).unwrap(),
+                    &lifecycle_ser_msg,
                     self.app_data.clone(),
-                )
-                .await;
+                );
+
+                // Catch panics on LifecycleMessage::Load
+                let lifecycle_fut = AssertUnwindSafe(lifecycle_fut);
+                lifecycle_fut.catch_unwind().await
+            };
+
+            // TODO remove duplicated logic (Self::send)
+            if let Err(_) = lifecycle_result {
+                self.registry
+                    .read()
+                    .await
+                    .remove(handler_type.to_string(), handler_id.to_string())
+                    .await;
+                self.object_placement_provider
+                    .read()
+                    .await
+                    .remove(&ObjectId(handler_type.to_string(), handler_id.to_string()))
+                    .await;
+
+                return Err(());
+            }
         }
         Ok(())
     }
@@ -275,7 +350,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
                 (Ok(message), _) => AllRequest::ReqResp(message),
                 (_, Ok(message)) => AllRequest::PubSub(message),
                 _ => {
-                    panic!("TODO")
+                    panic!("TODO: Handle mismatch gracefuly")
                 }
             };
             match either_request {
