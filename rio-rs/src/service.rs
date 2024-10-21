@@ -3,6 +3,7 @@
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use futures::{FutureExt, Stream, StreamExt};
+use log::error;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
@@ -121,7 +122,7 @@ impl Stream for SubscriptionResponseIter {
         this.receiver_stream.poll_next_unpin(_cx).map(|i| {
             if let Some(result) = i {
                 if result.is_err() {
-                    println!("Error on stream recv {:?}", result);
+                    error!("Error on stream recv {:?}", result);
                 }
                 // TODO error handling
                 // TODO deal with redirect
@@ -195,20 +196,24 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
             // take `maybe_server_address` so it picks up a new placement at the end of this
             // function
             if ip.is_empty() || port.is_empty() {
-                eprintln!("The object's placement is in a bad state. This is likely a bug on the object placement code");
-                eprintln!("     ObjectId={:?}", object_id);
-                eprintln!("     Address={}", server_address);
-                eprintln!("     IP={}", ip);
-                eprintln!("     Port={}", port);
+                error!(object_id:? = object_id,
+                       address:%  = server_address,
+                       ip:%  = ip,
+                       port:%  = port;
+                       "The object's placement is in a bad state. This is likely a bug on the object placement code");
 
                 let placement_guard = self.object_placement_provider.read().await;
                 placement_guard.remove(&object_id).await;
                 maybe_server_address.take();
-            } else if !self
+            }
+            // In case the server in which this object is allocated is inactive/unavailable,
+            // we clean up the server (disassociate all the objects from it), and take
+            // `maybe_server_address` so it picks up a new placement at the end of this function
+            else if !self
                 .members_storage
                 .is_active(ip, port)
                 .await
-                .expect("TODO")
+                .unwrap_or(false)
             {
                 let placement_guard = self.object_placement_provider.read().await;
                 placement_guard

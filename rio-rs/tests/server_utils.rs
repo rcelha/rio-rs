@@ -49,6 +49,7 @@ pub async fn run_integration_test<Fut>(
 ) where
     Fut: Future<Output = ()>,
 {
+    env_logger::try_init().ok();
     let mut servers = vec![];
 
     for _ in 0..num_servers {

@@ -5,6 +5,7 @@
 use crate::{app_data::AppData, errors::HandlerError, WithId};
 use async_trait::async_trait;
 use dashmap::DashMap;
+use log::warn;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     any::{type_name, Any},
@@ -144,10 +145,20 @@ impl Registry {
     /// remove object from registry
     pub async fn remove(&self, type_id: String, object_id: String) {
         let key = (type_id, object_id);
-        self.object_map.remove(&key).map(|(_, _)| ()).or_else(|| {
-            println!("TODO: error deleting {:?}", key);
-            Some(())
-        });
+
+        if let None = self.object_map.remove(&key) {
+            warn!(
+                "Failed to remove object from mapping ({:?} not present)",
+                key
+            );
+        }
+
+        if let None = self.handler_map.remove(&key) {
+            warn!(
+                "Failed to remove handler from mapping ({:?} not present)",
+                key
+            );
+        }
     }
 }
 

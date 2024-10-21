@@ -49,6 +49,9 @@ sqlx = { version = "0.6", features = [
 async-stream = "0.3.5"
 derive_builder = "0.20.0"
 sync_wrapper = "1.0.1"
+papaya = "0.1.4"
+env_logger = "0.11.5"
+log = { version = "0.4.22", features = ["kv"] }
 
 [dev-dependencies]
 lazy_static = "1.4.0"

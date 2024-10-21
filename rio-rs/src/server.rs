@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use bb8::Pool;
 use derive_builder::Builder;
+use log::{error, info, warn};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::{net::TcpListener, sync::RwLock};
@@ -283,32 +284,34 @@ where
             }
             cluster_provider_serve_result = self.cluster_provider.serve(&local_addr)  => {
                 if let Err(e) = cluster_provider_serve_result {
-                    eprintln!("Error on cluster provider serve");
-                    eprintln!("  {:?}", e);
+                    error!("Error on cluster provider serve: {:?}", e);
                     return Err(ServerError::ClusterProviderServe(e));
                 }
             }
             _ = self.consume_admin_commands(admin_receiver) => {
-                eprintln!("[{}] Admin command serve finished first", local_addr);
+                warn!("Admin command serve finished first");
             }
         };
 
         // Gracefuly abort all the tasks that are receiving messages for the running ServiceObjects
-        println!("[{}] Stopping server", local_addr);
+        info!("Stopping server");
         let service_join_handlers = self.serivce_join_handlers.read().await;
         for i in service_join_handlers.iter() {
             i.abort();
         }
-        println!("[{}] Server stopped", local_addr);
+        info!("Server stopped");
 
         Ok(())
     }
 
     async fn accept(&self) -> ServerResult<()> {
-        let listener = self.listener.as_ref().ok_or(ServerError::Bind(
-            "Socket not bind before accept connection".to_string(),
-        ))?;
-        println!("Listening on `{:?}`", listener.local_addr());
+        let listener = self.listener.as_ref().ok_or_else(|| {
+            ServerError::Bind("Socket not bind before accept connection".to_string())
+        })?;
+        let local_addr = listener.local_addr().map_err(|_| {
+            ServerError::Bind("Cannot get the local address for the listener".to_string())
+        })?;
+        info!("Listening on `{}`", local_addr.to_string());
 
         loop {
             let (stream, _) = listener.accept().await.map_err(|_| ServerError::Run)?;

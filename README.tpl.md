@@ -71,7 +71,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Remove magic numbers
 - [ ] Object TTL
 - [ ] Matrix test with different backends
-- [ ] Replace prints with logging
+- [x] Replace prints with logging
 - [ ] Code of conduct
 - [ ] Metrics and Tracing
 - [ ] Deny allocations based on system resources
