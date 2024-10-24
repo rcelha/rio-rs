@@ -40,7 +40,7 @@ where
         if let Some(x) = self.data.get(&k) {
             Ok(serde_json::from_str(&x).expect("TODO"))
         } else {
-            Err(LoadStateError::Unknown)
+            Err(LoadStateError::ObjectNotFound)
         }
     }
 }

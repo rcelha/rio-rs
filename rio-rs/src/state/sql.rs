@@ -81,7 +81,10 @@ where
         .bind(object_kind)
         .bind(object_id)
         .bind(state_type)
-        .map(|x: AnyRow| -> String { x.get("serialized_state") })
+        .map(|x: AnyRow| -> String {
+            let tmp = x.get::<Vec<u8>, _>("serialized_state");
+            String::from_utf8(tmp).expect("TODO")
+        })
         .fetch_one(&self.pool)
         .map_err(|_| LoadStateError::ObjectNotFound)
         .await?;
@@ -117,7 +120,10 @@ impl StateSaver for SqlState {
         .bind(state_type)
         .bind(serialized_data.bytes().collect::<Vec<_>>())
         .execute(&self.pool)
-        .map_err(|_| LoadStateError::Unknown)
+        .map_err(|e| {
+            eprintln!("{:?}", e);
+            LoadStateError::Unknown
+        })
         .await
         .map(|_| ())
     }

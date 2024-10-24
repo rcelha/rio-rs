@@ -110,11 +110,17 @@ impl From<MembershipError> for ClusterProviderServeError {
 }
 
 /// Error type for service object state management
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum LoadStateError {
     #[error("object not found")]
     ObjectNotFound,
 
     #[error("unknown error")]
     Unknown,
+
+    #[error("deserialization error")]
+    DeserializationError,
+
+    #[error("serialization error")]
+    SerializationError,
 }

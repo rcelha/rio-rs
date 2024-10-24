@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: valkey/valkey:7.2.7-alpine
+    ports:
+      - 16379:6379
+  pgsql:
+    image: postgres:16.4
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: test
+      POSTGRES_USER: test
+      POSTGRES_DB: test
+    ports:
+      - 15432:5432

@@ -1,0 +1,8 @@
+experimental = ["setup-scripts"]
+
+[script.services]
+command = 'bash -c "docker compose up -d --wait ; sleep 1"'
+
+[[profile.default.scripts]]
+filter = 'test(redis::) | test(pgsql::)'
+setup = ['services']

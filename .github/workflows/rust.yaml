@@ -21,9 +21,27 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: valkey/valkey:7.2.7-alpine
+        ports:
+          - 16379:6379
+      pgsql:
+        image: postgres:16.4
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports:
+          - 15432:5432
     steps:
       - uses: actions/checkout@v2
       - name: Tests
         run: cargo test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
       - name: Build
         run: cargo build --release --verbose

@@ -118,7 +118,7 @@ impl MembersStorage for SqlMembersStorage {
         sqlx::query("UPDATE cluster_provider_members SET active = $3 WHERE ip = $1 and port = $2")
             .bind(ip)
             .bind(port)
-            .bind(is_active as i32)
+            .bind(is_active)
             .execute(&self.pool)
             .err_into()
             .await

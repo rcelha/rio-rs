@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use crate::ObjectId;
 
 pub mod local;
+pub mod redis;
 pub mod sql;
 
 /// Struct providing placement information

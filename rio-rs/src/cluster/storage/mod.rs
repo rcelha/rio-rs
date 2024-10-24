@@ -8,6 +8,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use crate::errors::MembershipError;
 
 pub mod local;
+pub mod redis;
 pub mod sql;
 
 /// Represents a running [Server](crate::server::Server).

@@ -10,6 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 pub mod local;
+pub mod redis;
 pub mod sql;
 
 /// The `StateLoader` defines an interface to load serialized state from a source

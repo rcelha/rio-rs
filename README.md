@@ -160,11 +160,15 @@ There are a few things that must be done before v0.1.0:
 - [x] Support ephemeral port
 - [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
 - [ ] Support 'typed' message/response on client (TODO define what this means)
+- [ ] `ServiceObject::send` shouldn't need a type for the member storage
 - [x] Handle panics on messages handling
 - [x] Error and panic handling on life cycle hooks (probably kill the object)
 - [x] Create a test or example to show re-allocation when servers dies
 - [x] Sqlite support for sql backends
 - [x] PostgreSQL support for sql backends
+- [!] Redis support for members storage
+- [!] Redis support for state backend (loader and saver)
+- [!] Redis support for object placement
 
 ### Version 0.2.0
 
