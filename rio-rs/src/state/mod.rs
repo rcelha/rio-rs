@@ -10,6 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 pub mod local;
+pub mod redis;
 pub mod sql;
 
 /// The `StateLoader` defines an interface to load serialized state from a source
@@ -24,6 +25,17 @@ where
     Self: Sync + Send,
     T: DeserializeOwned,
 {
+    /// <div class="warning">
+    /// TODO
+    ///
+    /// This here can't be used right now as it depends on the type `T` when
+    /// called.
+    ///
+    /// This makes its usage quite cluncky (if not impossible) as you need to invoke it
+    /// with a target of this loader
+    /// </div>
+    async fn prepare(&self) {}
+
     async fn load(
         &self,
         object_kind: &str,
@@ -60,6 +72,8 @@ where
 /// its original type
 #[async_trait]
 pub trait StateSaver: Sync + Send {
+    async fn prepare(&self) {}
+
     async fn save(
         &self,
         object_kind: &str,

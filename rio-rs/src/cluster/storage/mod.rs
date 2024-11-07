@@ -8,6 +8,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use crate::errors::MembershipError;
 
 pub mod local;
+pub mod redis;
 pub mod sql;
 
 /// Represents a running [Server](crate::server::Server).
@@ -55,6 +56,8 @@ pub type MembershipUnitResult = Result<(), MembershipError>;
 /// status.
 #[async_trait]
 pub trait MembersStorage: Send + Sync + Clone {
+    async fn prepare(&self) {}
+
     /// Saves a new member to the storage
     async fn push(&self, member: Member) -> MembershipUnitResult;
 

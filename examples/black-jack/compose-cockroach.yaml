@@ -1,0 +1,8 @@
+services:
+  database:
+    image: cockroachdb/cockroach:v24.2.2
+    platform: linux/amd64
+    command: start-single-node --insecure
+    ports:
+      - 8000:8080
+      - 26257:26257

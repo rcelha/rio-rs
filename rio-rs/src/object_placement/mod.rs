@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use crate::ObjectId;
 
 pub mod local;
+pub mod redis;
 pub mod sql;
 
 /// Struct providing placement information
@@ -28,6 +29,9 @@ impl ObjectPlacement {
 /// This is pretty much a CRUD for the mapping
 #[async_trait]
 pub trait ObjectPlacementProvider: Send + Sync + Clone {
+    /// Setup step, one can define it for their [ObjectPlacementProvider] so it does some
+    /// prep work before the server is running
+    async fn prepare(&self) {}
     /// Insert or update the object placement
     async fn update(&self, object_placement: ObjectPlacement);
     /// Find the server address for a given object

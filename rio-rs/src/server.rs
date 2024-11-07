@@ -7,7 +7,9 @@ use std::sync::Arc;
 
 use bb8::Pool;
 use derive_builder::Builder;
+use log::{error, info, warn};
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tokio::{net::TcpListener, sync::RwLock};
 use tower::ServiceExt;
 
@@ -26,6 +28,7 @@ use crate::ObjectId;
 /// Internal commands, e.g., shutdown a service object
 #[derive(Debug)]
 pub enum AdminCommands {
+    ServerExit,
     // Shutdown(hander_type, handler_id)
     Shutdown(String, String),
 }
@@ -59,6 +62,10 @@ where
     /// TCP listener for the main server
     #[builder(setter(skip))]
     listener: Option<TcpListener>,
+
+    /// We store all the join handlers so we can terminate them once the server dies
+    #[builder(setter(skip))]
+    serivce_join_handlers: RwLock<Vec<JoinHandle<()>>>,
 
     registry: Arc<RwLock<Registry>>,
     cluster_provider: C,
@@ -206,8 +213,15 @@ where
             app_data: Arc::new(AppData::new()),
             client_pool_size: 3,
             listener: None,
+            serivce_join_handlers: RwLock::new(vec![]),
             _marker: PhantomData {},
         }
+    }
+
+    pub async fn prepare(&self) {
+        self.cluster_provider.members_storage().prepare().await;
+        let object_placement_provider_guard = self.object_placement_provider.read().await;
+        object_placement_provider_guard.prepare().await;
     }
 
     pub fn app_data<Data>(&mut self, data: Data)
@@ -269,20 +283,35 @@ where
                 accept_result?;
             }
             cluster_provider_serve_result = self.cluster_provider.serve(&local_addr)  => {
-                cluster_provider_serve_result.map_err(ServerError::ClusterProviderServe)?;
+                if let Err(e) = cluster_provider_serve_result {
+                    error!("Error on cluster provider serve: {:?}", e);
+                    return Err(ServerError::ClusterProviderServe(e));
+                }
             }
             _ = self.consume_admin_commands(admin_receiver) => {
-                println!("admin command serve finished first");
+                warn!("Admin command serve finished first");
             }
         };
+
+        // Gracefuly abort all the tasks that are receiving messages for the running ServiceObjects
+        info!("Stopping server");
+        let service_join_handlers = self.serivce_join_handlers.read().await;
+        for i in service_join_handlers.iter() {
+            i.abort();
+        }
+        info!("Server stopped");
+
         Ok(())
     }
 
     async fn accept(&self) -> ServerResult<()> {
-        let listener = self.listener.as_ref().ok_or(ServerError::Bind(
-            "Socket not bind before accept connection".to_string(),
-        ))?;
-        println!("Listening on: {:?}", listener.local_addr());
+        let listener = self.listener.as_ref().ok_or_else(|| {
+            ServerError::Bind("Socket not bind before accept connection".to_string())
+        })?;
+        let local_addr = listener.local_addr().map_err(|_| {
+            ServerError::Bind("Cannot get the local address for the listener".to_string())
+        })?;
+        info!("Listening on `{}`", local_addr.to_string());
 
         loop {
             let (stream, _) = listener.accept().await.map_err(|_| ServerError::Run)?;
@@ -295,15 +324,25 @@ where
                 .await
                 .map_err(|_| ServerError::Run)?;
 
-            tokio::spawn(async move { service.run(stream).await });
+            let service_run_join_handler = tokio::spawn(async move { service.run(stream).await });
+            self.serivce_join_handlers
+                .write()
+                .await
+                .push(service_run_join_handler);
         }
     }
 
+    /// Receives the messages from the AdminReceiver channel
+    ///
+    /// These are operations that need to be protected from external access, and only
+    /// ServiceObjects have access to this channel - the channel is in the AppData
     async fn consume_admin_commands(&self, mut admin_receiver: AdminReceiver) {
         while let Some(message) = admin_receiver.recv().await {
             match message {
+                // TODO I think this only works for the current server,
+                //      meaning, if the service object is running on another
+                //      node, it won't shutdown
                 AdminCommands::Shutdown(object_kind, object_id) => {
-                    println!("deleting {}.{}", object_kind, object_id);
                     let registry = self.registry.write().await;
                     registry
                         .remove(object_kind.clone(), object_id.clone())
@@ -313,7 +352,10 @@ where
                         .await
                         .remove(&ObjectId(object_kind, object_id))
                         .await;
-                    println!("done deleting");
+                }
+                AdminCommands::ServerExit => {
+                    // Exists `while` to terminate the server
+                    return;
                 }
             }
         }

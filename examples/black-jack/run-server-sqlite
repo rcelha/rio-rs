@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+echo Run the client with the command:
+echo cargo run --bin client -- CLIENT_001
+cargo run --bin server -- 9999

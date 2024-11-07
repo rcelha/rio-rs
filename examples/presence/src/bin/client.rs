@@ -15,7 +15,7 @@ async fn main() {
     let members_storage = SqlMembersStorage::new(pool);
     sleep(Duration::from_secs(1)).await;
 
-    members_storage.migrate().await;
+    members_storage.prepare().await;
     let servers = members_storage.active_members().await;
     println!("server: {:?}", servers);
 

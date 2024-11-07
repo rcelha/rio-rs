@@ -24,3 +24,5 @@ To run the client:
 ```sh
 cargo run --bin client PLAYER_ID
 ```
+
+There are two handy scripts to run the server using either CockroachDB or Sqlite3: `run-server-cockroach` and `run-server-sqlite`
