@@ -166,12 +166,13 @@ There are a few things that must be done before v0.1.0:
 - [x] Create a test or example to show re-allocation when servers dies
 - [x] Sqlite support for sql backends
 - [x] PostgreSQL support for sql backends
-- [!] Redis support for members storage
-- [!] Redis support for state backend (loader and saver)
-- [!] Redis support for object placement
+- [x] Redis support for members storage
+- [x] Redis support for state backend (loader and saver)
+- [x] Redis support for object placement
 
 ### Version 0.2.0
 
+- [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
 - [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 - [ ] Allow `ServiceObject` trait without state persistence
 - [ ] Create server from config

@@ -49,14 +49,18 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let this = self.clone();
         let result = async move {
+            // Test if this object is in fact allocated in this instance
             let server_address = this
                 .get_or_create_placement(req.handler_type.clone(), req.handler_id.clone())
                 .await;
             this.check_address_mismatch(server_address).await?;
+
+            // Ensure the object is started in the registry
             this.start_service_object(&req.handler_type, &req.handler_id)
                 .await
                 .map_err(|_| ResponseError::Allocate)?;
 
+            // Req + Response to registry
             let guard = this.registry.read().await;
             let fut = guard.send(
                 &req.handler_type,
@@ -69,12 +73,10 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
             let fut = AssertUnwindSafe(fut);
             let response = fut.catch_unwind().await;
 
+            // Handle result, 'translating' it to the protocol
             match response {
                 Ok(Ok(body)) => Ok(ResponseEnvelope::new(body)),
-                Ok(Err(err)) => Err(ResponseError::Unknown(format!(
-                    "[TODO] HandlerError: {}",
-                    err
-                ))),
+                Ok(Err(err)) => Err(ResponseError::HandlerError(err.to_string())),
                 Err(_) => {
                     // When there is a panic, we will 'remove' the service object
                     // from both the registry and the ObjectPlacementProvider

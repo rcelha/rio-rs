@@ -14,9 +14,9 @@ use std::{
     pin::Pin,
     sync::Arc,
 };
+use tokio::sync::RwLock;
 
-type LockHashMap<K, V> = Arc<DashMap<K, V>>;
-// TODO -> type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
+type LockHashMap<K, V> = Arc<DashMap<K, RwLock<V>>>;
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type AsyncRet = BoxFuture<Result<Vec<u8>, HandlerError>>;
 type BoxedCallback = Box<dyn Fn(&str, &str, &[u8], Arc<AppData>) -> AsyncRet + Send + Sync>;
@@ -32,7 +32,7 @@ pub struct Registry {
     object_map: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
 
     // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
-    handler_map: DashMap<(String, String), BoxedCallback>,
+    handler_map_: papaya::HashMap<(String, String), BoxedCallback>,
 
     /// TODO
     type_map: HashMap<String, BoxedDefaultWithId>,
@@ -49,7 +49,8 @@ impl Registry {
         T: 'static + IdentifiableType + Send + Sync,
     {
         let type_id = T::user_defined_type_id().to_string();
-        self.object_map.insert((type_id, k), Box::new(v));
+        self.object_map
+            .insert((type_id, k), RwLock::new(Box::new(v)));
     }
 
     /// TODO
@@ -95,9 +96,10 @@ impl Registry {
             let inner_object_map = object_map.clone();
             let object_key = (type_id.to_string(), object_id.to_string());
             Box::pin(async move {
-                let mut boxed_object = inner_object_map
-                    .get_mut(&object_key)
+                let boxed_object_guard = inner_object_map
+                    .get(&object_key)
                     .ok_or(HandlerError::ObjectNotFound)?;
+                let mut boxed_object = boxed_object_guard.write().await;
                 let object: &mut T = boxed_object.downcast_mut().ok_or(HandlerError::Unknown)?;
                 let ret = object.handle(message, context).await?;
                 bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
@@ -105,7 +107,7 @@ impl Registry {
         };
         let boxed_callable: BoxedCallback = Box::new(callable);
         let callable_key = (type_id, message_type_id);
-        self.handler_map.insert(callable_key, boxed_callable);
+        self.handler_map_.pin().insert(callable_key, boxed_callable);
     }
 
     pub async fn send(
@@ -117,10 +119,12 @@ impl Registry {
         context: Arc<AppData>,
     ) -> Result<Vec<u8>, HandlerError> {
         let callable_key = (type_id.to_string(), message_type_id.to_string());
+
         let future_result = {
+            let handler_map_pin = self.handler_map_.guard();
             let message_handler = self
-                .handler_map
-                .get(&callable_key)
+                .handler_map_
+                .get(&callable_key, &handler_map_pin)
                 .ok_or(HandlerError::HandlerNotFound)?;
             message_handler(type_id, object_id, message, context)
         };
@@ -139,7 +143,8 @@ impl Registry {
         object_id: String,
         object: Box<dyn Any + 'static + Send + Sync>,
     ) {
-        self.object_map.insert((type_id, object_id), object);
+        self.object_map
+            .insert((type_id, object_id), RwLock::new(object));
     }
 
     /// remove object from registry
@@ -153,7 +158,8 @@ impl Registry {
             );
         }
 
-        if self.handler_map.remove(&key).is_none() {
+        let handler_map = self.handler_map_.pin();
+        if handler_map.remove(&key).is_none() {
             warn!(
                 "Failed to remove handler from mapping ({:?} not present)",
                 key
@@ -226,9 +232,21 @@ mod test {
 
     #[derive(Default)]
     struct Proxy {
+        pub id: String,
         pub registry: Arc<RwLock<Registry>>,
         pub proxy: bool,
     }
+
+    impl WithId for Proxy {
+        fn set_id(&mut self, id: String) {
+            self.id = id;
+        }
+
+        fn id(&self) -> &str {
+            &self.id
+        }
+    }
+
     impl IdentifiableType for Proxy {
         fn user_defined_type_id() -> &'static str {
             "Proxy"
@@ -286,12 +304,14 @@ mod test {
             context: Arc<AppData>,
         ) -> Result<String, HandlerError> {
             if self.proxy {
+                let final_id = "final-1".to_string();
+
                 self.registry
                     .read()
                     .await
                     .send(
                         "Proxy",
-                        "final-1",
+                        &final_id,
                         "HiMessage",
                         &bincode::serialize(&message).unwrap(),
                         context,
@@ -499,47 +519,69 @@ mod test {
 
     #[tokio::test]
     async fn test_proxy_deadlock() {
+        let count = 1_000_000;
         let registry = Registry::new();
         let registry = Arc::new(RwLock::new(registry));
 
         registry.write().await.add_handler::<Proxy, HiMessage>();
 
-        registry
-            .write()
-            .await
-            .add(
-                "proxy-1".to_string(),
-                Proxy {
-                    registry: registry.clone(),
-                    proxy: true,
-                },
-            )
-            .await;
+        let mut join_set = tokio::task::JoinSet::new();
+        let local_reg = registry.clone();
+        join_set.spawn(async move {
+            local_reg
+                .write()
+                .await
+                .add(
+                    "final-1".to_string(),
+                    Proxy {
+                        id: "final-1".to_string(),
+                        registry: local_reg.clone(),
+                        proxy: false,
+                    },
+                )
+                .await;
+        });
 
-        registry
-            .write()
-            .await
-            .add(
-                "final-1".to_string(),
-                Proxy {
-                    registry: registry.clone(),
-                    proxy: false,
-                },
-            )
-            .await;
+        for i in 1..count {
+            let local_reg = registry.clone();
+            join_set.spawn(async move {
+                local_reg
+                    .write()
+                    .await
+                    .add(
+                        format!("proxy-{}", i),
+                        Proxy {
+                            id: format!("proxy-{}", i),
+                            registry: local_reg.clone(),
+                            proxy: true,
+                        },
+                    )
+                    .await;
+            });
+        }
+        let _ = join_set.join_all().await;
 
-        registry
-            .read()
-            .await
-            .send(
-                "Proxy",
-                "proxy-1",
-                "HiMessage",
-                b"",
-                Arc::new(AppData::new()),
-            )
-            .await
-            .unwrap();
+        let app_data = Arc::new(AppData::new());
+        let mut join_set = tokio::task::JoinSet::new();
+        for i in 1..count {
+            let local_reg = registry.clone();
+            let local_app_data = app_data.clone();
+            join_set.spawn(async move {
+                local_reg
+                    .read()
+                    .await
+                    .send(
+                        "Proxy",
+                        &format!("proxy-{}", i),
+                        "HiMessage",
+                        b"",
+                        local_app_data,
+                    )
+                    .await
+                    .unwrap();
+            });
+        }
+        join_set.join_all().await;
     }
 
     #[tokio::test]
