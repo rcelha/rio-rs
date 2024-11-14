@@ -28,9 +28,7 @@ impl ObjectPlacementProvider for LocalObjectPlacementProvider {
             .write()
             .expect("Poisoned lock: ObjectPlacementProvider map");
         if let Some(address) = object_placement.server_address {
-            *placement_guard
-                .entry(object_id)
-                .or_insert_with(Default::default) = address;
+            *placement_guard.entry(object_id).or_default() = address;
         } else {
             placement_guard.remove(&object_id);
         }

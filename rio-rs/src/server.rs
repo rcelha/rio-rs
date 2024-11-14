@@ -245,9 +245,9 @@ where
     }
 
     pub fn try_local_addr(&self) -> ServerResult<SocketAddr> {
-        let bind_error = ServerError::Bind("Socket not bind".to_string());
         let maybe_addr = self.local_addr();
-        let addr_result = maybe_addr.ok_or_else(|| bind_error)?;
+        let addr_result =
+            maybe_addr.ok_or_else(|| ServerError::Bind("Socket not bind".to_string()))?;
         let addr = addr_result.map_err(|x| {
             let err = x.to_string();
             ServerError::Bind(err)

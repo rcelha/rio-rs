@@ -44,9 +44,9 @@ impl Registry {
     }
 
     /// Add a trait object of type `T` to the object map
-    pub async fn add<T: 'static>(&mut self, k: String, v: T)
+    pub async fn add<T>(&mut self, k: String, v: T)
     where
-        T: IdentifiableType + Send + Sync,
+        T: 'static + IdentifiableType + Send + Sync,
     {
         let type_id = T::user_defined_type_id().to_string();
         self.object_map.insert((type_id, k), Box::new(v));
@@ -146,14 +146,14 @@ impl Registry {
     pub async fn remove(&self, type_id: String, object_id: String) {
         let key = (type_id, object_id);
 
-        if let None = self.object_map.remove(&key) {
+        if self.object_map.remove(&key).is_none() {
             warn!(
                 "Failed to remove object from mapping ({:?} not present)",
                 key
             );
         }
 
-        if let None = self.handler_map.remove(&key) {
+        if self.handler_map.remove(&key).is_none() {
             warn!(
                 "Failed to remove handler from mapping ({:?} not present)",
                 key

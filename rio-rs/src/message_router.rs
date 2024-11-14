@@ -36,12 +36,9 @@ impl MessageRouter {
     }
 
     pub fn publish(&self, k1: String, k2: String, message: SubscriptionResponse) {
-        let sender = self.inboxes.get_mut(&(k1, k2));
-        match sender {
-            Some(x) => {
-                x.send(message).ok();
-            }
-            None => {}
-        };
+        let maybe_sender = self.inboxes.get_mut(&(k1, k2));
+        if let Some(sender) = maybe_sender {
+            sender.send(message).ok();
+        }
     }
 }
