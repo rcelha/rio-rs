@@ -44,8 +44,8 @@ where
         let mut client = self.pool.get().await.map_err(|_| LoadStateError::Unknown)?;
         let se_data: Option<String> = client.get(key).await.expect("TODO");
         if let Some(x) = se_data {
-            let data = serde_json::from_str(&x).map_err(|_| LoadStateError::DeserializationError);
-            data
+            let data = serde_json::from_str(&x);
+            data.map_err(|_| LoadStateError::DeserializationError)
         } else {
             Err(LoadStateError::ObjectNotFound)
         }

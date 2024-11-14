@@ -42,7 +42,7 @@ fn parse_member(member: &str) -> Member {
         .parse()
         .expect("TODO parse");
     let last_seen = split_member.next().expect("TODO");
-    parsed_member.last_seen = DateTime::parse_from_rfc3339(&last_seen)
+    parsed_member.last_seen = DateTime::parse_from_rfc3339(last_seen)
         .expect("TODO")
         .to_utc();
     parsed_member

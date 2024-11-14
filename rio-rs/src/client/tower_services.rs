@@ -60,7 +60,7 @@ where
             .map_err(|_| ClientError::RendevouzUnavailable)
     }
 
-    ///
+    /// TODO
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let mut client = self.client.clone();
         Box::pin(async move {

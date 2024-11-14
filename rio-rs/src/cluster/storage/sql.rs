@@ -72,7 +72,7 @@ impl MembersStorage for SqlMembersStorage {
     /// Run the schema/data migrations for this membership storage.
     async fn prepare(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
-        let queries = if let Some(_) = self.pool.connect_options().as_postgres() {
+        let queries = if self.pool.connect_options().as_postgres().is_some() {
             PgMembersStorageMigrations::queries()
         } else {
             SqliteMembersStorageMigrations::queries()

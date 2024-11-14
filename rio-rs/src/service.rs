@@ -49,16 +49,18 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let this = self.clone();
         let result = async move {
+            // Test if this object is in fact allocated in this instance
             let server_address = this
                 .get_or_create_placement(req.handler_type.clone(), req.handler_id.clone())
                 .await;
+            this.check_address_mismatch(server_address).await?;
 
-            let address_mismatch = this.get_address_mismatch_error(server_address).await;
-            address_mismatch.map_or(Ok(()), Err)?;
+            // Ensure the object is started in the registry
             this.start_service_object(&req.handler_type, &req.handler_id)
                 .await
                 .map_err(|_| ResponseError::Allocate)?;
 
+            // Req + Response to registry
             let guard = this.registry.read().await;
             let fut = guard.send(
                 &req.handler_type,
@@ -71,12 +73,10 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
             let fut = AssertUnwindSafe(fut);
             let response = fut.catch_unwind().await;
 
+            // Handle result, 'translating' it to the protocol
             match response {
                 Ok(Ok(body)) => Ok(ResponseEnvelope::new(body)),
-                Ok(Err(err)) => Err(ResponseError::Unknown(format!(
-                    "[TODO] HandlerError: {}",
-                    err
-                ))),
+                Ok(Err(err)) => Err(ResponseError::HandlerError(err.to_string())),
                 Err(_) => {
                     // When there is a panic, we will 'remove' the service object
                     // from both the registry and the ObjectPlacementProvider
@@ -159,8 +159,7 @@ where
                 .get_or_create_placement(req.handler_type.clone(), req.handler_id.clone())
                 .await;
 
-            let address_mismatch = this.get_address_mismatch_error(server_address).await;
-            address_mismatch.map_or(Ok(()), Err)?;
+            this.check_address_mismatch(server_address).await?;
             // TODO deal with redirect
             this.start_service_object(&req.handler_type, &req.handler_id)
                 .await
@@ -239,93 +238,98 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
     }
 
     /// TODO
-    async fn get_address_mismatch_error(&self, server_address: String) -> Option<ResponseError> {
+    async fn check_address_mismatch(&self, server_address: String) -> Result<(), ResponseError> {
         if server_address == self.address {
-            return None;
+            return Ok(());
         }
 
-        // TODO error handling
         let mut split_address = server_address.split(':');
-        let ip = split_address.next().expect("TODO: Address has no IP in it");
-        let port = split_address
-            .next()
-            .expect("TODO: Address has no PORT in it");
+        let ip = split_address.next().ok_or_else(|| {
+            ResponseError::Unknown(format!(
+                "Malformed address: Missing IP in '{}'",
+                server_address
+            ))
+        })?;
+        let port = split_address.next().ok_or_else(|| {
+            ResponseError::Unknown(format!(
+                "Malformed address: Missing PORT in '{}'",
+                server_address
+            ))
+        })?;
 
-        // TODO cache is_active response?
-        let err = if self
+        let is_active = self
             .members_storage
             .is_active(ip, port)
             .await
-            .expect("TODO")
-        {
-            ResponseError::Redirect(server_address)
-        } else {
-            self.object_placement_provider
-                .read()
-                .await
-                .clean_server(server_address)
-                .await;
-            ResponseError::DeallocateServiceObject
-        };
-        Some(err)
+            .map_err(|e| ResponseError::Unknown(e.to_string()))?;
+
+        // This object is active somewhere else
+        if is_active {
+            return Err(ResponseError::Redirect(server_address));
+        }
+
+        // This object is not allocated here, and it is not active either
+        self.object_placement_provider
+            .read()
+            .await
+            .clean_server(server_address)
+            .await;
+        Err(ResponseError::DeallocateServiceObject)
     }
 
     /// TODO
-    ///
-    /// TODO: Error
-    async fn start_service_object(&self, handler_type: &str, handler_id: &str) -> Result<(), ()> {
-        if !self
-            .registry
-            .read()
-            .await
-            .has(handler_type, handler_id)
-            .await
+    async fn start_service_object(
+        &self,
+        handler_type: &str,
+        handler_id: &str,
+    ) -> Result<(), ResponseError> {
+        // Allocate holding the same read lock as the test, it ensures there is no ongoing write
         {
-            let new_object = self
-                .registry
-                .read()
-                .await
-                .new_from_type(handler_type, handler_id.to_string())
-                .expect("TODO: The type is not configured in the local registry (have you called `registry.add_type`?)");
+            let registry_guard = self.registry.read().await;
+            if registry_guard.has(handler_type, handler_id).await {
+                return Ok(());
+            }
 
+            let new_object = registry_guard
+                .new_from_type(handler_type, handler_id.to_string())
+                .ok_or(ResponseError::Allocate)?;
+
+            registry_guard
+                .insert_boxed_object(handler_type.to_string(), handler_id.to_string(), new_object)
+                .await;
+        };
+
+        let lifecycle_result = {
+            let object_guard = self.registry.read().await;
+            let lifecycle_msg = LifecycleMessage::Load;
+            let lifecycle_ser_msg = bincode::serialize(&lifecycle_msg).expect("TODO");
+            let lifecycle_fut = object_guard.send(
+                handler_type,
+                handler_id,
+                "LifecycleMessage",
+                &lifecycle_ser_msg,
+                self.app_data.clone(),
+            );
+
+            // Catch panics on LifecycleMessage::Load
+            let lifecycle_fut = AssertUnwindSafe(lifecycle_fut);
+            lifecycle_fut.catch_unwind().await
+        };
+
+        // TODO remove duplicated logic (Self::send)
+        if let Err(e) = lifecycle_result {
             self.registry
                 .read()
                 .await
-                .insert_boxed_object(handler_type.to_string(), handler_id.to_string(), new_object)
+                .remove(handler_type.to_string(), handler_id.to_string())
+                .await;
+            self.object_placement_provider
+                .read()
+                .await
+                .remove(&ObjectId(handler_type.to_string(), handler_id.to_string()))
                 .await;
 
-            let lifecycle_result = {
-                let object_guard = self.registry.read().await;
-                let lifecycle_msg = LifecycleMessage::Load;
-                let lifecycle_ser_msg = bincode::serialize(&lifecycle_msg).expect("TODO");
-                let lifecycle_fut = object_guard.send(
-                    &handler_type,
-                    &handler_id,
-                    "LifecycleMessage",
-                    &lifecycle_ser_msg,
-                    self.app_data.clone(),
-                );
-
-                // Catch panics on LifecycleMessage::Load
-                let lifecycle_fut = AssertUnwindSafe(lifecycle_fut);
-                lifecycle_fut.catch_unwind().await
-            };
-
-            // TODO remove duplicated logic (Self::send)
-            if let Err(_) = lifecycle_result {
-                self.registry
-                    .read()
-                    .await
-                    .remove(handler_type.to_string(), handler_id.to_string())
-                    .await;
-                self.object_placement_provider
-                    .read()
-                    .await
-                    .remove(&ObjectId(handler_type.to_string(), handler_id.to_string()))
-                    .await;
-
-                return Err(());
-            }
+            return Err(ResponseError::Unknown(format!("Task panicked: {:?}", e)));
         }
         Ok(())
     }

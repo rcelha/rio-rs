@@ -44,7 +44,7 @@ impl SqlState {
 
     pub async fn migrate(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
-        let queries = if let Some(_) = self.pool.connect_options().as_postgres() {
+        let queries = if self.pool.connect_options().as_postgres().is_some() {
             PgStageMigrations::queries()
         } else {
             SqliteStateMigrations::queries()
