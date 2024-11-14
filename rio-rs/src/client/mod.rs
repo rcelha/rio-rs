@@ -334,6 +334,17 @@ where
         })
     }
 
+    /// Same as [Self::send], but it gets the [RequestEnvelope] ready for serialization
+    pub async fn send_request(&mut self, request: RequestEnvelope) -> Result<Vec<u8>, ClientError> {
+        // TODO move fetch_active_servers into poll_ready self.ready().await?;
+        self.fetch_active_servers().await?;
+
+        let tower_svc = tower_services::Request::new(self.clone());
+        let mut tower_svc = tower_services::RequestRedirect::new(tower_svc);
+        let response = tower_svc.call(request).await?;
+        Ok(response)
+    }
+
     async fn _subscribe<'a, T>(
         &'a mut self,
         handler_type: &str,

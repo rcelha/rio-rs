@@ -14,11 +14,12 @@ use tokio::{net::TcpListener, sync::RwLock};
 use tower::ServiceExt;
 
 use crate::app_data::AppData;
-use crate::client::ClientConnectionManager;
+use crate::client::{Client, ClientConnectionManager};
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembersStorage;
 use crate::errors::{ServerBuilderError, ServerError};
 use crate::object_placement::ObjectPlacementProvider;
+use crate::prelude::ClientError;
 use crate::protocol::pubsub::SubscriptionRequest;
 use crate::protocol::RequestEnvelope;
 use crate::registry::Registry;
@@ -38,6 +39,38 @@ pub type AdminReceiver = mpsc::UnboundedReceiver<AdminCommands>;
 
 /// Channel for [AdminCommands]
 pub type AdminSender = mpsc::UnboundedSender<AdminCommands>;
+
+/// TODO
+pub type SendCommandResult = Result<Vec<u8>, ClientError>;
+
+/// TODO
+#[derive(Debug)]
+pub struct SendCommand {
+    request: RequestEnvelope,
+    response_channel: tokio::sync::oneshot::Sender<SendCommandResult>,
+}
+
+impl SendCommand {
+    pub fn build(
+        request: RequestEnvelope,
+    ) -> (
+        SendCommand,
+        tokio::sync::oneshot::Receiver<SendCommandResult>,
+    ) {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let command = SendCommand {
+            request,
+            response_channel: sender,
+        };
+        (command, receiver)
+    }
+}
+
+/// Channels for internal client
+pub type InternalClientReceiver = mpsc::UnboundedReceiver<SendCommand>;
+
+/// Channels for internal client
+pub type InternalClientSender = mpsc::UnboundedSender<SendCommand>;
 
 /// Application Server. It handles object registration ([Registry]),
 /// clustering (through [ClusterProvider]s), server state (via [AppData]),
@@ -276,6 +309,10 @@ where
         let (admin_sender, admin_receiver) = mpsc::unbounded_channel::<AdminCommands>();
         self.app_data(admin_sender);
 
+        let (internal_client_sender, internal_client_receiver) =
+            mpsc::unbounded_channel::<SendCommand>();
+        self.app_data(internal_client_sender);
+
         let local_addr = self.try_local_addr()?.to_string();
 
         tokio::select! {
@@ -291,6 +328,10 @@ where
             _ = self.consume_admin_commands(admin_receiver) => {
                 warn!("Admin command serve finished first");
             }
+            _ = self.consume_internal_client_commands(internal_client_receiver) => {
+                warn!("Admin command serve finished first");
+            }
+
         };
 
         // Gracefuly abort all the tasks that are receiving messages for the running ServiceObjects
@@ -330,6 +371,24 @@ where
                 .await
                 .push(service_run_join_handler);
         }
+    }
+
+    async fn consume_internal_client_commands(
+        &self,
+        mut receiver: InternalClientReceiver,
+    ) -> Result<(), ()> {
+        let mut client = Client::new(self.cluster_provider.members_storage().clone());
+        while let Some(message) = receiver.recv().await {
+            let resp = client.send_request(message.request).await;
+            message
+                .response_channel
+                .send(resp)
+                .inspect_err(|_| {
+                    error!("The caller dropped");
+                })
+                .ok();
+        }
+        Ok(())
     }
 
     /// Receives the messages from the AdminReceiver channel

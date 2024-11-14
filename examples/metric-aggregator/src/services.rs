@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::prelude::*;
 use rio_rs::state::sql::SqlState;
 use serde::{Deserialize, Serialize};
@@ -35,14 +34,9 @@ impl MetricAggregator {
                         tags: "".to_string(),
                         value,
                     };
-                    Self::send::<SqlMembersStorage, _, _>(
-                        &app_data,
-                        &"MetricAggregator",
-                        &i,
-                        &sub_message,
-                    )
-                    .await
-                    .expect("send fail")
+                    Self::send(&app_data, &"MetricAggregator", &i, &sub_message)
+                        .await
+                        .expect("send fail")
                 },
             ))
             .await;

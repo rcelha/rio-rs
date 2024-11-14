@@ -1,4 +1,5 @@
 use futures::Future;
+use rio_rs::state::local::LocalState;
 use std::time::Duration;
 
 use rio_rs::cluster::storage::local::LocalStorage;
@@ -54,12 +55,14 @@ pub async fn run_integration_test<Fut>(
 
     for _ in 0..num_servers {
         let registry = registry_builder();
-        let server = build_server(
+        let mut server = build_server(
             registry,
             members_storage.clone(),
             object_placement_provider.clone(),
         )
         .await;
+        // TODO
+        server.app_data(LocalState::default());
         servers.push(server);
     }
 

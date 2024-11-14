@@ -2,4 +2,5 @@
 
 echo Run the client with the command:
 echo cargo run --bin client -- CLIENT_001
+# RUST_BACKTRACE=1 cargo run --bin server -- 9999
 cargo run --bin server -- 9999

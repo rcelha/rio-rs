@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rio_rs::{cluster::storage::sql::SqlMembersStorage, prelude::*, state::sql::SqlState};
+use rio_rs::{prelude::*, state::sql::SqlState};
 use serde::{Deserialize, Serialize};
 
 use crate::messages;
@@ -48,7 +48,7 @@ impl Handler<messages::JoinGame> for Cassino {
         loop {
             let last_id = self.state.table_ids.last().unwrap();
             let table_response: messages::JoinGameResponse =
-                Self::send::<SqlMembersStorage, _, _>(&app_data, &"GameTable", last_id, &message)
+                Self::send(&app_data, &"GameTable", last_id, &message)
                     .await
                     .unwrap();
 

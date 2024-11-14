@@ -3,16 +3,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bb8::{Pool, RunError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::app_data::AppData;
-use crate::client::ClientConnectionManager;
-use crate::cluster::storage::MembersStorage;
 use crate::errors::{HandlerError, ServiceObjectLifeCycleError};
-use crate::protocol::ClientError;
+use crate::protocol::{ClientError, RequestEnvelope};
 use crate::registry::{Handler, IdentifiableType, Message};
-use crate::server::{AdminCommands, AdminSender};
+use crate::server::{AdminCommands, AdminSender, InternalClientSender, SendCommand};
 use crate::state::ObjectStateManager;
 
 /// Internal representation of an object id.
@@ -54,33 +51,36 @@ pub trait ServiceObject:
     Default + WithId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
 {
     /// Send a message to Rio cluster using a client tht is stored in AppData
-    async fn send<S, T, V>(
+    async fn send<T, V>(
         app_data: &AppData,
         handler_type_id: impl ToString + Send + Sync,
         handler_id: impl ToString + Send + Sync,
         payload: &V,
     ) -> Result<T, ClientError>
     where
-        S: MembersStorage + 'static,
         T: DeserializeOwned + Send + Sync,
         V: Serialize + IdentifiableType + Send + Sync,
     {
-        let pool: &Pool<ClientConnectionManager<S>> = app_data.get();
+        let client = app_data.get::<InternalClientSender>();
+        let payload = bincode::serialize(&payload).expect("TODO");
+        let request = RequestEnvelope::new(
+            handler_type_id.to_string(),
+            handler_id.to_string(),
+            V::user_defined_type_id().to_string(),
+            payload,
+        );
+        let (request_message, channel) = SendCommand::build(request);
+        client
+            .send(request_message)
+            .map_err(|e| ClientError::IoError(e.to_string()))?;
 
-        match pool.get().await {
-            Ok(mut client) => {
-                client
-                    .send(
-                        &handler_type_id.to_string(),
-                        &handler_id.to_string(),
-                        payload,
-                    )
-                    .await
-            }
-            Err(RunError::User(error)) => Err(error),
-            // TODO: might want a time out error in ClientError
-            Err(RunError::TimedOut) => Err(ClientError::Connectivity),
-        }
+        let resp = channel
+            .await
+            .unwrap_or_else(|e| Err(ClientError::IoError(e.to_string())))?;
+
+        let parsed_body = bincode::deserialize::<T>(&resp)
+            .map_err(|e| ClientError::DeseralizationError(e.to_string()))?;
+        Ok(parsed_body)
     }
 
     async fn before_load(&mut self, _: Arc<AppData>) -> Result<(), ServiceObjectLifeCycleError> {
