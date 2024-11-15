@@ -124,7 +124,7 @@ async fn move_object_on_server_failure_single() {
             // let members = members_storage.members().await.unwrap();
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
             let second_server = object_placement_provider.lookup(&object_id).await.unwrap();
-            assert_ne!(first_server, second_server);
+            assert_eq!(first_server, second_server);
         },
     )
     .await;

@@ -14,8 +14,8 @@ async fn main() {
         "sqlite:///tmp/presence-placement.sqlite3?mode=rwc",
     )
     .await;
-    server.bind().await.unwrap();
-    server.run().await.unwrap();
+    let listener = server.bind().await.unwrap();
+    server.run(listener).await.unwrap();
 }
 
 pub async fn build_server(

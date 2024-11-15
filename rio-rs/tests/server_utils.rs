@@ -1,6 +1,8 @@
 use futures::Future;
 use rio_rs::state::local::LocalState;
 use std::time::Duration;
+use tokio::net::TcpListener;
+use tokio::task::JoinSet;
 
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::object_placement::local::LocalObjectPlacementProvider;
@@ -19,7 +21,7 @@ async fn build_server(
     registry: Registry,
     members_storage: LocalStorage,
     object_placement_provider: LocalObjectPlacementProvider,
-) -> LocalServer {
+) -> (LocalServer, TcpListener) {
     let mut cluster_provider_config = PeerToPeerClusterConfig::default();
     // Test connectivity every second. If, for the past 10 seconds, it had more than 1 failure, the
     // node will be marked as defective
@@ -35,8 +37,8 @@ async fn build_server(
         membership_provider,
         object_placement_provider,
     );
-    server.bind().await.expect("Bind Error");
-    server
+    let listener = server.bind().await.expect("Bind Error");
+    (server, listener)
 }
 
 // Run a test and fail if it takes more then `timeout_seconds`
@@ -55,7 +57,7 @@ pub async fn run_integration_test<Fut>(
 
     for _ in 0..num_servers {
         let registry = registry_builder();
-        let mut server = build_server(
+        let (mut server, listener) = build_server(
             registry,
             members_storage.clone(),
             object_placement_provider.clone(),
@@ -63,7 +65,7 @@ pub async fn run_integration_test<Fut>(
         .await;
         // TODO
         server.app_data(LocalState::default());
-        servers.push(server);
+        servers.push((server, listener));
     }
 
     let test_fn_with_members = || async move {
@@ -74,19 +76,18 @@ pub async fn run_integration_test<Fut>(
         test_fn().await;
     };
 
-    let mut tasks = vec![];
-    for mut server in servers.into_iter() {
-        let task = tokio::spawn(async move {
-            let server_result = server.run().await;
+    let mut tasks = JoinSet::new();
+    for (mut server, listener) in servers.into_iter() {
+        tasks.spawn(async move {
+            let server_result = server.run(listener).await;
             drop(server);
             server_result
         });
-        tasks.push(task);
     }
-    let servers_single_future = futures::future::join_all(tasks);
 
     tokio::select! {
-        _ = servers_single_future => {
+        result = tasks.join_all() => {
+            eprintln!("Server Result: {:?}", result);
             panic!("All servers have died");
         }
         _ = test_fn_with_members() => {}

@@ -1,6 +1,6 @@
 //! Rio server
 
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -9,12 +9,12 @@ use bb8::Pool;
 use derive_builder::Builder;
 use log::{error, info, warn};
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
+use tokio::task::JoinSet;
 use tokio::{net::TcpListener, sync::RwLock};
 use tower::ServiceExt;
 
 use crate::app_data::AppData;
-use crate::client::{Client, ClientConnectionManager};
+use crate::client::ClientConnectionManager;
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembersStorage;
 use crate::errors::{ServerBuilderError, ServerError};
@@ -40,10 +40,10 @@ pub type AdminReceiver = mpsc::UnboundedReceiver<AdminCommands>;
 /// Channel for [AdminCommands]
 pub type AdminSender = mpsc::UnboundedSender<AdminCommands>;
 
-/// TODO
+/// Result for the internal client interface on the server
 pub type SendCommandResult = Result<Vec<u8>, ClientError>;
 
-/// TODO
+/// Request struct for the internal client interface on the server
 #[derive(Debug)]
 pub struct SendCommand {
     request: RequestEnvelope,
@@ -84,21 +84,13 @@ pub type InternalClientSender = mpsc::UnboundedSender<SendCommand>;
 #[builder(name = "NewServerBuilder")]
 pub struct Server<S, C, P>
 where
-    S: MembersStorage + 'static,
+    S: MembersStorage,
     C: ClusterProvider<S>,
     P: ObjectPlacementProvider,
 {
     /// Address given by the user
     #[builder(setter(into, strip_option), default = r#""0.0.0.0:0".to_string()"#)]
     address: String,
-
-    /// TCP listener for the main server
-    #[builder(setter(skip))]
-    listener: Option<TcpListener>,
-
-    /// We store all the join handlers so we can terminate them once the server dies
-    #[builder(setter(skip))]
-    serivce_join_handlers: RwLock<Vec<JoinHandle<()>>>,
 
     registry: Arc<RwLock<Registry>>,
     cluster_provider: C,
@@ -129,7 +121,8 @@ where
 ///     .object_placement_provider(LocalObjectPlacementProvider::default())
 ///     .client_pool_size(10)
 ///     .build().unwrap();
-/// server.run().await;
+/// let listener = server.bind().await.unwrap();
+/// server.run(listener).await;
 /// #
 /// # }
 /// ```
@@ -168,8 +161,8 @@ where
 
 impl<S, C, P> ServerBuilder<S, C, P>
 where
-    S: MembersStorage,
-    C: ClusterProvider<S> + 'static,
+    S: MembersStorage + 'static,
+    C: ClusterProvider<S> + 'static + Send + Sync,
     P: ObjectPlacementProvider + 'static,
 {
     pub fn new() -> Self {
@@ -229,7 +222,7 @@ type ServerResult<T> = Result<T, ServerError>;
 impl<S, C, P> Server<S, C, P>
 where
     S: MembersStorage + 'static,
-    C: ClusterProvider<S>,
+    C: ClusterProvider<S> + Send + Sync + 'static,
     P: ObjectPlacementProvider + 'static,
 {
     pub fn new(
@@ -245,8 +238,6 @@ where
             object_placement_provider: Arc::new(RwLock::new(object_placement_provider)),
             app_data: Arc::new(AppData::new()),
             client_pool_size: 3,
-            listener: None,
-            serivce_join_handlers: RwLock::new(vec![]),
             _marker: PhantomData {},
         }
     }
@@ -265,22 +256,15 @@ where
     }
 
     /// Setup the server for running it
-    pub async fn bind(&mut self) -> ServerResult<()> {
+    pub async fn bind(&mut self) -> ServerResult<TcpListener> {
         let listener = TcpListener::bind(&self.address)
             .await
             .map_err(|err| ServerError::Bind(err.to_string()))?;
-        self.listener.replace(listener);
-        Ok(())
+        Ok(listener)
     }
 
-    pub fn local_addr(&self) -> Option<tokio::io::Result<SocketAddr>> {
-        self.listener.as_ref().map(|x| x.local_addr())
-    }
-
-    pub fn try_local_addr(&self) -> ServerResult<SocketAddr> {
-        let maybe_addr = self.local_addr();
-        let addr_result =
-            maybe_addr.ok_or_else(|| ServerError::Bind("Socket not bind".to_string()))?;
+    pub fn try_local_addr(listener: &TcpListener) -> ServerResult<SocketAddr> {
+        let addr_result = listener.local_addr();
         let addr = addr_result.map_err(|x| {
             let err = x.to_string();
             ServerError::Bind(err)
@@ -296,16 +280,7 @@ where
     /// - [ClusterProvider] server loop
     ///
     /// If any of these fails, the server stops running with a [ServerError]
-    pub async fn run(&mut self) -> ServerResult<()> {
-        let pool_manager =
-            ClientConnectionManager::new(self.cluster_provider.members_storage().clone());
-        let client_pool = Pool::builder()
-            .max_size(self.client_pool_size)
-            .build(pool_manager)
-            .await
-            .map_err(ServerError::ClientBuilder)?;
-        self.app_data(client_pool);
-
+    pub async fn run(&mut self, listener: TcpListener) -> ServerResult<()> {
         let (admin_sender, admin_receiver) = mpsc::unbounded_channel::<AdminCommands>();
         self.app_data(admin_sender);
 
@@ -313,50 +288,81 @@ where
             mpsc::unbounded_channel::<SendCommand>();
         self.app_data(internal_client_sender);
 
-        let local_addr = self.try_local_addr()?.to_string();
+        let local_addr = Self::try_local_addr(&listener)?.to_string();
+
+        let mut service = Service::<S, P>::try_from(&*self)?;
+        service.address = local_addr.clone();
+        let accept_task = tokio::spawn(Self::accept(listener, service));
+
+        let cluster_provider = self.cluster_provider.clone();
+        let cluster_provider_task =
+            tokio::spawn(async move { cluster_provider.serve(&local_addr).await });
+
+        let client_pool_size = self.client_pool_size;
+        let inner_members_storage = self.cluster_provider.members_storage().clone();
+        let internal_client_fut = tokio::spawn(async move {
+            Self::consume_internal_client_commands(
+                client_pool_size,
+                internal_client_receiver,
+                inner_members_storage,
+            )
+            .await
+        });
+
+        let admin_commands_fut = self.consume_admin_commands(admin_receiver);
 
         tokio::select! {
-            accept_result = self.accept() => {
-                accept_result?;
+            accept_result = accept_task => {
+                accept_result
+                    .map_err(|err| {
+                        error!(
+                            "accept: JoinHandle error: {}",
+                            err.to_string()
+                        );
+                        ServerError::Run
+                    })??;
             }
-            cluster_provider_serve_result = self.cluster_provider.serve(&local_addr)  => {
-                if let Err(e) = cluster_provider_serve_result {
-                    error!("Error on cluster provider serve: {:?}", e);
-                    return Err(ServerError::ClusterProviderServe(e));
-                }
+            cluster_provider_serve_result = cluster_provider_task => {
+                cluster_provider_serve_result
+                    .map_err(|err| {
+                        error!(
+                            "cluster provider server: JoinHandle error: {}",
+                            err.to_string()
+                        );
+                        ServerError::Run
+                    })?
+                .map_err(ServerError::ClusterProviderServe)?;
+                warn!("Cluster provider has finished");
             }
-            _ = self.consume_admin_commands(admin_receiver) => {
+            _ = admin_commands_fut => {
                 warn!("Admin command serve finished first");
             }
-            _ = self.consume_internal_client_commands(internal_client_receiver) => {
-                warn!("Admin command serve finished first");
+            internal_client_result = internal_client_fut => {
+                internal_client_result
+                    .map_err(|err| {
+                        error!(
+                            "internal client: JoinHandle error: {}",
+                            err.to_string()
+                        );
+                        ServerError::Run
+                    })??;
+                warn!("Internal client consumer finished first");
             }
-
-        };
-
-        // Gracefuly abort all the tasks that are receiving messages for the running ServiceObjects
-        info!("Stopping server");
-        let service_join_handlers = self.serivce_join_handlers.read().await;
-        for i in service_join_handlers.iter() {
-            i.abort();
         }
         info!("Server stopped");
-
         Ok(())
     }
 
-    async fn accept(&self) -> ServerResult<()> {
-        let listener = self.listener.as_ref().ok_or_else(|| {
-            ServerError::Bind("Socket not bind before accept connection".to_string())
-        })?;
+    async fn accept(listener: TcpListener, service: Service<S, P>) -> ServerResult<()> {
         let local_addr = listener.local_addr().map_err(|_| {
             ServerError::Bind("Cannot get the local address for the listener".to_string())
         })?;
         info!("Listening on `{}`", local_addr.to_string());
+        let mut joinset = JoinSet::new();
 
         loop {
             let (stream, _) = listener.accept().await.map_err(|_| ServerError::Run)?;
-            let mut service: Service<S, P> = self.try_into()?;
+            let mut service: Service<S, P> = service.clone();
 
             ServiceExt::<RequestEnvelope>::ready(&mut service)
                 .await
@@ -365,29 +371,37 @@ where
                 .await
                 .map_err(|_| ServerError::Run)?;
 
-            let service_run_join_handler = tokio::spawn(async move { service.run(stream).await });
-            self.serivce_join_handlers
-                .write()
-                .await
-                .push(service_run_join_handler);
+            joinset.spawn(async move { service.run(stream).await });
         }
     }
 
     async fn consume_internal_client_commands(
-        &self,
+        client_pool_size: u32,
         mut receiver: InternalClientReceiver,
-    ) -> Result<(), ()> {
-        let mut client = Client::new(self.cluster_provider.members_storage().clone());
+        members_storage: S,
+    ) -> ServerResult<()> {
+        let pool_manager = ClientConnectionManager::new(members_storage);
+        let client_pool = Pool::builder()
+            .max_size(client_pool_size)
+            .build(pool_manager)
+            .await
+            .map_err(ServerError::ClientBuilder)?;
+
+        let mut joinset = JoinSet::new();
         while let Some(message) = receiver.recv().await {
-            let resp = client.send_request(message.request).await;
-            message
-                .response_channel
-                .send(resp)
-                .inspect_err(|_| {
-                    error!("The caller dropped");
-                })
-                .ok();
+            let mut client = client_pool.get_owned().await.expect("TODO");
+            joinset.spawn(async move {
+                let resp = client.send_request(message.request).await;
+                message
+                    .response_channel
+                    .send(resp)
+                    .inspect_err(|_| {
+                        error!("The caller dropped");
+                    })
+                    .ok();
+            });
         }
+        let _ = joinset.join_all().await;
         Ok(())
     }
 
@@ -428,12 +442,12 @@ where
 impl<S, C, P> TryFrom<&Server<S, C, P>> for Service<S, P>
 where
     S: MembersStorage + 'static,
-    C: ClusterProvider<S>,
+    C: ClusterProvider<S> + 'static + Send + Sync,
     P: ObjectPlacementProvider + 'static,
 {
     type Error = ServerError;
     fn try_from(server: &Server<S, C, P>) -> Result<Self, Self::Error> {
-        let address = server.try_local_addr()?.to_string();
+        let address = "".to_string();
         let registry = server.registry.clone();
         let object_placement_provider = server.object_placement_provider.clone();
         let app_data = server.app_data.clone();

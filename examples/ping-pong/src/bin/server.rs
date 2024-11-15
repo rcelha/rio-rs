@@ -83,6 +83,6 @@ async fn main() {
     let sql_state = SqlState::new(sql_state_pool);
     sql_state.prepare().await;
     server.app_data(sql_state);
-    server.bind().await.unwrap();
-    server.run().await.unwrap();
+    let listener = server.bind().await.unwrap();
+    server.run(listener).await.unwrap();
 }

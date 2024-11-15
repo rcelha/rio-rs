@@ -114,9 +114,9 @@
 //!         object_placement_provider,
 //!     );
 //!     server.prepare().await;
-//!
+//!     let listener = server.bind().await.expect("Bind");
 //!     // Run the server
-//!     // server.run().await;
+//!     // server.run(listener).await;
 //! }
 //! ```
 //!
