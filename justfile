@@ -19,8 +19,8 @@ todo-docs:
 fmt:
 	#!/usr/bin/env bash
 	set -euxo pipefail
-	cargo fmt
 	cargo fix --allow-dirty --allow-staged
+	cargo fmt
 	cargo c
 
 # Runs tests for the main project

@@ -7,10 +7,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::app_data::AppData;
 use crate::errors::{HandlerError, ServiceObjectLifeCycleError};
-use crate::protocol::{ClientError, RequestEnvelope};
+use crate::protocol::{ClientError, RequestEnvelope, RequestError};
 use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender, InternalClientSender, SendCommand};
-use crate::state::ObjectStateManager;
 
 /// Internal representation of an object id.
 ///
@@ -47,16 +46,14 @@ pub trait WithId {
 ///     - ObjectStateManager
 ///     - ServiceObjectStateLoad
 #[async_trait]
-pub trait ServiceObject:
-    Default + WithId + IdentifiableType + ObjectStateManager + ServiceObjectStateLoad
-{
+pub trait ServiceObject: Default + WithId + IdentifiableType {
     /// Send a message to Rio cluster using a client tht is stored in AppData
     async fn send<T, V>(
         app_data: &AppData,
         handler_type_id: impl ToString + Send + Sync,
         handler_id: impl ToString + Send + Sync,
         payload: &V,
-    ) -> Result<T, ClientError>
+    ) -> Result<T, RequestError>
     where
         T: DeserializeOwned + Send + Sync,
         V: Serialize + IdentifiableType + Send + Sync,
@@ -76,7 +73,7 @@ pub trait ServiceObject:
 
         let resp = channel
             .await
-            .unwrap_or_else(|e| Err(ClientError::IoError(e.to_string())))?;
+            .map_err(|e| ClientError::IoError(e.to_string()))??;
 
         let parsed_body = bincode::deserialize::<T>(&resp)
             .map_err(|e| ClientError::DeseralizationError(e.to_string()))?;
@@ -140,7 +137,7 @@ impl IdentifiableType for LifecycleMessage {
 #[async_trait]
 impl<T> Handler<LifecycleMessage> for T
 where
-    T: ServiceObject + Send + Sync,
+    T: ServiceObject + ServiceObjectStateLoad + Send + Sync,
 {
     type Returns = ();
     async fn handle(
@@ -161,6 +158,50 @@ where
                     .map_err(HandlerError::LyfecycleError)?;
 
                 Ok(())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn asd() {
+        #[derive(Default, Serialize, Deserialize)]
+        struct DummyMessage {}
+
+        impl IdentifiableType for DummyMessage {
+            fn user_defined_type_id() -> &'static str {
+                "DummyMessage"
+            }
+        }
+
+        #[derive(Default)]
+        struct DummyService {}
+
+        impl ServiceObject for DummyService {}
+
+        impl WithId for DummyService {
+            fn id(&self) -> &str {
+                ""
+            }
+            fn set_id(&mut self, _: String) {}
+        }
+
+        impl IdentifiableType for DummyService {
+            fn user_defined_type_id() -> &'static str {
+                "DummyService"
+            }
+        }
+
+        impl DummyService {
+            #[allow(unused)]
+            async fn test(&self, app_data: &AppData, handler_type_id: String, handler_id: String) {
+                let payload = DummyMessage::default();
+                let _: Result<DummyMessage, _> =
+                    Self::send(app_data, handler_type_id, handler_id, &payload).await;
             }
         }
     }

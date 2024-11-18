@@ -169,7 +169,8 @@ async fn pubsub() {
 
             let resp = client
                 .subscribe::<CausePublishMessage>("MockService", "1")
-                .await;
+                .await
+                .unwrap();
 
             pin_mut!(resp);
 
@@ -232,7 +233,8 @@ async fn pubsub_redirect() {
             sleep(Duration::from_millis(10)).await;
             let subscription = client
                 .subscribe::<CausePublishMessage>("MockService", "1")
-                .await;
+                .await
+                .unwrap();
             pin_mut!(subscription);
 
             // it will timeout if it doesn't get the last message

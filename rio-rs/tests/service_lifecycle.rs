@@ -85,7 +85,7 @@ async fn service_is_not_allocated_on_lifecycle_handlers_panic() {
             let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
             assert_eq!(
                 resp,
-                Err(ClientError::ResponseError(ResponseError::Allocate))
+                Err(RequestError::ResponseError(ResponseError::Allocate))
             );
             assert!(!is_allocated(&object_placement_provider, "MockService", "1").await);
         },
@@ -115,7 +115,7 @@ async fn service_is_not_allocated_on_lifecycle_handlers_error() {
             let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
             assert_eq!(
                 resp,
-                Err(ClientError::ResponseError(ResponseError::Allocate))
+                Err(RequestError::ResponseError(ResponseError::Allocate))
             );
             assert!(!is_allocated(&object_placement_provider, "MockService", "2").await);
         },

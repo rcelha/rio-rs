@@ -5,23 +5,21 @@ use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use bb8::Pool;
 use derive_builder::Builder;
 use log::{error, info, warn};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tokio::{net::TcpListener, sync::RwLock};
-use tower::ServiceExt;
+use tower::{Service as TowerService, ServiceExt};
 
 use crate::app_data::AppData;
-use crate::client::ClientConnectionManager;
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembersStorage;
 use crate::errors::{ServerBuilderError, ServerError};
 use crate::object_placement::ObjectPlacementProvider;
-use crate::prelude::ClientError;
 use crate::protocol::pubsub::SubscriptionRequest;
-use crate::protocol::RequestEnvelope;
+use crate::protocol::ResponseError;
+use crate::protocol::{RequestEnvelope, ResponseEnvelope};
 use crate::registry::Registry;
 use crate::service::Service;
 use crate::ObjectId;
@@ -41,7 +39,7 @@ pub type AdminReceiver = mpsc::UnboundedReceiver<AdminCommands>;
 pub type AdminSender = mpsc::UnboundedSender<AdminCommands>;
 
 /// Result for the internal client interface on the server
-pub type SendCommandResult = Result<Vec<u8>, ClientError>;
+pub type SendCommandResult = Result<Vec<u8>, ResponseError>;
 
 /// Request struct for the internal client interface on the server
 #[derive(Debug)]
@@ -295,18 +293,14 @@ where
         let accept_task = tokio::spawn(Self::accept(listener, service));
 
         let cluster_provider = self.cluster_provider.clone();
+        let inner_local_addr = local_addr.clone();
         let cluster_provider_task =
-            tokio::spawn(async move { cluster_provider.serve(&local_addr).await });
+            tokio::spawn(async move { cluster_provider.serve(&inner_local_addr).await });
 
-        let client_pool_size = self.client_pool_size;
-        let inner_members_storage = self.cluster_provider.members_storage().clone();
+        let mut service = Service::<S, P>::try_from(&*self)?;
+        service.address = local_addr.clone();
         let internal_client_fut = tokio::spawn(async move {
-            Self::consume_internal_client_commands(
-                client_pool_size,
-                internal_client_receiver,
-                inner_members_storage,
-            )
-            .await
+            Self::consume_internal_client_commands(internal_client_receiver, service).await
         });
 
         let admin_commands_fut = self.consume_admin_commands(admin_receiver);
@@ -376,25 +370,20 @@ where
     }
 
     async fn consume_internal_client_commands(
-        client_pool_size: u32,
         mut receiver: InternalClientReceiver,
-        members_storage: S,
+        service: Service<S, P>,
     ) -> ServerResult<()> {
-        let pool_manager = ClientConnectionManager::new(members_storage);
-        let client_pool = Pool::builder()
-            .max_size(client_pool_size)
-            .build(pool_manager)
-            .await
-            .map_err(ServerError::ClientBuilder)?;
-
         let mut joinset = JoinSet::new();
         while let Some(message) = receiver.recv().await {
-            let mut client = client_pool.get_owned().await.expect("TODO");
+            let mut inner_service = service.clone();
             joinset.spawn(async move {
-                let resp = client.send_request(message.request).await;
+                let resp = inner_service
+                    .call(message.request)
+                    .await
+                    .unwrap_or_else(|err| ResponseEnvelope::err(err));
                 message
                     .response_channel
-                    .send(resp)
+                    .send(resp.body)
                     .inspect_err(|_| {
                         error!("The caller dropped");
                     })
