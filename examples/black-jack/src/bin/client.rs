@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
 
     let subscription = inner_client
         .subscribe::<GameServerStates>("GameTable", inner_table_id)
-        .await;
+        .await?;
     pin_mut!(subscription);
     while let Some(data) = subscription.next().await {
         match data {

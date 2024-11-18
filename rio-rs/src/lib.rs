@@ -221,7 +221,7 @@ pub mod prelude {
     pub use super::cluster::storage::MembersStorage;
     pub use super::derive::{ManagedState, Message, TypeName, WithId};
     pub use super::errors::{ClientBuilderError, HandlerError, ServiceObjectLifeCycleError};
-    pub use super::protocol::{ClientError, ResponseError};
+    pub use super::protocol::{ClientError, RequestError, ResponseError};
 
     pub use super::registry::{Handler, Registry};
 

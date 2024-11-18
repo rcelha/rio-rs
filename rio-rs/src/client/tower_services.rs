@@ -2,12 +2,11 @@ use std::marker::PhantomData;
 use std::task::Poll;
 
 use futures::future::BoxFuture;
-use futures::FutureExt;
-use futures::SinkExt;
-use futures::StreamExt;
+use futures::{pin_mut, FutureExt, SinkExt, StreamExt};
 use tower::Service as TowerService;
 
 use crate::cluster::storage::MembersStorage;
+use crate::protocol::RequestError;
 use crate::protocol::{ClientError, RequestEnvelope, ResponseEnvelope, ResponseError};
 
 use super::Client;
@@ -41,23 +40,17 @@ where
     S: MembersStorage + 'static, // TODO remove 'static
 {
     type Response = Vec<u8>;
-    type Error = ClientError;
+    type Error = RequestError;
     type Future = BoxFuture<'a, Result<Self::Response, Self::Error>>;
 
     /// Waits for members to be available
-    ///
-    /// <div class="warning">
-    /// TODO
-    ///
-    /// Call `client.fetch_active_servers` in `poll_ready`
-    /// </div>
     fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.client
-            .members_storage
-            .members()
+        let fetch_active_servers = self.client.fetch_active_servers();
+        pin_mut!(fetch_active_servers);
+        fetch_active_servers
             .poll_unpin(cx)
             .map_ok(|_| ())
-            .map_err(|_| ClientError::RendevouzUnavailable)
+            .map_err(|e| e.into())
     }
 
     /// TODO
@@ -76,19 +69,14 @@ where
                 Some(Ok(frame)) => {
                     let message: ResponseEnvelope = bincode::deserialize(&frame)
                         .map_err(|e| ClientError::DeseralizationError(e.to_string()))?;
-
-                    match message.body {
-                        Ok(v) => Ok(v),
-                        Err(err) => Err(ClientError::ResponseError(err)),
-                    }
+                    Ok(message.body?)
                 }
-
-                // TODO: Add more granularity to ClientError
-                Some(Err(e)) => Err(ClientError::Unknown(e.to_string())),
-
+                Some(Err(e)) => Err(RequestError::ClientError(ClientError::IoError(
+                    e.to_string(),
+                ))),
                 // When there are no more items on the stream, it means the TCP stream was
                 // disconnected
-                None => Err(ClientError::Disconnect),
+                None => Err(RequestError::ClientError(ClientError::Disconnect)),
             }
         })
     }
@@ -122,7 +110,7 @@ where
     Request<'a, S>: Clone,
 {
     type Response = Vec<u8>;
-    type Error = ClientError;
+    type Error = RequestError;
     type Future = BoxFuture<'a, Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -148,7 +136,7 @@ where
                 // Used a cloned request, so it can be used in a loop
                 let response = inner_service.call(request.clone()).await;
                 match response {
-                    Err(ClientError::ResponseError(ResponseError::Redirect(to))) => {
+                    Err(RequestError::ResponseError(ResponseError::Redirect(to))) => {
                         // Add the new address to the placement so in the next iteration
                         // it will use the right server
                         inner_service
@@ -160,9 +148,9 @@ where
                     }
                     // Retry so it picks up a new Server on the cluster
                     Err(
-                        ClientError::ResponseError(ResponseError::DeallocateServiceObject)
-                        | ClientError::Disconnect
-                        | ClientError::ServerNotAvailable(_),
+                        RequestError::ResponseError(ResponseError::DeallocateServiceObject)
+                        | RequestError::ClientError(ClientError::Disconnect)
+                        | RequestError::ClientError(ClientError::ServerNotAvailable(_)),
                     ) => {
                         // Removed the old placement, the next request
                         // will pickup a new placement to try from
@@ -180,5 +168,111 @@ where
                 }
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use async_trait::async_trait;
+    use chrono::{DateTime, Utc};
+    use lru::LruCache;
+    use std::sync::{Arc, RwLock};
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::{
+        cluster::storage::{
+            local::LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
+        },
+        errors::MembershipError,
+    };
+
+    #[derive(Clone, Default)]
+    struct FailMemberStorage {}
+
+    #[async_trait]
+    impl MembersStorage for FailMemberStorage {
+        async fn push(&self, _: Member) -> MembershipUnitResult {
+            Ok(())
+        }
+        async fn remove(&self, _: &str, _: &str) -> MembershipUnitResult {
+            Ok(())
+        }
+        async fn set_is_active(&self, _: &str, _: &str, _: bool) -> MembershipUnitResult {
+            Ok(())
+        }
+        async fn members(&self) -> MembershipResult<Vec<Member>> {
+            Err(MembershipError::Unknown("".to_string()))
+        }
+        async fn notify_failure(&self, _: &str, _: &str) -> MembershipUnitResult {
+            Ok(())
+        }
+        async fn member_failures(&self, _: &str, _: &str) -> MembershipResult<Vec<DateTime<Utc>>> {
+            Ok(vec![])
+        }
+    }
+
+    fn client() -> Client<LocalStorage> {
+        Client {
+            timeout_millis: 1000,
+            members_storage: LocalStorage::default(),
+            active_servers: None,
+            ts_active_servers_refresh: 0,
+            streams: Arc::default(),
+            placement: Arc::new(RwLock::new(LruCache::new(10))),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_poll_ready_no_active_server() {
+        let client = client();
+        let mut request = Request::new(client);
+        request.ready().await.expect("poll_ready");
+        assert!(request.client.active_servers.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_poll_ready_with_active_servers() {
+        // starts with no active servers
+        let client = client();
+        assert!(client.active_servers.is_none());
+
+        let mut server = Member::new("0.0.0.0".to_string(), "1234".to_string());
+        server.set_active(true);
+        client
+            .members_storage
+            .push(server)
+            .await
+            .expect("add member");
+
+        // When poll_ready is called, it fetches the active servers
+        let mut request = Request::new(client);
+        request.ready().await.expect("poll_ready");
+        assert_eq!(
+            request.client.active_servers.expect("active servers").len(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn test_poll_ready_error() {
+        let client = Client {
+            timeout_millis: 1000,
+            members_storage: FailMemberStorage {},
+            active_servers: None,
+            ts_active_servers_refresh: 0,
+            streams: Arc::default(),
+            placement: Arc::new(RwLock::new(LruCache::new(10))),
+        };
+        let mut request = Request::new(client);
+        let waker = futures::task::noop_waker();
+        let mut context = std::task::Context::from_waker(&waker);
+        let poll_ready = request.poll_ready(&mut context);
+        assert_eq!(
+            poll_ready,
+            Poll::Ready(Err(RequestError::ClientError(
+                ClientError::RendevouzUnavailable
+            )))
+        );
     }
 }

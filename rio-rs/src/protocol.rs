@@ -75,9 +75,6 @@ pub enum ResponseError {
 
     #[error("error serializing message")]
     SeralizationError(String),
-
-    #[error("client error")]
-    ClientError(String),
 }
 
 impl From<HandlerError> for ResponseError {
@@ -90,9 +87,6 @@ impl From<HandlerError> for ResponseError {
 /// but that are not related no any behaviour on the server
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClientError {
-    #[error("server response error")]
-    ResponseError(ResponseError),
-
     #[error("no servers available")]
     NoServersAvailable,
 
@@ -127,6 +121,34 @@ pub enum ClientError {
 impl From<::std::io::Error> for ClientError {
     fn from(error: ::std::io::Error) -> Self {
         ClientError::IoError(error.to_string())
+    }
+}
+
+/// Union of types for actions that bundle client logic and response handling
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum RequestError {
+    #[error("error in the service response")]
+    ResponseError(ResponseError),
+
+    #[error("client error")]
+    ClientError(ClientError),
+}
+
+impl From<::std::io::Error> for RequestError {
+    fn from(error: ::std::io::Error) -> Self {
+        Into::<ClientError>::into(error).into()
+    }
+}
+
+impl From<ClientError> for RequestError {
+    fn from(err: ClientError) -> Self {
+        RequestError::ClientError(err)
+    }
+}
+
+impl From<ResponseError> for RequestError {
+    fn from(err: ResponseError) -> Self {
+        RequestError::ResponseError(err)
     }
 }
 

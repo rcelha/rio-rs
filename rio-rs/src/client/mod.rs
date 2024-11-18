@@ -32,7 +32,7 @@ use tower::Service as TowerService;
 
 use crate::cluster::storage::MembersStorage;
 use crate::protocol::pubsub::{SubscriptionRequest, SubscriptionResponse};
-use crate::protocol::{ClientError, RequestEnvelope, ResponseError};
+use crate::protocol::{ClientError, RequestEnvelope, RequestError, ResponseError};
 use crate::registry::IdentifiableType;
 
 pub const DEFAULT_TIMEOUT_MILLIS: u64 = 500;
@@ -305,7 +305,7 @@ where
         handler_type: impl AsRef<str>,
         handler_id: impl AsRef<str>,
         payload: &(impl Serialize + IdentifiableType + Send + Sync),
-    ) -> Result<T, ClientError>
+    ) -> Result<T, RequestError>
     where
         T: DeserializeOwned,
     {
@@ -335,7 +335,10 @@ where
     }
 
     /// Same as [Self::send], but it gets the [RequestEnvelope] ready for serialization
-    pub async fn send_request(&mut self, request: RequestEnvelope) -> Result<Vec<u8>, ClientError> {
+    pub async fn send_request(
+        &mut self,
+        request: RequestEnvelope,
+    ) -> Result<Vec<u8>, RequestError> {
         // TODO move fetch_active_servers into poll_ready self.ready().await?;
         self.fetch_active_servers().await?;
 
@@ -382,27 +385,18 @@ where
         &'a mut self,
         handler_type: impl AsRef<str>,
         handler_id: impl AsRef<str>,
-    ) -> impl Stream<Item = Result<T, ClientError>> + 'a
+    ) -> Result<impl Stream<Item = Result<T, ResponseError>> + 'a, ClientError>
     where
         Self: 'a,
         T: DeserializeOwned + std::marker::Unpin + 'a + std::fmt::Debug,
     {
         let handler_type = handler_type.as_ref().to_string();
         let handler_id = handler_id.as_ref().to_string();
-        let address = self
+        let mut address = self
             .get_service_object_address(&handler_type, &handler_id)
-            .await;
+            .await?;
 
-        stream! {
-            // TODO test this
-            let mut address = match address {
-                Ok(v) => v,
-                Err(e) => {
-                    yield Err(e);
-                    return;
-                }
-            };
-
+        let stream = stream! {
             loop {
                 let mut subscription_stream = self._subscribe(&handler_type, &handler_id, &address).await;
                 while let Some(v) = subscription_stream.next().await {
@@ -410,15 +404,11 @@ where
                         address = to;
                         break;
                     }
-                    let i = match v {
-                        Ok(v) => Ok(v),
-                        Err(err) => Err(ClientError::ResponseError(err)),
-
-                    };
-                    yield i;
+                    yield v;
                 }
             }
-        }
+        };
+        Ok(stream)
     }
 
     /// Connects to a the first server of the MembersStorage
@@ -455,39 +445,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        cluster::storage::{
-            local::LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
-        },
-        errors::MembershipError,
-    };
-    use async_trait::async_trait;
-    use chrono::{DateTime, Utc};
-
-    #[derive(Clone, Default)]
-    struct FailMemberStorage {}
-
-    #[async_trait]
-    impl MembersStorage for FailMemberStorage {
-        async fn push(&self, _: Member) -> MembershipUnitResult {
-            Ok(())
-        }
-        async fn remove(&self, _: &str, _: &str) -> MembershipUnitResult {
-            Ok(())
-        }
-        async fn set_is_active(&self, _: &str, _: &str, _: bool) -> MembershipUnitResult {
-            Ok(())
-        }
-        async fn members(&self) -> MembershipResult<Vec<Member>> {
-            Err(MembershipError::Unknown("".to_string()))
-        }
-        async fn notify_failure(&self, _: &str, _: &str) -> MembershipUnitResult {
-            Ok(())
-        }
-        async fn member_failures(&self, _: &str, _: &str) -> MembershipResult<Vec<DateTime<Utc>>> {
-            Ok(vec![])
-        }
-    }
+    use crate::cluster::storage::{local::LocalStorage, Member, MembersStorage};
 
     fn client() -> Client<LocalStorage> {
         Client {
@@ -499,47 +457,6 @@ mod test {
             placement: Arc::new(RwLock::new(LruCache::new(10))),
         }
     }
-
-    // TODO re-enable these tests when re-implement poll_ready
-    // #[tokio::test]
-    // async fn test_poll_ready_no_active_server() {
-    //     let mut client = client();
-    //     assert!(client.active_servers.is_none());
-    //     client.ready().await.expect("poll ready");
-    //     assert_eq!(client.active_servers.expect("active servers").len(), 0);
-    // }
-
-    // #[tokio::test]
-    // async fn test_poll_ready_with_active_servers() {
-    //     let mut client = client();
-    //     assert!(client.active_servers.is_none());
-    //     let mut server = Member::new("0.0.0.0".to_string(), "1234".to_string());
-    //     server.set_active(true);
-    //     client
-    //         .members_storage
-    //         .push(server)
-    //         .await
-    //         .expect("add member");
-    //     client.ready().await.expect("poll ready");
-    //     assert_eq!(client.active_servers.expect("active servers").len(), 1);
-    // }
-
-    // #[tokio::test]
-    // async fn test_poll_ready_error() {
-    //     let mut client = Client {
-    //         timeout_millis: 1000,
-    //         members_storage: FailMemberStorage {},
-    //         active_servers: None,
-    //         ts_active_servers_refresh: 0,
-    //         streams: Arc::default(),
-    //         placement: Arc::new(RwLock::new(LruCache::new(10))),
-    //     };
-    //     let poll_ready_result = client.ready().await;
-    //     assert!(poll_ready_result.is_err());
-    //     poll_ready_result
-    //         .map_err(|err| assert_eq!(err, ClientError::RendevouzUnavailable))
-    //         .ok();
-    // }
 
     async fn client_with_members() -> Client<LocalStorage> {
         let client = client();
@@ -591,19 +508,4 @@ mod test {
         let client = client_with_members().await;
         let _ = client;
     }
-
-    // TODO integration tests
-    // use serde::Deserialize;
-    // use rio_macros::TypeName;
-    // #[tokio::test]
-    // async fn test_client_send() {
-    //     #[derive(TypeName, Debug, Serialize, Deserialize, PartialEq)]
-    //     #[rio_path = "crate"]
-    //     struct Message {}
-    //     let mut client = client_with_members().await;
-    //     let response: ClientResult<Message> = client
-    //         .send("RemoteService".to_string(), "1".to_string(), &Message {})
-    //         .await;
-    //     response.unwrap();
-    // }
 }
