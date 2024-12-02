@@ -69,8 +69,9 @@ where
         Ok(members)
     }
 
+    /// TODO
     fn get_members_to_monitor(&self, address: &str, sorted_members: &[Member]) -> Vec<Member> {
-        let amount_to_monitor = 3; // TODO move to config
+        let amount_to_monitor = 100; // TODO move to config
         let mut visited = 0;
 
         sorted_members

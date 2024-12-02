@@ -41,6 +41,10 @@ There are a few things that must be done before v0.1.0:
 
 ### Version 0.2.0
 
+- [ ] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
+- [ ] Improve error message for ManagedState when the storage is not in the context
+- [ ] Improve error message for when the services are not added to the registry (server)
+- [ ] Ability to hook up own custom errors on message handlers
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
 - [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 - [~] Allow `ServiceObject` trait without state persistence

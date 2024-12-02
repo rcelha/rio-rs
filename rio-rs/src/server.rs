@@ -42,10 +42,11 @@ pub type AdminSender = mpsc::UnboundedSender<AdminCommands>;
 pub type SendCommandResult = Result<Vec<u8>, ResponseError>;
 
 /// Request struct for the internal client interface on the server
+/// TODO pub?
 #[derive(Debug)]
 pub struct SendCommand {
-    request: RequestEnvelope,
-    response_channel: tokio::sync::oneshot::Sender<SendCommandResult>,
+    pub request: RequestEnvelope,
+    pub response_channel: tokio::sync::oneshot::Sender<SendCommandResult>,
 }
 
 impl SendCommand {

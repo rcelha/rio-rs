@@ -2,7 +2,8 @@
 //! caching strategy
 
 use async_trait::async_trait;
-use bb8::{ManageConnection, Pool};
+// TODO expose the bb8 pool so the user ensure it uses the right one
+pub use bb8::{ManageConnection, Pool};
 
 use crate::cluster::storage::MembersStorage;
 use crate::protocol::ClientError;

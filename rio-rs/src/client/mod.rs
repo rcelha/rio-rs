@@ -13,6 +13,7 @@ pub mod tower_services;
 use async_stream::stream;
 pub use builder::ClientBuilder;
 pub use pool::ClientConnectionManager;
+pub use pool::Pool;
 
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
@@ -426,8 +427,14 @@ where
         async fn conn(address: &str) -> Result<(), ClientError> {
             TcpStream::connect(&address)
                 .await
-                .map(|_stream| Ok(()))
-                .map_err(|_e| ClientError::Connectivity)?
+                .map(|_stream| {
+                    // println!("Ping Ok ({})", address);
+                    Ok(())
+                })
+                .map_err(|_e| {
+                    // println!("Ping error ({}): {:?}", address, _e);
+                    ClientError::Connectivity
+                })?
         }
 
         match timeout(
