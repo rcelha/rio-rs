@@ -81,7 +81,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let addr = "0.0.0.0:5000";
+//!     let addr = "0.0.0.0:0";
 //!
 //!     // Configure types on the server's registry
 //!     let mut registry = Registry::new();
