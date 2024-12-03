@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use log::debug;
 use rio_rs::object_placement::ObjectPlacementProvider;
 use rio_rs::server::AdminSender;
 use serde::{Deserialize, Serialize};
@@ -50,8 +51,12 @@ impl Handler<KillServer> for MockService {
         _message: KillServer,
         ctx: Arc<AppData>,
     ) -> Result<Self::Returns, HandlerError> {
+        debug!("Let's try to kill it");
         let admin_interface = ctx.get::<AdminSender>();
-        let _ = admin_interface.send(rio_rs::server::AdminCommands::ServerExit);
+        let _ = admin_interface
+            .send(rio_rs::server::AdminCommands::ServerExit)
+            .unwrap();
+        debug!(".... Kill message sent");
         Ok(MockResponse {})
     }
 }
@@ -124,7 +129,9 @@ async fn move_object_on_server_failure_single() {
             // let members = members_storage.members().await.unwrap();
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
             let second_server = object_placement_provider.lookup(&object_id).await.unwrap();
-            assert_eq!(first_server, second_server);
+
+            // TODO why is this assert an _eq_ instead of a _ne_????
+            assert_ne!(first_server, second_server);
         },
     )
     .await;

@@ -30,10 +30,12 @@ impl MembersStorage for LocalStorage {
     }
 
     async fn set_is_active(&self, ip: &str, port: &str, is_active: bool) -> MembershipUnitResult {
+        let last_seen = Utc::now();
         let mut guard = self.members.write().await;
         for i in guard.iter_mut() {
             if i.ip() == ip && i.port() == port {
                 i.set_active(is_active);
+                i.last_seen = last_seen.clone();
             }
         }
         Ok(())

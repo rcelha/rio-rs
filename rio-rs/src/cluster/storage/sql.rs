@@ -115,10 +115,12 @@ impl MembersStorage for SqlMembersStorage {
     }
 
     async fn set_is_active(&self, ip: &str, port: &str, is_active: bool) -> MembershipUnitResult {
-        sqlx::query("UPDATE cluster_provider_members SET active = $3 WHERE ip = $1 and port = $2")
+        let last_seen = Utc::now();
+        sqlx::query("UPDATE cluster_provider_members SET active = $3, last_seen = $4 WHERE ip = $1 and port = $2")
             .bind(ip)
             .bind(port)
             .bind(is_active)
+            .bind(last_seen)
             .execute(&self.pool)
             .err_into()
             .await

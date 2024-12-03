@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
+use log::debug;
 use std::time::{Duration, SystemTime};
 use std::{net::SocketAddr, str::FromStr};
 
@@ -21,6 +22,8 @@ pub struct PeerToPeerClusterConfig {
     pub interval_secs: u64,
     pub num_failures_threshold: u64,
     pub interval_secs_threshold: u64,
+    pub limit_monitored_members: Option<usize>,
+    pub drop_inactive_after_secs: Option<usize>,
 }
 
 impl Default for PeerToPeerClusterConfig {
@@ -29,6 +32,8 @@ impl Default for PeerToPeerClusterConfig {
             interval_secs: 10,
             num_failures_threshold: 3,
             interval_secs_threshold: 60,
+            limit_monitored_members: None,
+            drop_inactive_after_secs: None,
         }
     }
 }
@@ -69,27 +74,31 @@ where
         Ok(members)
     }
 
-    /// TODO
+    /// TODO docs
     fn get_members_to_monitor(&self, address: &str, sorted_members: &[Member]) -> Vec<Member> {
-        let amount_to_monitor = 100; // TODO move to config
+        let limit_monitored_members = self.config.limit_monitored_members;
         let mut visited = 0;
 
         sorted_members
             .iter()
-            .cycle()
-            .skip_while(|x| x.address() != address)
+            .filter(|x| x.address() != address)
             .map_while(|x| {
-                if visited > amount_to_monitor {
-                    None
+                if let Some(amount_to_monitor) = limit_monitored_members {
+                    if visited >= amount_to_monitor {
+                        None
+                    } else {
+                        visited += 1;
+                        Some(x.clone())
+                    }
                 } else {
                     visited += 1;
                     Some(x.clone())
                 }
             })
-            .filter(|x| x.address() != address)
             .collect()
     }
 
+    /// TODO remove very old servers from the list
     async fn test_member(&self, member: &Member) -> Result<(), ClusterProviderServeError> {
         // Client needs a MembersStorage, so we create a in-memory one
         // for local use only
@@ -119,7 +128,7 @@ where
             .await?;
 
         let failures_over_threshold = failures.iter().filter(|&time| time > &t0).count() as u64
-            > self.config.num_failures_threshold;
+            >= self.config.num_failures_threshold;
         Ok(failures_over_threshold)
     }
 }
@@ -171,24 +180,50 @@ where
 
             // Tests reachability and talks to the MembersStorage to set
             // servers as active or inactive
-            let future_member_tests = test_members.into_iter().map(|test_member| async move {
-                self.test_member(&test_member).await?;
-                if self.is_broken(&test_member).await? {
-                    self.members_storage()
-                        .set_inactive(test_member.ip(), test_member.port())
-                        .await?;
-                } else if !test_member.active() {
-                    self.members_storage()
-                        .set_active(test_member.ip(), test_member.port())
-                        .await?;
-                }
-                Ok::<(), ClusterProviderServeError>(())
-            });
-            futures::future::join_all(future_member_tests).await;
+            let mut future_member_tests = vec![];
+
+            for test_member in test_members.clone().into_iter() {
+                let fut = async move {
+                    self.test_member(&test_member).await?;
+                    let is_broken = self.is_broken(&test_member).await?;
+
+                    if is_broken {
+                        debug!("[{}] {:?} is broken", address, test_member.address());
+                        self.members_storage()
+                            .set_inactive(test_member.ip(), test_member.port())
+                            .await?;
+
+                        if let Some(drop_inactive_after_secs) = self.config.drop_inactive_after_secs
+                        {
+                            let now = Utc::now();
+                            let drop_threshold =
+                                now - Duration::from_secs(drop_inactive_after_secs as u64);
+
+                            if test_member.last_seen() < &drop_threshold {
+                                self.members_storage()
+                                    .remove(test_member.ip(), test_member.port())
+                                    .await?;
+                            }
+                        }
+
+                        return Ok::<_, ClusterProviderServeError>((test_member, false));
+                    } else if !test_member.active() {
+                        self.members_storage()
+                            .set_active(test_member.ip(), test_member.port())
+                            .await?;
+                    }
+                    debug!("[{}] {:?} is OK ", address, test_member.address());
+                    Ok::<_, ClusterProviderServeError>((test_member, true))
+                };
+                future_member_tests.push(fut);
+            }
+            let states = futures::future::join_all(future_member_tests).await;
+            println!("[{}] STATES={:?}", address, states);
 
             // Wait for the remaining of 'config.interval_secs'
             let elapsed = t0.elapsed().expect("Fail to get elapsed time");
             let remaning_sleep_period = sleep_period.saturating_sub(elapsed);
+            debug!("[{}] - Time delta {:?}", address, remaning_sleep_period);
             if remaning_sleep_period > Duration::ZERO {
                 tokio::time::sleep(remaning_sleep_period).await;
             }
@@ -287,25 +322,24 @@ mod test {
     }
 
     #[tokio::test]
-    async fn get_members_to_monitor() -> TestResult {
+    async fn get_members_to_monitor_as_configured() -> TestResult {
         let storage = storage().await;
         let items = storage.members().await?;
-        let membership =
-            PeerToPeerClusterProvider::new(storage, PeerToPeerClusterConfig::default());
 
+        let mut config = PeerToPeerClusterConfig::default();
+        config.limit_monitored_members = Some(3);
+        let membership = PeerToPeerClusterProvider::new(storage, config);
+
+        // Maps monitored addresses, grouped by server (tester)
         let mut monitored_counter: HashMap<String, usize> = HashMap::new();
-
         for i in items.iter() {
             let members = membership.get_members_to_monitor(&i.address(), &items);
-            for member in members {
-                monitored_counter
-                    .entry(member.address())
-                    .and_modify(|x| *x += 1)
-                    .or_insert(1);
-            }
+            monitored_counter.insert(i.address().clone(), members.len());
         }
+
         assert_eq!(monitored_counter.len(), 6);
         for monitored in monitored_counter.values() {
+            // The same value as in `limit_monitored_members`
             assert_eq!(monitored, &3);
         }
         Ok(())

@@ -291,23 +291,23 @@ where
 
         let mut service = Service::<S, P>::try_from(&*self)?;
         service.address = local_addr.clone();
-        let accept_task = tokio::spawn(Self::accept(listener, service));
+        let mut accept_task = tokio::spawn(Self::accept(listener, service));
 
         let cluster_provider = self.cluster_provider.clone();
         let inner_local_addr = local_addr.clone();
-        let cluster_provider_task =
+        let mut cluster_provider_task =
             tokio::spawn(async move { cluster_provider.serve(&inner_local_addr).await });
 
         let mut service = Service::<S, P>::try_from(&*self)?;
         service.address = local_addr.clone();
-        let internal_client_fut = tokio::spawn(async move {
+        let mut internal_client_task = tokio::spawn(async move {
             Self::consume_internal_client_commands(internal_client_receiver, service).await
         });
 
         let admin_commands_fut = self.consume_admin_commands(admin_receiver);
 
         tokio::select! {
-            accept_result = accept_task => {
+            accept_result = &mut accept_task => {
                 accept_result
                     .map_err(|err| {
                         error!(
@@ -317,7 +317,7 @@ where
                         ServerError::Run
                     })??;
             }
-            cluster_provider_serve_result = cluster_provider_task => {
+            cluster_provider_serve_result = &mut cluster_provider_task => {
                 cluster_provider_serve_result
                     .map_err(|err| {
                         error!(
@@ -329,10 +329,7 @@ where
                 .map_err(ServerError::ClusterProviderServe)?;
                 warn!("Cluster provider has finished");
             }
-            _ = admin_commands_fut => {
-                warn!("Admin command serve finished first");
-            }
-            internal_client_result = internal_client_fut => {
+            internal_client_result = &mut internal_client_task => {
                 internal_client_result
                     .map_err(|err| {
                         error!(
@@ -343,8 +340,17 @@ where
                     })??;
                 warn!("Internal client consumer finished first");
             }
+            _ = admin_commands_fut => {
+                warn!("Admin command serve finished first");
+            }
         }
+
+        info!("Stoping server");
+        accept_task.abort();
+        cluster_provider_task.abort();
+        internal_client_task.abort();
         info!("Server stopped");
+
         Ok(())
     }
 
@@ -418,6 +424,7 @@ where
                 }
                 AdminCommands::ServerExit => {
                     // Exists `while` to terminate the server
+                    println!("I got a message to terminate this thing here. So Ill try");
                     return;
                 }
             }

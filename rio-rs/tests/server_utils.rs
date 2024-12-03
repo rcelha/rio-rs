@@ -23,11 +23,13 @@ async fn build_server(
     object_placement_provider: LocalObjectPlacementProvider,
 ) -> (LocalServer, TcpListener) {
     let mut cluster_provider_config = PeerToPeerClusterConfig::default();
-    // Test connectivity every second. If, for the past 10 seconds, it had more than 1 failure, the
+    // Test connectivity every second. If, for the past 2 seconds, it had more than 1 failure, the
     // node will be marked as defective
     cluster_provider_config.interval_secs = 1;
-    cluster_provider_config.num_failures_threshold = 3;
-    cluster_provider_config.interval_secs_threshold = 10;
+    cluster_provider_config.num_failures_threshold = 1;
+    cluster_provider_config.interval_secs_threshold = 2;
+    cluster_provider_config.limit_monitored_members = None;
+    cluster_provider_config.drop_inactive_after_secs = Some(3);
     let membership_provider =
         PeerToPeerClusterProvider::new(members_storage.clone(), cluster_provider_config);
 
