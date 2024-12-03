@@ -25,7 +25,7 @@ fmt:
 
 # Runs tests for the main project
 test:
-	cargo nextest run
+	cargo nextest run --no-fail-fast
 
 # Install development tools
 install-tools:
