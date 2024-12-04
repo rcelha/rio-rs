@@ -26,11 +26,8 @@ impl Member {
             ip,
             port,
             active: false,
-            last_seen: Utc.timestamp_opt(1_500_000_000, 0).unwrap(),
+            last_seen: Utc.timestamp_opt(0, 0).unwrap(),
         }
-    }
-    pub fn set_active(&mut self, active: bool) {
-        self.active = active;
     }
     pub fn ip(&self) -> &str {
         &self.ip
@@ -41,8 +38,15 @@ impl Member {
     pub fn active(&self) -> bool {
         self.active
     }
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
+    }
     pub fn last_seen(&self) -> &DateTime<Utc> {
         &self.last_seen
+    }
+    pub fn set_last_seen(&mut self) {
+        let now = Utc::now();
+        self.last_seen = now
     }
     pub fn address(&self) -> String {
         format!("{}:{}", self.ip, self.port)
