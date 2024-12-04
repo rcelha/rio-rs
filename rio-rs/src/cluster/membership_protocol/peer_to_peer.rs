@@ -171,6 +171,7 @@ where
 
         let mut self_member = Member::new(ip, port);
         self_member.set_active(true);
+        self_member.set_last_seen();
         self.members_storage().push(self_member).await?;
 
         loop {
@@ -188,7 +189,6 @@ where
                     let is_broken = self.is_broken(&test_member).await?;
 
                     if is_broken {
-                        debug!("[{}] {:?} is broken", address, test_member.address());
                         self.members_storage()
                             .set_inactive(test_member.ip(), test_member.port())
                             .await?;
