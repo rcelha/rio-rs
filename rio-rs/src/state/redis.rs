@@ -24,11 +24,8 @@ impl RedisState {
 }
 
 #[async_trait]
-impl<T> StateLoader<T> for RedisState
-where
-    T: DeserializeOwned,
-{
-    async fn load(
+impl StateLoader for RedisState {
+    async fn load<T: DeserializeOwned>(
         &self,
         object_kind: &str,
         object_id: &str,

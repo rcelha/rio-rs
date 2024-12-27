@@ -57,15 +57,12 @@ impl SqlState {
 }
 
 #[async_trait]
-impl<T> StateLoader<T> for SqlState
-where
-    T: DeserializeOwned,
-{
+impl StateLoader for SqlState {
     async fn prepare(&self) {
         self.migrate().await;
     }
 
-    async fn load(
+    async fn load<T: DeserializeOwned>(
         &self,
         object_kind: &str,
         object_id: &str,

@@ -20,11 +20,7 @@ pub mod sql;
 ///
 /// TODO use a reader type instead of String on load fn
 #[async_trait]
-pub trait StateLoader<T>
-where
-    Self: Sync + Send,
-    T: DeserializeOwned,
-{
+pub trait StateLoader: Send + Sync {
     /// <div class="warning">
     /// TODO
     ///
@@ -36,12 +32,14 @@ where
     /// </div>
     async fn prepare(&self) {}
 
-    async fn load(
+    async fn load<T>(
         &self,
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-    ) -> Result<T, LoadStateError>;
+    ) -> Result<T, LoadStateError>
+    where
+        T: DeserializeOwned;
 }
 
 /// Auto implement [StateLoader] for every type that derefs to a [StateLoader]
@@ -49,13 +47,12 @@ where
 /// This way you can create a wrapper for a [StateLoader] and it will automatically
 /// get this implementation
 #[async_trait]
-impl<O, T, S> StateLoader<O> for T
+impl<T, S> StateLoader for T
 where
     T: Deref<Target = S> + Send + Sync,
-    S: StateLoader<O>,
-    O: DeserializeOwned,
+    S: StateLoader,
 {
-    async fn load(
+    async fn load<O: DeserializeOwned>(
         &self,
         object_kind: &str,
         object_id: &str,
@@ -114,7 +111,7 @@ pub trait ObjectStateManager {
     async fn load_state<T, S>(&mut self, state_loader: &S) -> Result<(), LoadStateError>
     where
         T: IdentifiableType + Serialize + DeserializeOwned + Default, // neends default cause of trait State
-        S: StateLoader<T>,
+        S: StateLoader + Send + Sync,
         Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
         let object_kind = Self::user_defined_type_id();
@@ -161,7 +158,7 @@ where
     fn get_state(&self) -> &T;
     fn set_state(&mut self, value: T);
 
-    async fn load<S: StateLoader<T> + Sync + Send>(
+    async fn load<S: StateLoader + Sync + Send>(
         &self,
         state_loader: &S,
         object_kind: &str,

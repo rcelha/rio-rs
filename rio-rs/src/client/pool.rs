@@ -3,6 +3,8 @@
 
 use async_trait::async_trait;
 // TODO expose the bb8 pool so the user ensure it uses the right one
+#[allow(unused)]
+pub use bb8::PooledConnection;
 pub use bb8::{ManageConnection, Pool};
 
 use crate::cluster::storage::MembersStorage;

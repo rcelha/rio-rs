@@ -14,6 +14,7 @@ use async_stream::stream;
 pub use builder::ClientBuilder;
 pub use pool::ClientConnectionManager;
 pub use pool::Pool;
+pub use pool::PooledConnection;
 
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
@@ -201,7 +202,7 @@ where
         if self.streams.get(address).is_none() {
             let stream = TcpStream::connect(&address)
                 .await
-                .map_err(|x| ClientError::Unknown(format!("(Address {}) - {:?}", address, x)))?;
+                .map_err(|_| ClientError::Disconnect)?;
             let stream = Framed::new(stream, LengthDelimitedCodec::new());
             self.streams.insert(address.to_string(), stream);
         };

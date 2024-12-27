@@ -3,6 +3,7 @@ use std::task::Poll;
 
 use futures::future::BoxFuture;
 use futures::{pin_mut, FutureExt, SinkExt, StreamExt};
+use log::{error, info, warn};
 use tower::Service as TowerService;
 
 use crate::cluster::storage::MembersStorage;
@@ -139,6 +140,7 @@ where
                     Err(RequestError::ResponseError(ResponseError::Redirect(to))) => {
                         // Add the new address to the placement so in the next iteration
                         // it will use the right server
+                        info!("Redirect to {}", to);
                         inner_service
                             .client
                             .placement
@@ -154,6 +156,8 @@ where
                     ) => {
                         // Removed the old placement, the next request
                         // will pickup a new placement to try from
+                        warn!("Refresh the list of servers");
+                        warn!("{:?}", response.err());
                         inner_service.client.ts_active_servers_refresh = 0; // forces re-fetching the
                                                                             // active servers
                         inner_service
@@ -162,6 +166,10 @@ where
                             .write()
                             .map_err(|_| ClientError::PlacementLock)?
                             .pop(&(handler_type.clone(), handler_id.clone()));
+                    }
+                    Err(e) => {
+                        error!("Uncaught error {:#?}", e);
+                        return Err(e);
                     }
                     // Return as is
                     rest => return rest,
