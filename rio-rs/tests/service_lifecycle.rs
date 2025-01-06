@@ -11,6 +11,7 @@ use rio_rs::state::local::LocalState;
 
 mod server_utils;
 use server_utils::{is_allocated, run_integration_test};
+use thiserror::Error;
 
 #[derive(Default, Debug, Message, TypeName, Serialize, Deserialize)]
 struct OkMessage {}
@@ -22,6 +23,9 @@ struct MockResponse {}
 struct MockState {
     value: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Error, Clone)]
+enum MockError {}
 
 #[derive(Debug, Default, WithId, TypeName, ManagedState)]
 struct MockService {
@@ -46,11 +50,12 @@ impl ServiceObject for MockService {
 #[async_trait]
 impl Handler<OkMessage> for MockService {
     type Returns = MockResponse;
+    type Error = MockError;
     async fn handle(
         &mut self,
         _: OkMessage,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let resp = MockResponse {};
         Ok(resp)
     }
@@ -82,11 +87,12 @@ async fn service_is_not_allocated_on_lifecycle_handlers_panic() {
             assert!(!is_allocated(&object_placement_provider, "MockService", "1").await);
 
             let message = OkMessage {};
-            let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
-            assert_eq!(
+            let resp: Result<MockResponse, RequestError<MockError>> =
+                client.send("MockService", "1", &message).await;
+            assert!(matches!(
                 resp,
                 Err(RequestError::ResponseError(ResponseError::Allocate))
-            );
+            ));
             assert!(!is_allocated(&object_placement_provider, "MockService", "1").await);
         },
     )
@@ -112,11 +118,12 @@ async fn service_is_not_allocated_on_lifecycle_handlers_error() {
             assert!(!is_allocated(&object_placement_provider, "MockService", "2").await);
 
             let message = OkMessage {};
-            let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
-            assert_eq!(
+            let resp: Result<MockResponse, RequestError<MockError>> =
+                client.send("MockService", "1", &message).await;
+            assert!(matches!(
                 resp,
                 Err(RequestError::ResponseError(ResponseError::Allocate))
-            );
+            ));
             assert!(!is_allocated(&object_placement_provider, "MockService", "2").await);
         },
     )

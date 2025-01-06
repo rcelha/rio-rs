@@ -1,4 +1,5 @@
 //! Repository of all error types for this crate using [thiserror]
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::protocol::ClientError;
@@ -9,6 +10,7 @@ use crate::protocol::ClientError;
 pub enum HandlerError {
     #[error("object not found")]
     ObjectNotFound,
+
     #[error("message handler not found")]
     HandlerNotFound,
 
@@ -18,17 +20,17 @@ pub enum HandlerError {
     #[error("response serialization error")]
     ResponseSerializationError,
 
-    #[error("lifecycle error")]
-    LyfecycleError(ServiceObjectLifeCycleError),
-
     #[error("unknown execution error")]
     Unknown,
+
+    #[error("error caused internally by the application")]
+    ApplicationError(Vec<u8>),
 }
 
 /// Represents errors that occur in the lifecyle functions of an object.
 /// This is, in most of the [ServiceObject](crate::service_object::ServiceObject)
 /// hook functions
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum ServiceObjectLifeCycleError {
     #[error("unknown error")]
     Unknown,

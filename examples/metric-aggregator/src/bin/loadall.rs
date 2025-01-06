@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             value: 100 * i,
         };
         let _: messages::MetricResponse = client
-            .send(
+            .send::<_, messages::MetricError>(
                 "MetricAggregator".to_string(),
                 format!("instace-{}", i),
                 &payload,

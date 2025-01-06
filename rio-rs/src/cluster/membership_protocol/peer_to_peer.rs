@@ -218,7 +218,7 @@ where
                 future_member_tests.push(fut);
             }
             let states = futures::future::join_all(future_member_tests).await;
-            println!("[{}] STATES={:?}", address, states);
+            debug!("[{}] STATES={:?}", address, states);
 
             // Wait for the remaining of 'config.interval_secs'
             let elapsed = t0.elapsed().expect("Fail to get elapsed time");

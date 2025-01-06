@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rio_rs::{prelude::*, state::sql::SqlState};
+use rio_rs::{prelude::*, protocol::NoopError, state::sql::SqlState};
 use serde::{Deserialize, Serialize};
 
 use crate::messages;
@@ -33,12 +33,13 @@ impl ServiceObject for Cassino {}
 #[async_trait]
 impl Handler<messages::JoinGame> for Cassino {
     type Returns = messages::JoinGameResponse;
+    type Error = NoopError;
 
     async fn handle(
         &mut self,
         message: messages::JoinGame,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         if self.state.table_ids.len() == 0 {
             let new_uuid = uuid::Uuid::new_v4().to_string();
             self.state.table_ids.push(new_uuid);
@@ -48,7 +49,7 @@ impl Handler<messages::JoinGame> for Cassino {
         loop {
             let last_id = self.state.table_ids.last().unwrap();
             let table_response: messages::JoinGameResponse =
-                Self::send(&app_data, &"GameTable", last_id, &message)
+                Self::send::<_, _, NoopError>(&app_data, &"GameTable", last_id, &message)
                     .await
                     .unwrap();
 

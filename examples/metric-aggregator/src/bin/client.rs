@@ -1,4 +1,4 @@
-use metric_aggregator::messages;
+use metric_aggregator::messages::{self, MetricError};
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::prelude::*;
 use std::collections::HashMap;
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 value: 100 * i,
             };
             let _: messages::MetricResponse = client
-                .send(
+                .send::<_, MetricError>(
                     "MetricAggregator".to_string(),
                     instance_id.to_string(),
                     &payload,
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "US",
     ] {
         let response: messages::MetricResponse = client
-            .send(
+            .send::<_, MetricError>(
                 "MetricAggregator".to_string(),
                 i.to_string(),
                 &messages::GetMetric {},

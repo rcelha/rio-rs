@@ -28,6 +28,9 @@ pub type AppData = Container!(Send + Sync);
 
 /// Set of utilities to work with [state] crate
 pub trait AppDataExt {
+    /// Attempts to retrieve the global state for type `T`.
+    /// If it hasn't been initialize, a new one `T` will be created
+    /// using [Default::default]
     fn get_or_default<T: Default + Send + Sync + 'static>(&self) -> &T;
 }
 

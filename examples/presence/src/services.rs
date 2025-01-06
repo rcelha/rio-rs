@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicU32;
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
+use rio_rs::protocol::NoopError;
 use rio_rs::server::{AdminCommands, AdminSender};
 use rio_rs::state::local::LocalState;
 use rio_rs::{app_data::AppDataExt, prelude::*};
@@ -56,11 +57,12 @@ impl ServiceObject for PresenceService {
 #[async_trait]
 impl Handler<Ping> for PresenceService {
     type Returns = ();
+    type Error = NoopError;
     async fn handle(
         &mut self,
         _message: Ping,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let global_counter = app_data.get_or_default::<AtomicU32>();
         println!("Hello world {:?}", global_counter);
         Ok(())

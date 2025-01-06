@@ -34,9 +34,14 @@ impl MetricAggregator {
                         tags: "".to_string(),
                         value,
                     };
-                    Self::send(&app_data, &"MetricAggregator", &i, &sub_message)
-                        .await
-                        .expect("send fail")
+                    Self::send::<_, _, messages::MetricError>(
+                        &app_data,
+                        &"MetricAggregator",
+                        &i,
+                        &sub_message,
+                    )
+                    .await
+                    .expect("send fail")
                 },
             ))
             .await;
@@ -53,11 +58,13 @@ impl ServiceObject for MetricAggregator {
 #[async_trait]
 impl Handler<messages::Metric> for MetricAggregator {
     type Returns = messages::MetricResponse;
+    type Error = messages::MetricError;
+
     async fn handle(
         &mut self,
         message: messages::Metric,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let state_saver = app_data.get::<SqlState>();
         {
             let counter = app_data.get::<Counter>();
@@ -73,10 +80,9 @@ impl Handler<messages::Metric> for MetricAggregator {
         self.metric_stats.min = i32::min(self.metric_stats.min, message.value);
         self.metric_stats.max = i32::max(self.metric_stats.max, message.value);
 
-        self.save_state(state_saver).await.map_err(|_| {
-            println!("save error");
-            HandlerError::LyfecycleError(rio_rs::errors::ServiceObjectLifeCycleError::Unknown)
-        })?;
+        self.save_state(state_saver)
+            .await
+            .map_err(|_| messages::MetricError::SaveError)?;
 
         Ok(messages::MetricResponse {
             sum: self.metric_stats.sum,
@@ -90,11 +96,13 @@ impl Handler<messages::Metric> for MetricAggregator {
 #[async_trait]
 impl Handler<messages::GetMetric> for MetricAggregator {
     type Returns = messages::MetricResponse;
+    type Error = messages::MetricError;
+
     async fn handle(
         &mut self,
         _: messages::GetMetric,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         Ok(messages::MetricResponse {
             sum: self.metric_stats.sum,
             avg: if self.metric_stats.count == 0 {
@@ -111,11 +119,12 @@ impl Handler<messages::GetMetric> for MetricAggregator {
 #[async_trait]
 impl Handler<messages::Ping> for MetricAggregator {
     type Returns = messages::Pong;
+    type Error = messages::MetricError;
     async fn handle(
         &mut self,
         message: messages::Ping,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         Ok(messages::Pong {
             ping_id: message.ping_id,
         })
@@ -125,11 +134,13 @@ impl Handler<messages::Ping> for MetricAggregator {
 #[async_trait]
 impl Handler<messages::Drop> for MetricAggregator {
     type Returns = ();
+    type Error = ();
+
     async fn handle(
         &mut self,
         _: messages::Drop,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         println!("got shudown");
         self.shutdown(app_data).await.expect("TODO shutdown");
         Ok(())

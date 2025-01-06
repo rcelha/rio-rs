@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use futures::FutureExt;
-use metric_aggregator::messages;
+use metric_aggregator::messages::{self, MetricError};
 use rand::{thread_rng, Rng};
 use rio_rs::client::ClientConnectionManager;
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
@@ -92,7 +92,7 @@ async fn client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
                 let mut client = client_pool.get().await.unwrap();
                 let object_id = { thread_rng().gen_range(0..opts.num_ids).to_string() };
                 let resp: messages::Pong = client
-                    .send(
+                    .send::<_, MetricError>(
                         "MetricAggregator".to_string(),
                         object_id.clone(),
                         &messages::Ping {

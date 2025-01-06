@@ -1,7 +1,8 @@
 use black_jack::game_server::{
     GameServerRequest, GameServerResponse, GameServerStates, TableState,
 };
-use black_jack::messages::{JoinGame, JoinGameResponse, PlayerCommand, PlayerCommandResponse};
+use black_jack::messages::{JoinGame, PlayerCommand};
+use black_jack::registry::client as client_;
 
 use clap::Parser;
 use futures::{pin_mut, StreamExt};
@@ -48,7 +49,8 @@ async fn main() -> anyhow::Result<()> {
     let msg = JoinGame {
         user_id: user_id.clone(),
     };
-    let table: JoinGameResponse = client.send("Cassino", "*", &msg).await?;
+
+    let table = client_::cassino::send_join_game(&mut client, "*", &msg).await?;
     println!("Table #{:#?}", table);
 
     let stdin = tokio::io::stdin();
@@ -155,10 +157,13 @@ async fn main() -> anyhow::Result<()> {
                                     user_id.clone(),
                                     command,
                                 ));
-                                let resp: PlayerCommandResponse = client
-                                    .send("GameTable", &table.table_id, &msg)
-                                    .await
-                                    .unwrap();
+                                let resp = client_::game_table::send_player_command(
+                                    &mut client,
+                                    &table.table_id,
+                                    &msg,
+                                )
+                                .await
+                                .unwrap();
                                 println!("Server Response {:#?}", resp);
                                 break;
                             }

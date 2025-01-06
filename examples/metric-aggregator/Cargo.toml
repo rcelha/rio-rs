@@ -11,3 +11,4 @@ tokio = { version = "1", features = ["full"] }
 futures = "0.3.0"
 rand = "0.8"
 sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "sqlite", "postgres", "any", "chrono" ] }
+thiserror = "2.0.11"
