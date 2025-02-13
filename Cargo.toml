@@ -1,10 +1,10 @@
 [workspace]
 members = [
-  "rio-rs",
-  "rio-macros",
-  "examples/black-jack",
-  "examples/metric-aggregator",
-  "examples/ping-pong",
-  "examples/presence",
+    "rio-rs",
+    "rio-macros",
+    "examples/black-jack",
+    "examples/metric-aggregator",
+    "examples/ping-pong",
+    "examples/presence",
 ]
 resolver = "2"

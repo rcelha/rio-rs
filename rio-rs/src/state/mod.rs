@@ -9,8 +9,13 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+#[cfg(feature = "local")]
 pub mod local;
+
+#[cfg(feature = "redis")]
 pub mod redis;
+
+#[cfg(feature = "sql")]
 pub mod sql;
 
 /// The `StateLoader` defines an interface to load serialized state from a source

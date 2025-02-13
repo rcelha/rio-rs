@@ -1,5 +1,6 @@
 use rio_rs::{cluster::storage::Member, prelude::MembersStorage};
 
+#[cfg(feature = "sql")]
 mod db_utils;
 
 async fn members_sanity_check<T: MembersStorage>(storage: T) {
@@ -37,6 +38,7 @@ async fn failures_sanity_check<T: MembersStorage>(storage: T) {
     assert_eq!(failures.len(), 1);
 }
 
+#[cfg(feature = "redis")]
 mod redis {
     use rio_rs::cluster::storage::redis::RedisMembersStorage;
 
@@ -57,6 +59,7 @@ mod redis {
     }
 }
 
+#[cfg(feature = "sql")]
 mod sqlite {
     use super::db_utils::sqlite::pool;
     use rio_rs::cluster::storage::sql::SqlMembersStorage;
@@ -79,6 +82,7 @@ mod sqlite {
     }
 }
 
+#[cfg(feature = "sql")]
 mod pgsql {
     use super::db_utils::pgsql::pool;
     use rio_rs::cluster::storage::sql::SqlMembersStorage;

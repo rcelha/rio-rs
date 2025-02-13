@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use rio_macros::{ManagedState, TypeName, WithId};
 use rio_rs::{
     registry::IdentifiableType,
-    state::{local::LocalState, sql::SqlState, ObjectStateManager, State, StateLoader, StateSaver},
+    state::{local::LocalState, ObjectStateManager, State, StateLoader, StateSaver},
     ServiceObject, WithId,
 };
 use serde::{Deserialize, Serialize};
@@ -23,16 +23,6 @@ impl State<TestState1> for TestService {
         self.state = value;
     }
 }
-
-#[derive(Debug, Default, WithId, TypeName, ManagedState)]
-struct TestService2 {
-    id: String,
-
-    #[managed_state(provider = SqlState)]
-    state: TestState1,
-}
-
-impl ServiceObject for TestService2 {}
 
 async fn persist_state_for_object_test(state_manager: impl StateLoader + StateSaver) {
     // Local Storage
@@ -67,6 +57,7 @@ struct TestState1 {
 }
 impl IdentifiableType for TestState1 {}
 
+#[cfg(feature = "local")]
 mod local {
     use super::*;
 
@@ -77,8 +68,23 @@ mod local {
     }
 }
 
+#[cfg(feature = "sql")]
 mod sqlite {
     use super::*;
+    use rio_rs::{
+        state::{sql::SqlState, ObjectStateManager, StateSaver},
+        ServiceObject,
+    };
+
+    #[derive(Debug, Default, WithId, TypeName, ManagedState)]
+    struct TestService2 {
+        id: String,
+
+        #[managed_state(provider = SqlState)]
+        state: TestState1,
+    }
+
+    impl ServiceObject for TestService2 {}
 
     #[tokio::test]
     async fn persist_state_for_object() {
@@ -90,9 +96,9 @@ mod sqlite {
 
     /// Tests how macro and non-macro interoperate
     mod mixed_macro {
-        use rio_rs::{prelude::AppData, ServiceObjectStateLoad};
-
         use super::super::*;
+        use super::*;
+        use rio_rs::{prelude::AppData, ServiceObjectStateLoad};
 
         #[tokio::test]
         async fn persist_state_for_object() {

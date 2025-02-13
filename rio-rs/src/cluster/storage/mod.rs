@@ -7,8 +7,11 @@ use chrono::{DateTime, TimeZone, Utc};
 
 use crate::errors::MembershipError;
 
+#[cfg(feature = "local")]
 pub mod local;
+#[cfg(feature = "redis")]
 pub mod redis;
+#[cfg(feature = "sql")]
 pub mod sql;
 
 /// Represents a running [Server](crate::server::Server).

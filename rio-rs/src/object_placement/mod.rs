@@ -4,8 +4,11 @@ use async_trait::async_trait;
 
 use crate::ObjectId;
 
+#[cfg(feature = "local")]
 pub mod local;
+#[cfg(feature = "redis")]
 pub mod redis;
+#[cfg(feature = "sql")]
 pub mod sql;
 
 /// Struct providing placement information

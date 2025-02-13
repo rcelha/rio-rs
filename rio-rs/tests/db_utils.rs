@@ -1,9 +1,8 @@
-use rio_rs::state::sql::SqlState;
-use sqlx::{any::AnyPoolOptions, Any, Pool};
-
+#[cfg(feature = "sql")]
 #[allow(dead_code)]
 pub(crate) mod pgsql {
-    use super::*;
+    use rio_rs::state::sql::SqlState;
+    use sqlx::{any::AnyPoolOptions, Any, Pool};
 
     pub(crate) async fn pool(name: &str) -> Pool<Any> {
         let pool = AnyPoolOptions::new()
@@ -25,9 +24,9 @@ pub(crate) mod pgsql {
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "sql")]
 pub(crate) mod sqlite {
-
-    use super::*;
+    use sqlx::{any::AnyPoolOptions, Any, Pool};
 
     pub(crate) async fn pool() -> Pool<Any> {
         let pool = AnyPoolOptions::new()

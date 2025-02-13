@@ -2,6 +2,7 @@ use rio_rs::errors::LoadStateError;
 use rio_rs::state::{StateLoader, StateSaver};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "sql")]
 mod db_utils;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -37,6 +38,7 @@ async fn state_load_not_found<S: StateSaver + StateLoader>(storage: S) {
     assert_eq!(loaded_state, Err(LoadStateError::ObjectNotFound));
 }
 
+#[cfg(feature = "redis")]
 mod redis {
     use rio_rs::state::redis::RedisState;
 
@@ -57,6 +59,7 @@ mod redis {
     }
 }
 
+#[cfg(feature = "sql")]
 mod sqlite {
     use super::db_utils::sqlite::pool;
     use rio_rs::state::sql::SqlState;
@@ -76,6 +79,7 @@ mod sqlite {
     }
 }
 
+#[cfg(feature = "sql")]
 mod pgsql {
     use super::db_utils::pgsql::pool;
     use rio_rs::state::sql::SqlState;
@@ -95,6 +99,7 @@ mod pgsql {
     }
 }
 
+#[cfg(feature = "local")]
 mod local {
     use rio_rs::state::local::LocalState;
 
