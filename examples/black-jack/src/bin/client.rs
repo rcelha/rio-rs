@@ -6,7 +6,7 @@ use black_jack::registry::client as client_;
 
 use clap::Parser;
 use futures::{pin_mut, StreamExt};
-use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 use rio_rs::prelude::*;
 use std::process::exit;
 use std::time::Duration;
@@ -30,11 +30,11 @@ async fn main() -> anyhow::Result<()> {
     let options = Opts::parse();
     let user_id = options.player_name.clone();
 
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .max_connections(50)
         .connect(&options.cluster_membership_provider_conn)
         .await?;
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
 
     sleep(Duration::from_secs(1)).await;
 

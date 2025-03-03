@@ -1,11 +1,11 @@
-#[cfg(feature = "sql")]
+#[cfg(feature = "postgres")]
 #[allow(dead_code)]
 pub(crate) mod pgsql {
-    use rio_rs::state::sql::SqlState;
-    use sqlx::{any::AnyPoolOptions, Any, Pool};
+    use rio_rs::state::postgres::PostgresState;
+    use sqlx::{postgres::PgPoolOptions, PgPool};
 
-    pub(crate) async fn pool(name: &str) -> Pool<Any> {
-        let pool = AnyPoolOptions::new()
+    pub(crate) async fn pool(name: &str) -> PgPool {
+        let pool = PostgresState::pool()
             .connect("postgres://test:test@localhost:15432/test")
             .await
             .unwrap();
@@ -18,7 +18,7 @@ pub(crate) mod pgsql {
         sqlx::query(&sql).execute(&mut conn).await.unwrap();
 
         let new_conn_str = format!("postgres://test:test@localhost:15432/{name}");
-        let pool = SqlState::pool().connect(&&new_conn_str).await.unwrap();
+        let pool = PgPoolOptions::new().connect(&&new_conn_str).await.unwrap();
         pool
     }
 }
@@ -26,10 +26,10 @@ pub(crate) mod pgsql {
 #[allow(dead_code)]
 #[cfg(feature = "sql")]
 pub(crate) mod sqlite {
-    use sqlx::{any::AnyPoolOptions, Any, Pool};
+    use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
-    pub(crate) async fn pool() -> Pool<Any> {
-        let pool = AnyPoolOptions::new()
+    pub(crate) async fn pool() -> SqlitePool {
+        let pool = SqlitePoolOptions::new()
             .connect("sqlite://:memory:")
             .await
             .unwrap();

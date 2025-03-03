@@ -4,7 +4,7 @@ use futures::FutureExt;
 use metric_aggregator::messages::{self, MetricError};
 use rand::{thread_rng, Rng};
 use rio_rs::client::ClientConnectionManager;
-use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 use rio_rs::prelude::*;
 
 static USAGE: &str = "usage: load_client PARALLEL_REQUEST NUM_CLIENTS [NUM_REQUESTS=1000] [NUM_IDS=1000] [DB_CONN_STRING=sqlite:///tmp/membership.sqlite3?mode=rwc]";
@@ -64,11 +64,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .max_connections(opts.parallel_requests as u32)
         .connect(&opts.db_conn)
         .await?;
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
 
     members_storage
         .members()

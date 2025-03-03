@@ -6,10 +6,12 @@ use crate::ObjectId;
 
 #[cfg(feature = "local")]
 pub mod local;
+#[cfg(feature = "postgres")]
+pub mod postgres;
 #[cfg(feature = "redis")]
 pub mod redis;
-#[cfg(feature = "sql")]
-pub mod sql;
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 
 /// Struct providing placement information
 pub struct ObjectPlacement {

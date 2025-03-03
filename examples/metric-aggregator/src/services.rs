@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rio_rs::prelude::*;
-use rio_rs::state::sql::SqlState;
+use rio_rs::state::sqlite::SqliteState;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ pub struct MetricStats {
 #[derive(Debug, Default, TypeName, WithId, ManagedState)]
 pub struct MetricAggregator {
     pub id: String,
-    #[managed_state(provider = SqlState)]
+    #[managed_state(provider = SqliteState)]
     pub metric_stats: MetricStats,
 }
 
@@ -65,7 +65,7 @@ impl Handler<messages::Metric> for MetricAggregator {
         message: messages::Metric,
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, Self::Error> {
-        let state_saver = app_data.get::<SqlState>();
+        let state_saver = app_data.get::<SqliteState>();
         {
             let counter = app_data.get::<Counter>();
             let value = counter.0.fetch_add(1, Ordering::SeqCst);

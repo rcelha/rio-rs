@@ -1,19 +1,19 @@
 use std::time::Duration;
 
 use presence::messages::Ping;
-use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 use rio_rs::prelude::*;
 use rio_rs::protocol::NoopError;
 use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() {
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .max_connections(50)
         .connect("sqlite:///tmp/presence-membership.sqlite3?mode=rwc")
         .await
         .unwrap();
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
     sleep(Duration::from_secs(1)).await;
 
     members_storage.prepare().await;

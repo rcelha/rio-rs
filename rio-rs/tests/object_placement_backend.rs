@@ -55,42 +55,42 @@ mod redis {
     }
 }
 
-#[cfg(feature = "sql")]
+#[cfg(feature = "sqlite")]
 mod sqlite {
     use super::db_utils::sqlite::pool;
-    use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
+    use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
 
     #[tokio::test]
     async fn no_placement() {
         let pool = pool().await;
-        let provider = SqlObjectPlacementProvider::new(pool);
+        let provider = SqliteObjectPlacementProvider::new(pool);
         super::no_placement(provider).await;
     }
 
     #[tokio::test]
     async fn save_and_load() {
         let pool = pool().await;
-        let provider = SqlObjectPlacementProvider::new(pool);
+        let provider = SqliteObjectPlacementProvider::new(pool);
         super::save_and_load(provider).await;
     }
 }
 
-#[cfg(feature = "sql")]
+#[cfg(feature = "postgres")]
 mod pgsql {
     use super::db_utils::pgsql::pool;
-    use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
+    use rio_rs::object_placement::postgres::PostgresObjectPlacementProvider;
 
     #[tokio::test]
     async fn no_placement() {
         let pool = pool("no_placement").await;
-        let provider = SqlObjectPlacementProvider::new(pool);
+        let provider = PostgresObjectPlacementProvider::new(pool);
         super::no_placement(provider).await;
     }
 
     #[tokio::test]
     async fn save_and_load() {
         let pool = pool("save_and_load").await;
-        let provider = SqlObjectPlacementProvider::new(pool);
+        let provider = PostgresObjectPlacementProvider::new(pool);
         super::save_and_load(provider).await;
     }
 }

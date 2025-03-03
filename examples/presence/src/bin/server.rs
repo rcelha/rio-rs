@@ -1,5 +1,5 @@
-use rio_rs::cluster::storage::sql::SqlMembersStorage;
-use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
 use rio_rs::prelude::*;
 use rio_rs::state::local::LocalState;
 
@@ -23,9 +23,9 @@ pub async fn build_server(
     cluster_membership_provider_conn: &str,
     object_placement_provider_conn: &str,
 ) -> Server<
-    SqlMembersStorage,
-    PeerToPeerClusterProvider<SqlMembersStorage>,
-    SqlObjectPlacementProvider,
+    SqliteMembersStorage,
+    PeerToPeerClusterProvider<SqliteMembersStorage>,
+    SqliteObjectPlacementProvider,
 > {
     let addr = format!("0.0.0.0:{port}");
 
@@ -36,23 +36,23 @@ pub async fn build_server(
     registry.add_handler::<PresenceService, Ping>();
 
     // Configure the Cluster Membership provider
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .connect(cluster_membership_provider_conn)
         .await
         .unwrap();
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
 
     let membership_provider_config = PeerToPeerClusterConfig::default();
     let membership_provider =
         PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
 
     // Configure the object placement
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .connect(object_placement_provider_conn)
         .await
         .unwrap();
 
-    let object_placement_provider = SqlObjectPlacementProvider::new(pool);
+    let object_placement_provider = SqliteObjectPlacementProvider::new(pool);
 
     // Create the server object
     let mut server = Server::new(
