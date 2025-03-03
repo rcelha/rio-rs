@@ -37,7 +37,10 @@ impl SqliteState {
         let mut transaction = self.pool.begin().await.unwrap();
         let queries = SqliteStateMigrations::queries();
         for query in queries {
-            sqlx::query(&query).execute(&mut transaction).await.unwrap();
+            sqlx::query(&query)
+                .execute(&mut *transaction)
+                .await
+                .unwrap();
         }
         transaction.commit().await.unwrap();
     }

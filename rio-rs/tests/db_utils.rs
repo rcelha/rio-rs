@@ -12,10 +12,10 @@ pub(crate) mod pgsql {
 
         let mut conn = pool.acquire().await.unwrap();
         let sql = format!("DROP DATABASE IF EXISTS {name};");
-        sqlx::query(&sql).execute(&mut conn).await.unwrap();
+        sqlx::query(&sql).execute(&mut *conn).await.unwrap();
 
         let sql = format!("CREATE DATABASE {name} WITH OWNER=test;");
-        sqlx::query(&sql).execute(&mut conn).await.unwrap();
+        sqlx::query(&sql).execute(&mut *conn).await.unwrap();
 
         let new_conn_str = format!("postgres://test:test@localhost:15432/{name}");
         let pool = PgPoolOptions::new().connect(&&new_conn_str).await.unwrap();
