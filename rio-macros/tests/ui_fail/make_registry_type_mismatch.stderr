@@ -1,0 +1,20 @@
+error[E0271]: type mismatch resolving `<TestService as Handler<Ping>>::Returns == Ping`
+  --> tests/ui_fail/make_registry_type_mismatch.rs:45:1
+   |
+45 | / make_registry! {
+46 | |     TestService: [
+47 | |         Ping => (Ping, NoopError),
+48 | |     ]
+49 | | }
+   | |_^ expected `Ping`, found `Pong`
+   |
+note: required by a bound in `assert_handler_type`
+  --> tests/ui_fail/make_registry_type_mismatch.rs:45:1
+   |
+45 | / make_registry! {
+46 | |     TestService: [
+47 | |         Ping => (Ping, NoopError),
+48 | |     ]
+49 | | }
+   | |_^ required by this bound in `assert_handler_type`
+   = note: this error originates in the macro `make_registry` (in Nightly builds, run with -Z macro-backtrace for more info)

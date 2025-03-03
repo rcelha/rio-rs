@@ -101,7 +101,17 @@ impl Registry {
                     .ok_or(HandlerError::ObjectNotFound)?;
                 let mut boxed_object = boxed_object_guard.write().await;
                 let object: &mut T = boxed_object.downcast_mut().ok_or(HandlerError::Unknown)?;
-                let ret = object.handle(message, context).await?;
+                let handler_result = object.handle(message, context).await;
+
+                // Serializes the error into a binary variant
+                // We do this to support 'custom' error types for each one of the Handler's
+                // implementation
+                let ret = handler_result.map_err(|err| {
+                    let ser_err = bincode::serialize(&err).expect("TODO");
+                    HandlerError::ApplicationError(ser_err)
+                })?;
+
+                // Serialize the whole result back to the caller
                 bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
             })
         };
@@ -194,11 +204,13 @@ where
     M: Message + Send + Sync,
 {
     type Returns: Serialize + Sync + Send;
+    type Error: Serialize;
+
     async fn handle(
         &mut self,
         message: M,
         context: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError>;
+    ) -> Result<Self::Returns, Self::Error>;
 }
 
 pub trait Message: Serialize + DeserializeOwned {}
@@ -286,11 +298,9 @@ mod test {
     #[async_trait]
     impl Handler<HiMessage> for Human {
         type Returns = String;
-        async fn handle(
-            &mut self,
-            _message: HiMessage,
-            _: Arc<AppData>,
-        ) -> Result<String, HandlerError> {
+        type Error = String;
+
+        async fn handle(&mut self, _message: HiMessage, _: Arc<AppData>) -> Result<String, String> {
             Ok("hi".to_string())
         }
     }
@@ -298,11 +308,13 @@ mod test {
     #[async_trait]
     impl Handler<HiMessage> for Proxy {
         type Returns = String;
+        type Error = String;
+
         async fn handle(
             &mut self,
             message: HiMessage,
             context: Arc<AppData>,
-        ) -> Result<String, HandlerError> {
+        ) -> Result<String, String> {
             if self.proxy {
                 let final_id = "final-1".to_string();
 
@@ -326,11 +338,13 @@ mod test {
     #[async_trait]
     impl Handler<GoodbyeMessage> for Human {
         type Returns = String;
+        type Error = String;
+
         async fn handle(
             &mut self,
             _message: GoodbyeMessage,
             _: Arc<AppData>,
-        ) -> Result<String, HandlerError> {
+        ) -> Result<String, String> {
             Ok("bye".to_string())
         }
     }
@@ -338,12 +352,13 @@ mod test {
     #[async_trait]
     impl Handler<ErrorMessage> for Human {
         type Returns = String;
+        type Error = String;
         async fn handle(
             &mut self,
             _message: ErrorMessage,
             _: Arc<AppData>,
-        ) -> Result<String, HandlerError> {
-            Err(HandlerError::Unknown)
+        ) -> Result<String, String> {
+            Err("err".to_string())
         }
     }
 
@@ -442,7 +457,7 @@ mod test {
                 Arc::new(AppData::new()),
             )
             .await;
-        assert_eq!(ret, Err(HandlerError::Unknown));
+        assert!(matches!(ret, Err(HandlerError::ApplicationError(_))));
     }
 
     #[tokio::test]

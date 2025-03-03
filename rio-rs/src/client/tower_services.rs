@@ -4,6 +4,7 @@ use std::task::Poll;
 use futures::future::BoxFuture;
 use futures::{pin_mut, FutureExt, SinkExt, StreamExt};
 use log::{error, info, warn};
+use serde::de::DeserializeOwned;
 use tower::Service as TowerService;
 
 use crate::cluster::storage::MembersStorage;
@@ -12,36 +13,43 @@ use crate::protocol::{ClientError, RequestEnvelope, ResponseEnvelope, ResponseEr
 
 use super::Client;
 
-/// Requests have only a single response from the server (for streaming back result, see **TODO**)
+/// Requests have only a single response from the server (for streaming back result, see [crate::client::Client::subscribe])
 ///
 /// This contains the [Client] because it does
+///
+/// - `'a` is the lifetime for the tower service's box future
+/// - `S` is the MemberStorage for the internal client
+/// - `E` is the generic for the RequestError
 #[derive(Clone)]
-pub struct Request<'a, S>
+pub struct Request<'a, S, E>
 where
     S: MembersStorage,
 {
     client: Client<S>,
-    _phantom: PhantomData<&'a ()>,
+    _lifetime_marker: PhantomData<&'a ()>,
+    _error_marker: PhantomData<E>,
 }
 
-impl<'a, S> Request<'a, S>
+impl<'a, S, E> Request<'a, S, E>
 where
     S: MembersStorage,
 {
     pub fn new(client: Client<S>) -> Self {
         Request {
             client,
-            _phantom: PhantomData,
+            _lifetime_marker: PhantomData,
+            _error_marker: PhantomData,
         }
     }
 }
 
-impl<'a, S> TowerService<RequestEnvelope> for Request<'a, S>
+impl<'a, S, E: std::error::Error + DeserializeOwned> TowerService<RequestEnvelope>
+    for Request<'a, S, E>
 where
     S: MembersStorage + 'static, // TODO remove 'static
 {
     type Response = Vec<u8>;
-    type Error = RequestError;
+    type Error = RequestError<E>;
     type Future = BoxFuture<'a, Result<Self::Response, Self::Error>>;
 
     /// Waits for members to be available
@@ -87,31 +95,32 @@ where
 ///
 /// - When the object is not on the cached/expected placement
 /// - When the object is not yet allocated
-pub struct RequestRedirect<'a, S>
+pub struct RequestRedirect<'a, S, E>
 where
     S: MembersStorage,
-    Request<'a, S>: Clone,
+    Request<'a, S, E>: Clone,
 {
-    inner: Request<'a, S>,
+    inner: Request<'a, S, E>,
 }
 
-impl<'a, S> RequestRedirect<'a, S>
+impl<'a, S, E> RequestRedirect<'a, S, E>
 where
     S: MembersStorage,
-    Request<'a, S>: Clone,
+    Request<'a, S, E>: Clone,
 {
-    pub fn new(inner: Request<'a, S>) -> Self {
+    pub fn new(inner: Request<'a, S, E>) -> Self {
         RequestRedirect { inner }
     }
 }
 
-impl<'a, S> TowerService<RequestEnvelope> for RequestRedirect<'a, S>
+impl<'a, S, E> TowerService<RequestEnvelope> for RequestRedirect<'a, S, E>
 where
-    S: MembersStorage + 'static, // TODO remove 'static
-    Request<'a, S>: Clone,
+    E: std::error::Error + DeserializeOwned + Send + Sync + 'a,
+    S: MembersStorage + 'static,
+    Request<'a, S, E>: Clone,
 {
     type Response = Vec<u8>;
-    type Error = RequestError;
+    type Error = RequestError<E>;
     type Future = BoxFuture<'a, Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -137,6 +146,8 @@ where
                 // Used a cloned request, so it can be used in a loop
                 let response = inner_service.call(request.clone()).await;
                 match response {
+                    // This case happens when there is a mismatch between the client and the
+                    // servers regarding where the service object is allocated
                     Err(RequestError::ResponseError(ResponseError::Redirect(to))) => {
                         // Add the new address to the placement so in the next iteration
                         // it will use the right server
@@ -148,11 +159,14 @@ where
                             .map_err(|_| ClientError::PlacementLock)?
                             .put((handler_type.clone(), handler_id.clone()), to);
                     }
-                    // Retry so it picks up a new Server on the cluster
+                    // All these errors indicate that the server we've tried is no longer available
+                    // When facing one of the errors below, we need to retry the
+                    // request so it picks up a new Server on the cluster
                     Err(
                         RequestError::ResponseError(ResponseError::DeallocateServiceObject)
                         | RequestError::ClientError(ClientError::Disconnect)
-                        | RequestError::ClientError(ClientError::ServerNotAvailable(_)),
+                        | RequestError::ClientError(ClientError::ServerNotAvailable(_))
+                        | RequestError::ClientError(ClientError::IoError(_)),
                     ) => {
                         // Removed the old placement, the next request
                         // will pickup a new placement to try from
@@ -168,7 +182,13 @@ where
                             .pop(&(handler_type.clone(), handler_id.clone()));
                     }
                     Err(e) => {
-                        error!("Uncaught error {:#?}", e);
+                        // Have a separate case to avoid spamming error logs with the application
+                        // error in binary format
+                        if let RequestError::ResponseError(ResponseError::ApplicationError(_)) = e {
+                            error!("Uncaught error ResponseError::ApplicationError(...)");
+                        } else {
+                            error!("Uncaught error {:#?}", e);
+                        }
                         return Err(e);
                     }
                     // Return as is
@@ -184,7 +204,9 @@ mod test {
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
     use lru::LruCache;
+    use serde::{Deserialize, Serialize};
     use std::sync::{Arc, RwLock};
+    use thiserror::Error;
     use tower::ServiceExt;
 
     use super::*;
@@ -194,6 +216,12 @@ mod test {
         },
         errors::MembershipError,
     };
+
+    #[derive(Error, Debug, Serialize, Deserialize, PartialEq)]
+    enum NoopError {
+        #[error("No-op")]
+        Noop,
+    }
 
     #[derive(Clone, Default)]
     struct FailMemberStorage {}
@@ -234,7 +262,7 @@ mod test {
     #[tokio::test]
     async fn test_poll_ready_no_active_server() {
         let client = client();
-        let mut request = Request::new(client);
+        let mut request: Request<_, NoopError> = Request::new(client);
         request.ready().await.expect("poll_ready");
         assert!(request.client.active_servers.unwrap().is_empty());
     }
@@ -254,7 +282,7 @@ mod test {
             .expect("add member");
 
         // When poll_ready is called, it fetches the active servers
-        let mut request = Request::new(client);
+        let mut request: Request<_, NoopError> = Request::new(client);
         request.ready().await.expect("poll_ready");
         assert_eq!(
             request.client.active_servers.expect("active servers").len(),
@@ -272,7 +300,7 @@ mod test {
             streams: Arc::default(),
             placement: Arc::new(RwLock::new(LruCache::new(10))),
         };
-        let mut request = Request::new(client);
+        let mut request: Request<_, NoopError> = Request::new(client);
         let waker = futures::task::noop_waker();
         let mut context = std::task::Context::from_waker(&waker);
         let poll_ready = request.poll_ready(&mut context);

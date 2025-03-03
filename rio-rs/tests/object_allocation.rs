@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use log::debug;
-use rio_rs::object_placement::ObjectPlacementProvider;
 use rio_rs::server::AdminSender;
+use rio_rs::{object_placement::ObjectPlacementProvider, protocol::NoopError};
 use serde::{Deserialize, Serialize};
 
 use rio_rs::prelude::*;
@@ -33,11 +33,12 @@ struct MockService {
 #[async_trait]
 impl Handler<OkMessage> for MockService {
     type Returns = MockResponse;
+    type Error = ();
     async fn handle(
         &mut self,
         _message: OkMessage,
         _ctx: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let resp = MockResponse {};
         Ok(resp)
     }
@@ -46,11 +47,12 @@ impl Handler<OkMessage> for MockService {
 #[async_trait]
 impl Handler<KillServer> for MockService {
     type Returns = MockResponse;
+    type Error = ();
     async fn handle(
         &mut self,
         _message: KillServer,
         ctx: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         debug!("Let's try to kill it");
         let admin_interface = ctx.get::<AdminSender>();
         let _ = admin_interface
@@ -104,7 +106,7 @@ async fn move_object_on_server_failure_single() {
             // As soon as we send the first message, the object is allocated to a server
             let message = OkMessage {};
             client
-                .send::<MockResponse>("MockService", "1", &message)
+                .send::<MockResponse, NoopError>("MockService", "1", &message)
                 .await
                 .unwrap();
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
@@ -114,7 +116,7 @@ async fn move_object_on_server_failure_single() {
             // Notice we need to wait a few seconds so the cluster provider marks it as inactive
             let message = KillServer {};
             client
-                .send::<MockResponse>("MockService", "1", &message)
+                .send::<MockResponse, NoopError>("MockService", "1", &message)
                 .await
                 .unwrap();
             sleep(Duration::from_secs(5)).await;
@@ -123,7 +125,7 @@ async fn move_object_on_server_failure_single() {
             // so it gets re-allocated somewhere else in the cluster
             let message = OkMessage {};
             client
-                .send::<MockResponse>("MockService", "1", &message)
+                .send::<MockResponse, NoopError>("MockService", "1", &message)
                 .await
                 .unwrap();
             // let members = members_storage.members().await.unwrap();

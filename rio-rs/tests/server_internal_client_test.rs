@@ -11,6 +11,7 @@ use rio_rs::state::local::LocalState;
 
 mod server_utils;
 use server_utils::run_integration_test;
+use thiserror::Error;
 
 #[derive(Debug, Default, TypeName, Serialize, Deserialize)]
 struct MockState {
@@ -35,20 +36,29 @@ struct MockResponse {
     text: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Error, Clone)]
+enum MockError {
+    #[error("Upstream error")]
+    UpstreamError(String),
+}
+
 #[async_trait]
 impl Handler<MockMessage> for MockService {
     type Returns = MockResponse;
+    type Error = MockError;
     async fn handle(
         &mut self,
         message: MockMessage,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let resp = if let Some(to) = &message.send_to {
             let mut msg = message.clone();
             msg.send_to = None;
             let resp = Self::send(&app_data, "MockService", to, &msg)
                 .await
-                .map_err(|_| HandlerError::Unknown)?;
+                .map_err(|err: RequestError<MockError>| {
+                    MockError::UpstreamError(err.to_string())
+                })?;
             resp
         } else {
             MockResponse {
@@ -90,7 +100,10 @@ async fn request_response_with_proxy() {
                 text: "hi".to_string(),
                 send_to: Some("2000".to_string()),
             };
-            let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
+            let resp: MockResponse = client
+                .send::<_, MockError>("MockService", "1", &message)
+                .await
+                .unwrap();
             assert_eq!(&resp.text, "2000 received hi");
         },
     )

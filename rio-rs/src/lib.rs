@@ -29,11 +29,12 @@
 //! #[async_trait]
 //! impl Handler<HelloMessage> for HelloWorldService {
 //!     type Returns = HelloResponse;
+//!     type Error = NoopError;
 //!     async fn handle(
 //!         &mut self,
 //!         message: HelloMessage,
 //!         app_data: Arc<AppData>,
-//!     ) -> Result<Self::Returns, HandlerError> {
+//!     ) -> Result<Self::Returns, Self::Error> {
 //!         println!("Hello world");
 //!         Ok(HelloResponse {})
 //!     }
@@ -69,11 +70,12 @@
 //! # #[async_trait]
 //! # impl Handler<HelloMessage> for HelloWorldService{
 //! #     type Returns = HelloResponse;
+//! #     type Error = NoopError;
 //! #     async fn handle(
 //! #         &mut self,
 //! #         message: HelloMessage,
 //! #         app_data: Arc<AppData>,
-//! #     ) -> Result<Self::Returns, HandlerError> {
+//! #     ) -> Result<Self::Returns, Self::Error> {
 //! #         println!("Hello world");
 //! #         Ok(HelloResponse {})
 //! #     }
@@ -146,11 +148,12 @@
 //! # #[async_trait]
 //! # impl Handler<HelloMessage> for HelloWorldService {
 //! #     type Returns = HelloResponse;
+//! #     type Error = NoopError;
 //! #     async fn handle(
 //! #         &mut self,
 //! #         message: HelloMessage,
 //! #         app_data: Arc<AppData>,
-//! #     ) -> Result<Self::Returns, HandlerError> {
+//! #     ) -> Result<Self::Returns, Self::Error> {
 //! #         println!("Hello world");
 //! #         Ok(HelloResponse {})
 //! #     }
@@ -172,7 +175,7 @@
 //!
 //!     let payload = HelloMessage { name: "Client".to_string() };
 //!     let response: HelloResponse = client
-//!         .send(
+//!         .send::<HelloResponse, NoopError>(
 //!             "HelloWorldService".to_string(),
 //!             "any-string-id".to_string(),
 //!             &payload,
@@ -205,6 +208,7 @@ pub use service_object::*;
 
 /// Re-exports of [rio_macros]
 pub mod derive {
+    pub use rio_macros::make_registry;
     pub use rio_macros::ManagedState;
     pub use rio_macros::Message;
     pub use rio_macros::TypeName;
@@ -219,9 +223,9 @@ pub mod prelude {
     };
     pub use super::cluster::membership_protocol::ClusterProvider;
     pub use super::cluster::storage::MembersStorage;
-    pub use super::derive::{ManagedState, Message, TypeName, WithId};
+    pub use super::derive::{make_registry, ManagedState, Message, TypeName, WithId};
     pub use super::errors::{ClientBuilderError, HandlerError, ServiceObjectLifeCycleError};
-    pub use super::protocol::{ClientError, RequestError, ResponseError};
+    pub use super::protocol::{ClientError, NoopError, RequestError, ResponseError};
 
     pub use super::registry::{Handler, Registry};
 

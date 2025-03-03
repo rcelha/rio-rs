@@ -4,4 +4,4 @@ error: proc-macro derive panicked
 3 | #[derive(TypeName)]
   |          ^^^^^^^^
   |
-  = help: message: Expected "[type_name = "..."]"
+  = help: message: Expected "[type_name = "..."]": "Invalid literal type"

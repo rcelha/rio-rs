@@ -76,7 +76,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
             // Handle result, 'translating' it to the protocol
             match response {
                 Ok(Ok(body)) => Ok(ResponseEnvelope::new(body)),
-                Ok(Err(err)) => Err(ResponseError::HandlerError(err.to_string())),
+                Ok(Err(err)) => Err(ResponseError::from(err)),
                 Err(_) => {
                     // When there is a panic, we will 'remove' the service object
                     // from both the registry and the ObjectPlacementProvider
@@ -409,7 +409,7 @@ mod test {
     use super::*;
     use crate::cluster::storage::local::LocalStorage;
     use crate::object_placement::local::LocalObjectPlacementProvider;
-    use crate::prelude::HandlerError;
+
     use crate::registry::Handler;
 
     #[derive(Default, WithId, TypeName)]
@@ -433,11 +433,12 @@ mod test {
     #[async_trait]
     impl Handler<MockMessage> for MockService {
         type Returns = MockResponse;
+        type Error = ();
         async fn handle(
             &mut self,
             message: MockMessage,
             _: Arc<AppData>,
-        ) -> Result<Self::Returns, HandlerError> {
+        ) -> Result<Self::Returns, Self::Error> {
             let resp = MockResponse {
                 text: format!("{} received {}", self.id, message.text),
             };

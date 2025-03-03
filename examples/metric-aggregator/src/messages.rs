@@ -1,5 +1,6 @@
 use rio_rs::prelude::*;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(TypeName, Message, Debug, Deserialize, Serialize)]
 pub struct Metric {
@@ -29,4 +30,10 @@ pub struct MetricResponse {
     pub avg: i32,
     pub max: i32,
     pub min: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Error, Clone)]
+pub enum MetricError {
+    #[error("Error saving metrics")]
+    SaveError,
 }

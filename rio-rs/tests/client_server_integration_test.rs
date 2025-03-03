@@ -1,17 +1,18 @@
 use async_trait::async_trait;
 use futures::{pin_mut, StreamExt};
 use rio_macros::{Message, TypeName, WithId};
-
 use rio_rs::app_data::AppDataExt;
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::message_router::MessageRouter;
 use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 use rio_rs::prelude::*;
 use rio_rs::protocol::pubsub::SubscriptionResponse;
+use rio_rs::protocol::NoopError;
 use rio_rs::registry::IdentifiableType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
+use thiserror::Error;
 use tokio::time::sleep;
 
 mod server_utils;
@@ -37,14 +38,32 @@ struct MockResponse {
     text: String,
 }
 
+#[derive(Error, PartialEq, Debug, Serialize, Deserialize, Clone)]
+enum MockError {
+    #[error("A")]
+    VariantA,
+    #[error("B")]
+    VariantB,
+}
+
+#[derive(Error, PartialEq, Debug, Serialize, Deserialize)]
+enum MockWrongError {
+    #[error("C")]
+    VariantC(String),
+}
+
 #[async_trait]
 impl Handler<MockMessage> for MockService {
     type Returns = MockResponse;
+    type Error = MockError;
     async fn handle(
         &mut self,
         message: MockMessage,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
+        if &message.text == "ERROR" {
+            return Err(MockError::VariantA);
+        }
         let resp = MockResponse {
             text: format!("{} received {}", self.id, message.text),
         };
@@ -55,11 +74,12 @@ impl Handler<MockMessage> for MockService {
 #[async_trait]
 impl Handler<CausePublishMessage> for MockService {
     type Returns = ();
+    type Error = MockError;
     async fn handle(
         &mut self,
         message: CausePublishMessage,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let router = app_data.get_or_default::<MessageRouter>();
         let type_id = MockService::user_defined_type_id();
         let byte_message = bincode::serialize(&message).unwrap();
@@ -97,8 +117,40 @@ async fn request_response() {
             let message = MockMessage {
                 text: "hi".to_string(),
             };
-            let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
+            let resp: MockResponse = client
+                .send::<_, NoopError>("MockService", "1", &message)
+                .await
+                .unwrap();
             assert_eq!(&resp.text, "1 received hi");
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn request_response_error() {
+    let members_storage = LocalStorage::default();
+    let object_placement_provider = LocalObjectPlacementProvider::default();
+    run_integration_test(
+        5,
+        &build_registry,
+        members_storage.clone(),
+        object_placement_provider.clone(),
+        1,
+        || async move {
+            let mut client = ClientBuilder::new()
+                .members_storage(members_storage)
+                .build()
+                .unwrap();
+            let message = MockMessage {
+                text: "ERROR".to_string(),
+            };
+            let resp: Result<MockResponse, RequestError<MockError>> =
+                client.send("MockService", "1", &message).await;
+            assert!(matches!(
+                resp,
+                Err(RequestError::ApplicationError(MockError::VariantA))
+            ));
         },
     )
     .await;
@@ -123,7 +175,10 @@ async fn request_response_redirectt() {
             let message = MockMessage {
                 text: "hi".to_string(),
             };
-            let resp: MockResponse = client.send("MockService", "1", &message).await.unwrap();
+            let resp: MockResponse = client
+                .send::<_, MockError>("MockService", "1", &message)
+                .await
+                .unwrap();
             assert_eq!(&resp.text, "1 received hi");
         },
     )
@@ -151,7 +206,7 @@ async fn pubsub() {
 
                 for i in 0..10 {
                     let _: () = client
-                        .send(
+                        .send::<_, MockError>(
                             "MockService",
                             "1",
                             &CausePublishMessage {
@@ -211,7 +266,7 @@ async fn pubsub_redirect() {
 
                 for i in 0..100 {
                     let _: () = client
-                        .send(
+                        .send::<_, MockError>(
                             "MockService",
                             "1",
                             &CausePublishMessage {

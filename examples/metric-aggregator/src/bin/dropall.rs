@@ -1,4 +1,4 @@
-use metric_aggregator::messages;
+use metric_aggregator::messages::{self, MetricError};
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::prelude::*;
 use std::time::Duration;
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 1..20_000 {
         let _: () = client
-            .send(
+            .send::<_, MetricError>(
                 "MetricAggregator".to_string(),
                 format!("instace-{}", i),
                 &messages::Drop {},

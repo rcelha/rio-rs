@@ -386,21 +386,19 @@ mod test {
         pub request_tx: crossbeam_channel::Sender<GameServerRequest>,
         pub request_rx: crossbeam_channel::Receiver<GameServerRequest>,
         pub changes_tx: crossbeam_channel::Sender<GameServerStates>,
-        pub changes_rx: crossbeam_channel::Receiver<GameServerStates>,
     }
 
     impl AppTest {
         fn new() -> AppTest {
             let (response_tx, response_rx) = crossbeam_channel::bounded(1_000);
             let (request_tx, request_rx) = crossbeam_channel::bounded(1_000);
-            let (changes_tx, changes_rx) = crossbeam_channel::bounded(1_000);
+            let (changes_tx, _changes_rx) = crossbeam_channel::bounded(1_000);
             AppTest {
                 response_tx,
                 response_rx,
                 request_tx,
                 request_rx,
                 changes_tx,
-                changes_rx,
             }
         }
 

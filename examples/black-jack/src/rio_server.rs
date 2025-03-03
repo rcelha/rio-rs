@@ -4,9 +4,7 @@ use rio_rs::prelude::*;
 use rio_rs::state::sql::SqlState;
 use rio_rs::state::StateSaver;
 
-use crate::messages::{JoinGame, PlayerCommand};
-use crate::services::cassino::Cassino;
-use crate::services::table::GameTable;
+use crate::registry;
 
 pub async fn build_server(
     port: &str,
@@ -22,15 +20,7 @@ pub async fn build_server(
 > {
     let addr = format!("0.0.0.0:{port}");
 
-    // Configure types on the server's registry
-    let mut registry = Registry::new();
-    registry.add_type::<Cassino>();
-    registry.add_type::<GameTable>();
-    registry.add_handler::<Cassino, LifecycleMessage>();
-    registry.add_handler::<Cassino, JoinGame>();
-    registry.add_handler::<GameTable, LifecycleMessage>();
-    registry.add_handler::<GameTable, JoinGame>();
-    registry.add_handler::<GameTable, PlayerCommand>();
+    let registry = registry::server::registry();
 
     // Configure the Cluster Membership provider
     let pool = SqlMembersStorage::pool()

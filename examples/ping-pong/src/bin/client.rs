@@ -1,6 +1,7 @@
 use ping_pong::messages;
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::prelude::*;
+use rio_rs::protocol::NoopError;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -23,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     let resp: messages::Pong = client
-        .send(
+        .send::<_, NoopError>(
             "Room".to_string(),
             "1".to_string(),
             &messages::Ping {

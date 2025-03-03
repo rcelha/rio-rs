@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::app_data::AppData;
-use crate::errors::{HandlerError, ServiceObjectLifeCycleError};
+use crate::errors::ServiceObjectLifeCycleError;
 use crate::protocol::{ClientError, RequestEnvelope, RequestError};
 use crate::registry::{Handler, IdentifiableType, Message};
 use crate::server::{AdminCommands, AdminSender, InternalClientSender, SendCommand};
@@ -48,13 +48,14 @@ pub trait WithId {
 #[async_trait]
 pub trait ServiceObject: Default + WithId + IdentifiableType {
     /// Send a message to Rio cluster using a client tht is stored in AppData
-    async fn send<T, V>(
+    async fn send<T, V, E>(
         app_data: &AppData,
         handler_type_id: impl ToString + Send + Sync,
         handler_id: impl ToString + Send + Sync,
         payload: &V,
-    ) -> Result<T, RequestError>
+    ) -> Result<T, RequestError<E>>
     where
+        E: std::error::Error + DeserializeOwned + Clone + Send + Sync,
         T: DeserializeOwned + Send + Sync,
         V: Serialize + IdentifiableType + Send + Sync,
     {
@@ -140,23 +141,18 @@ where
     T: ServiceObject + ServiceObjectStateLoad + Send + Sync,
 {
     type Returns = ();
+    type Error = ServiceObjectLifeCycleError;
+
     async fn handle(
         &mut self,
         message: LifecycleMessage,
         context: Arc<AppData>,
-    ) -> Result<Self::Returns, crate::errors::HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         match message {
             LifecycleMessage::Load => {
-                self.before_load(context.clone())
-                    .await
-                    .map_err(HandlerError::LyfecycleError)?;
-                self.load(context.clone().as_ref())
-                    .await
-                    .map_err(HandlerError::LyfecycleError)?;
-                self.after_load(context.clone())
-                    .await
-                    .map_err(HandlerError::LyfecycleError)?;
-
+                self.before_load(context.clone()).await?;
+                self.load(context.clone().as_ref()).await?;
+                self.after_load(context.clone()).await?;
                 Ok(())
             }
         }
@@ -165,6 +161,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::protocol::NoopError;
+
     use super::*;
 
     #[tokio::test]
@@ -200,7 +198,7 @@ mod test {
             #[allow(unused)]
             async fn test(&self, app_data: &AppData, handler_type_id: String, handler_id: String) {
                 let payload = DummyMessage::default();
-                let _: Result<DummyMessage, _> =
+                let _r: Result<DummyMessage, RequestError<NoopError>> =
                     Self::send(app_data, handler_type_id, handler_id, &payload).await;
             }
         }

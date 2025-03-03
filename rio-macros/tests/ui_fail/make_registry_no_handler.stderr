@@ -1,0 +1,19 @@
+error[E0277]: the trait bound `TestService: Handler<Ping>` is not satisfied
+  --> tests/ui_fail/make_registry_no_handler.rs:24:1
+   |
+24 | / make_registry! {
+25 | |     TestService: [
+26 | |         Ping => (Pong, NoopError),
+27 | |     ]
+28 | | }
+   | |_^ the trait `Handler<Ping>` is not implemented for `TestService`
+   |
+note: required by a bound in `Registry::add_handler`
+  --> $WORKSPACE/rio-rs/src/registry.rs
+   |
+   |     pub fn add_handler<T, M>(&mut self)
+   |            ----------- required by a bound in this associated function
+   |     where
+   |         T: 'static + Handler<M> + IdentifiableType + Send + Sync,
+   |                      ^^^^^^^^^^ required by this bound in `Registry::add_handler`
+   = note: this error originates in the macro `make_registry` (in Nightly builds, run with -Z macro-backtrace for more info)

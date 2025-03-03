@@ -3,6 +3,7 @@ use std::time::Duration;
 use presence::messages::Ping;
 use rio_rs::cluster::storage::sql::SqlMembersStorage;
 use rio_rs::prelude::*;
+use rio_rs::protocol::NoopError;
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -25,7 +26,7 @@ async fn main() {
         .unwrap();
 
     let _resp: () = client
-        .send(
+        .send::<_, NoopError>(
             "PresenceService",
             "player-1",
             &Ping {

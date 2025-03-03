@@ -10,6 +10,7 @@ use rio_rs::prelude::*;
 
 mod server_utils;
 use server_utils::{is_allocated, run_integration_test};
+use thiserror::Error;
 
 #[derive(Default, WithId, TypeName)]
 struct MockService {
@@ -28,14 +29,22 @@ struct PanicMessage {}
 #[derive(Default, Debug, Message, TypeName, Serialize, Deserialize)]
 struct MockResponse {}
 
+#[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
+enum MockError {
+    #[error("Mock")]
+    Mock,
+}
+
 #[async_trait]
 impl Handler<OkMessage> for MockService {
     type Returns = MockResponse;
+    type Error = MockError;
+
     async fn handle(
         &mut self,
         _: OkMessage,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let resp = MockResponse {};
         Ok(resp)
     }
@@ -44,23 +53,26 @@ impl Handler<OkMessage> for MockService {
 #[async_trait]
 impl Handler<ErrorMessage> for MockService {
     type Returns = MockResponse;
+    type Error = MockError;
     async fn handle(
         &mut self,
         _: ErrorMessage,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
-        Err(HandlerError::Unknown)
+    ) -> Result<Self::Returns, Self::Error> {
+        Err(MockError::Mock)
     }
 }
 
 #[async_trait]
 impl Handler<PanicMessage> for MockService {
     type Returns = MockResponse;
+    type Error = MockError;
+
     async fn handle(
         &mut self,
         _: PanicMessage,
         _: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         panic!("Error handling message");
     }
 }
@@ -92,7 +104,8 @@ async fn service_is_allocated_ok() {
                 .build()
                 .unwrap();
             let message = OkMessage {};
-            let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
+            let resp: Result<MockResponse, RequestError<MockError>> =
+                client.send("MockService", "1", &message).await;
             assert!(resp.is_ok());
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
         },
@@ -120,7 +133,8 @@ async fn service_is_allocated_after_error() {
             assert!(!is_allocated(&object_placement_provider, "MockService", "1").await);
 
             let message = ErrorMessage {};
-            let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
+            let resp: Result<MockResponse, RequestError<MockError>> =
+                client.send("MockService", "1", &message).await;
             assert!(resp.is_err());
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
         },
@@ -147,7 +161,8 @@ async fn service_is_not_allocated_after_panic() {
             assert!(!is_allocated(&object_placement_provider, "MockService", "1").await);
 
             let message = PanicMessage {};
-            let resp: Result<MockResponse, _> = client.send("MockService", "1", &message).await;
+            let resp: Result<MockResponse, RequestError<MockError>> =
+                client.send("MockService", "1", &message).await;
             assert!(resp.is_err());
             assert!(!is_allocated(&object_placement_provider, "MockService", "1").await);
         },

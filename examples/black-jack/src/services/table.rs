@@ -6,8 +6,12 @@ use std::{
 
 use async_trait::async_trait;
 use rio_rs::{
-    app_data::AppDataExt, message_router::MessageRouter, prelude::*,
-    protocol::pubsub::SubscriptionResponse, registry::IdentifiableType, state::sql::SqlState,
+    app_data::AppDataExt,
+    message_router::MessageRouter,
+    prelude::*,
+    protocol::{pubsub::SubscriptionResponse, NoopError},
+    registry::IdentifiableType,
+    state::sql::SqlState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -128,12 +132,13 @@ impl ServiceObject for GameTable {
 #[async_trait]
 impl Handler<messages::JoinGame> for GameTable {
     type Returns = messages::JoinGameResponse;
+    type Error = NoopError;
 
     async fn handle(
         &mut self,
         message: messages::JoinGame,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let mut is_new_player = false;
         if self.state.players.len() < MAX_PLAYERS && !self.state.players.contains(&message.user_id)
         {
@@ -161,12 +166,13 @@ impl Handler<messages::JoinGame> for GameTable {
 #[async_trait]
 impl Handler<messages::PlayerCommand> for GameTable {
     type Returns = messages::PlayerCommandResponse;
+    type Error = NoopError;
 
     async fn handle(
         &mut self,
         message: messages::PlayerCommand,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         let resp = match message.0 {
             GameServerRequest::Player(player_id, player_command) => {
                 if !self.state.players.contains(&player_id) {
