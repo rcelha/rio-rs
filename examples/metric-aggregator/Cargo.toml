@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1.51"
+async-trait = { package = "async-trait-sync", version = "0.1.36" }
 rio-rs = { path = "../../rio-rs" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = { git = "https://github.com/rcelha/async-trait", branch = "feature_add_sync_option_for_future" }
+async-trait = { package = "async-trait-sync", version = "0.1.36" }
 bevy = { version = "0.8.1", features = [
   "animation",
   "bevy_asset",
