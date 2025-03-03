@@ -18,8 +18,8 @@ pub(crate) mod pgsql {
         sqlx::query(&sql).execute(&mut *conn).await.unwrap();
 
         let new_conn_str = format!("postgres://test:test@localhost:15432/{name}");
-        let pool = PgPoolOptions::new().connect(&&new_conn_str).await.unwrap();
-        pool
+
+        PgPoolOptions::new().connect(&new_conn_str).await.unwrap()
     }
 }
 
@@ -29,10 +29,9 @@ pub(crate) mod sqlite {
     use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
     pub(crate) async fn pool() -> SqlitePool {
-        let pool = SqlitePoolOptions::new()
+        SqlitePoolOptions::new()
             .connect("sqlite://:memory:")
             .await
-            .unwrap();
-        pool
+            .unwrap()
     }
 }

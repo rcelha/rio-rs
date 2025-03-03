@@ -45,7 +45,7 @@ async fn main() {
 
     let pool = SqliteMembersStorage::pool()
         .max_connections(num_cpus)
-        .connect(&members_storage_connection)
+        .connect(members_storage_connection)
         .await
         .expect("Connection failure");
     let members_storage = SqliteMembersStorage::new(pool);
@@ -58,7 +58,7 @@ async fn main() {
 
     let pool = SqliteObjectPlacementProvider::pool()
         .max_connections(num_cpus)
-        .connect(&placement_connection)
+        .connect(placement_connection)
         .await
         .expect("Connection failure");
 

@@ -37,6 +37,6 @@ pub(crate) fn get_value_from_meta_name_value(meta: &Meta) -> Result<Ident2, &'st
             // ...then convert it to Ident
             Ok(format_ident!("{}", attr_value))
         }
-        _ => return Err("Invalid literal type"),
+        _ => Err("Invalid literal type"),
     }
 }

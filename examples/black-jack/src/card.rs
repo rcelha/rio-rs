@@ -19,7 +19,7 @@ pub enum Card {
 
 impl Card {
     pub fn value(&self) -> u8 {
-        CARD_VALUE.get(self).unwrap_or(&1).clone()
+        *CARD_VALUE.get(self).unwrap_or(&1)
     }
 }
 

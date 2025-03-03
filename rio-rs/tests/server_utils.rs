@@ -72,7 +72,7 @@ pub async fn run_integration_test<Fut>(
 
     let test_fn_with_members = || async move {
         // Wait for cluster membership storage has some active servers
-        while members_storage.active_members().await.unwrap().len() == 0 {
+        while members_storage.active_members().await.unwrap().is_empty() {
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
         test_fn().await;

@@ -40,7 +40,7 @@ impl Handler<messages::JoinGame> for Cassino {
         message: messages::JoinGame,
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, Self::Error> {
-        if self.state.table_ids.len() == 0 {
+        if self.state.table_ids.is_empty() {
             let new_uuid = uuid::Uuid::new_v4().to_string();
             self.state.table_ids.push(new_uuid);
             self.save(&app_data).await;

@@ -35,7 +35,7 @@ impl MetricAggregator {
                         value,
                     };
                     Self::send::<_, _, messages::MetricError>(
-                        &app_data,
+                        app_data,
                         &"MetricAggregator",
                         &i,
                         &sub_message,

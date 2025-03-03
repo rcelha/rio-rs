@@ -13,7 +13,7 @@ pub struct Table {
 impl Default for Table {
     fn default() -> Self {
         Self {
-            rng: OsRng::default(),
+            rng: OsRng,
             deck: vec![],
             dealer: Default::default(),
             players: Default::default(),
@@ -37,7 +37,7 @@ impl Table {
     }
 
     pub fn deal(&mut self, player: &str) {
-        if self.deck.len() == 0 {
+        if self.deck.is_empty() {
             return;
         }
 

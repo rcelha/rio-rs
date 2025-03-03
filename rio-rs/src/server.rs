@@ -387,7 +387,7 @@ where
                 let resp = inner_service
                     .call(message.request)
                     .await
-                    .unwrap_or_else(|err| ResponseEnvelope::err(err));
+                    .unwrap_or_else(ResponseEnvelope::err);
                 message
                     .response_channel
                     .send(resp.body)

@@ -238,10 +238,9 @@ mod test {
                 &mut self,
                 state_loader: &local::LocalState,
             ) -> Result<(), LoadStateError> {
-                let _ = self
-                    .load_state::<Option<PersonState>, _>(state_loader)
+                self.load_state::<Option<PersonState>, _>(state_loader)
                     .await?;
-                let _ = self.load_state::<LegalPersonState, _>(state_loader).await?;
+                self.load_state::<LegalPersonState, _>(state_loader).await?;
                 Ok(())
             }
 

@@ -54,12 +54,10 @@ impl Handler<MockMessage> for MockService {
         let resp = if let Some(to) = &message.send_to {
             let mut msg = message.clone();
             msg.send_to = None;
-            let resp = Self::send(&app_data, "MockService", to, &msg)
+
+            Self::send(&app_data, "MockService", to, &msg)
                 .await
-                .map_err(|err: RequestError<MockError>| {
-                    MockError::UpstreamError(err.to_string())
-                })?;
-            resp
+                .map_err(|err: RequestError<MockError>| MockError::UpstreamError(err.to_string()))?
         } else {
             MockResponse {
                 text: format!("{} received {}", self.id, message.text),
