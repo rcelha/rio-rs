@@ -201,6 +201,7 @@ pub mod registry;
 pub mod server;
 pub mod service;
 pub mod service_object;
+#[cfg(feature = "sql")]
 pub mod sql_migration;
 pub mod state;
 

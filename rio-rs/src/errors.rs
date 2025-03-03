@@ -85,6 +85,7 @@ pub enum MembershipError {
     Unknown(String),
 }
 
+#[cfg(feature = "sql")]
 impl From<sqlx::Error> for MembershipError {
     fn from(err: sqlx::Error) -> Self {
         MembershipError::Upstream(err.to_string())

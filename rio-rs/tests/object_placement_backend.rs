@@ -1,3 +1,4 @@
+#[cfg(feature = "sql")]
 mod db_utils;
 
 use rio_rs::{
@@ -27,6 +28,7 @@ async fn save_and_load<S: ObjectPlacementProvider>(provider: S) {
     assert!(server_addr.is_none());
 }
 
+#[cfg(feature = "redis")]
 mod redis {
     use rio_rs::object_placement::redis::RedisObjectPlacementProvider;
 
@@ -53,6 +55,7 @@ mod redis {
     }
 }
 
+#[cfg(feature = "sql")]
 mod sqlite {
     use super::db_utils::sqlite::pool;
     use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
@@ -72,6 +75,7 @@ mod sqlite {
     }
 }
 
+#[cfg(feature = "sql")]
 mod pgsql {
     use super::db_utils::pgsql::pool;
     use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
@@ -91,6 +95,7 @@ mod pgsql {
     }
 }
 
+#[cfg(feature = "local")]
 mod local {
     use rio_rs::object_placement::local::LocalObjectPlacementProvider;
 
