@@ -7,7 +7,9 @@ repository = "https://github.com/rcelha/rio-rs"
 description = "Distributed stateful service framework"
 
 [features]
-default = ["redis", "sql", "local"]
+default = ["redis", "sqlite", "postgres", "local"]
+sqlite = ["dep:sqlx", "sql"]
+postgres = ["dep:sqlx", "sql"]
 sql = ["dep:sqlx"]
 redis = ["dep:redis", "dep:bb8-redis"]
 local = []

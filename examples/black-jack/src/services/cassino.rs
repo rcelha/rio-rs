@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rio_rs::{prelude::*, protocol::NoopError, state::sql::SqlState};
+use rio_rs::{prelude::*, protocol::NoopError, state::sqlite::SqliteState};
 use serde::{Deserialize, Serialize};
 
 use crate::messages;
@@ -14,13 +14,13 @@ pub struct CassinoState {
 #[derive(Default, Debug, TypeName, WithId, ManagedState)]
 pub struct Cassino {
     pub id: String,
-    #[managed_state(provider = SqlState)]
+    #[managed_state(provider = SqliteState)]
     pub state: CassinoState,
 }
 
 impl Cassino {
     async fn save(&self, app_data: &AppData) {
-        let state_saver = app_data.get::<SqlState>();
+        let state_saver = app_data.get::<SqliteState>();
         self.save_state::<CassinoState, _>(state_saver)
             .await
             .expect("Cant save state for Cassino");

@@ -59,42 +59,44 @@ mod redis {
     }
 }
 
-#[cfg(feature = "sql")]
+#[cfg(feature = "sqlite")]
 mod sqlite {
+    use rio_rs::state::sqlite::SqliteState;
+
     use super::db_utils::sqlite::pool;
-    use rio_rs::state::sql::SqlState;
 
     #[tokio::test]
     async fn state_save_sanity_check() {
         let pool = pool().await;
-        let storage = SqlState::new(pool);
+        let storage = SqliteState::new(pool);
         super::state_save_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn state_load_not_found() {
         let pool = pool().await;
-        let storage = SqlState::new(pool);
+        let storage = SqliteState::new(pool);
         super::state_load_not_found(storage).await;
     }
 }
 
-#[cfg(feature = "sql")]
+#[cfg(feature = "postgres")]
 mod pgsql {
+    use rio_rs::state::postgres::PostgresState;
+
     use super::db_utils::pgsql::pool;
-    use rio_rs::state::sql::SqlState;
 
     #[tokio::test]
     async fn state_save_sanity_check() {
         let pool = pool("state_save_sanity_check").await;
-        let storage = SqlState::new(pool);
+        let storage = PostgresState::new(pool);
         super::state_save_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn state_load_not_found() {
         let pool = pool("state_load_not_found").await;
-        let storage = SqlState::new(pool);
+        let storage = PostgresState::new(pool);
         super::state_load_not_found(storage).await;
     }
 }

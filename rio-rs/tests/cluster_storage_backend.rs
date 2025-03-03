@@ -1,6 +1,6 @@
 use rio_rs::{cluster::storage::Member, prelude::MembersStorage};
 
-#[cfg(feature = "sql")]
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
 mod db_utils;
 
 async fn members_sanity_check<T: MembersStorage>(storage: T) {
@@ -62,22 +62,22 @@ mod redis {
 #[cfg(feature = "sql")]
 mod sqlite {
     use super::db_utils::sqlite::pool;
-    use rio_rs::cluster::storage::sql::SqlMembersStorage;
+    use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 
     #[tokio::test]
     async fn members_sanity_check() {
         let pool = pool().await;
-        let storage = SqlMembersStorage::new(pool);
+        let storage = SqliteMembersStorage::new(pool);
         super::members_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn failures_sanity_check() {
-        let pool = SqlMembersStorage::pool()
+        let pool = SqliteMembersStorage::pool()
             .connect("sqlite://:memory:")
             .await
             .unwrap();
-        let storage = SqlMembersStorage::new(pool);
+        let storage = SqliteMembersStorage::new(pool);
         super::failures_sanity_check(storage).await;
     }
 }
@@ -85,19 +85,19 @@ mod sqlite {
 #[cfg(feature = "sql")]
 mod pgsql {
     use super::db_utils::pgsql::pool;
-    use rio_rs::cluster::storage::sql::SqlMembersStorage;
+    use rio_rs::cluster::storage::postgres::PostgresMembersStorage;
 
     #[tokio::test]
     async fn members_sanity_check() {
         let pool = pool("members_sanity_check").await;
-        let storage = SqlMembersStorage::new(pool);
+        let storage = PostgresMembersStorage::new(pool);
         super::members_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn failures_sanity_check() {
         let pool = pool("failure_sanity_check").await;
-        let storage = SqlMembersStorage::new(pool);
+        let storage = PostgresMembersStorage::new(pool);
         super::failures_sanity_check(storage).await;
     }
 }

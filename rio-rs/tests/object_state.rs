@@ -68,11 +68,11 @@ mod local {
     }
 }
 
-#[cfg(feature = "sql")]
+#[cfg(feature = "sqlite")]
 mod sqlite {
     use super::*;
     use rio_rs::{
-        state::{sql::SqlState, ObjectStateManager, StateSaver},
+        state::{sqlite::SqliteState, ObjectStateManager, StateSaver},
         ServiceObject,
     };
 
@@ -80,7 +80,7 @@ mod sqlite {
     struct TestService2 {
         id: String,
 
-        #[managed_state(provider = SqlState)]
+        #[managed_state(provider = SqliteState)]
         state: TestState1,
     }
 
@@ -88,8 +88,11 @@ mod sqlite {
 
     #[tokio::test]
     async fn persist_state_for_object() {
-        let pool = SqlState::pool().connect("sqlite://:memory:").await.unwrap();
-        let state_manager = SqlState::new(pool);
+        let pool = SqliteState::pool()
+            .connect("sqlite://:memory:")
+            .await
+            .unwrap();
+        let state_manager = SqliteState::new(pool);
         StateSaver::prepare(&state_manager).await;
         persist_state_for_object_test(state_manager).await;
     }
@@ -123,8 +126,11 @@ mod sqlite {
             assert_eq!(svc_object.state.data, "data1".to_string());
 
             // And now save it using redis and ...
-            let pool = SqlState::pool().connect("sqlite://:memory:").await.unwrap();
-            let state_manager = SqlState::new(pool);
+            let pool = SqliteState::pool()
+                .connect("sqlite://:memory:")
+                .await
+                .unwrap();
+            let state_manager = SqliteState::new(pool);
             StateSaver::prepare(&state_manager).await;
 
             svc_object

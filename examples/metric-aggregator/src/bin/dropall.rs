@@ -1,16 +1,16 @@
 use metric_aggregator::messages::{self, MetricError};
-use rio_rs::cluster::storage::sql::SqlMembersStorage;
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 use rio_rs::prelude::*;
 use std::time::Duration;
 use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .max_connections(50)
         .connect("sqlite:///tmp/membership.sqlite3?mode=rwc")
         .await?;
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
 
     sleep(Duration::from_secs(1)).await;
 

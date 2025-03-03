@@ -11,7 +11,7 @@ use rio_rs::{
     prelude::*,
     protocol::{pubsub::SubscriptionResponse, NoopError},
     registry::IdentifiableType,
-    state::sql::SqlState,
+    state::sqlite::SqliteState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +32,7 @@ pub struct TableState {
 #[derive(Default, Debug, TypeName, WithId, ManagedState)]
 pub struct GameTable {
     pub id: String,
-    #[managed_state(provider = SqlState)]
+    #[managed_state(provider = SqliteState)]
     pub state: TableState,
 
     // Game Server stuff
@@ -44,7 +44,7 @@ pub struct GameTable {
 
 impl GameTable {
     async fn save(&mut self, app_data: &AppData) {
-        let state_saver = app_data.get::<SqlState>();
+        let state_saver = app_data.get::<SqliteState>();
         self.save_state::<TableState, _>(state_saver)
             .await
             .expect("Cant save state");

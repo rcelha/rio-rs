@@ -15,8 +15,14 @@ pub mod local;
 #[cfg(feature = "redis")]
 pub mod redis;
 
-#[cfg(feature = "sql")]
-pub mod sql;
+// #[cfg(feature = "sql")]
+// pub mod sql;
+
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
+
+#[cfg(feature = "postgres")]
+pub mod postgres;
 
 /// The `StateLoader` defines an interface to load serialized state from a source
 ///
