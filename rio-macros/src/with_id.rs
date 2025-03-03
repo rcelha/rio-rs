@@ -59,11 +59,9 @@ impl From<TokenStream2> for WithIdInput {
             field
                 .ident
                 .as_ref()
-                .is_some_and(|field_ident| field_ident.to_string() == "id".to_string())
+                .is_some_and(|field_ident| *field_ident == *"id")
                 && match &field.ty {
-                    syn::Type::Path(path) => {
-                        path.path.segments.last().unwrap().ident.to_string() == "String"
-                    }
+                    syn::Type::Path(path) => path.path.segments.last().unwrap().ident == "String",
                     _ => false,
                 }
         });

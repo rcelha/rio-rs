@@ -85,8 +85,8 @@ fn finish_join_stage(
     }
     for i in player_list.iter() {
         table.players.insert(i.clone(), Hand::new());
-        table.deal(&i);
-        table.deal(&i);
+        table.deal(i);
+        table.deal(i);
     }
     table.deal_to_dealer();
     table.deal_to_dealer();
@@ -356,7 +356,7 @@ pub fn build_app(
     changes_tx: crossbeam_channel::Sender<GameServerStates>,
     config: Option<GameServerConfig>,
 ) -> App {
-    let config = config.unwrap_or_else(Default::default);
+    let config = config.unwrap_or_default();
     let mut app = App::new();
     app.insert_resource(rx);
     app.insert_resource(tx);

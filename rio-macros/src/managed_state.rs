@@ -142,7 +142,7 @@ impl From<TokenStream2> for StateDefinition {
                 }) => {
                     let segment = segments
                         .first()
-                        .expect(&format!("No path value for field {:#?}", field));
+                        .unwrap_or_else(|| panic!("No path value for field {:#?}", field));
                     attributes.push((attr_ident, segment.clone(), attr_state_provider_type));
                 }
                 ty => panic!("Value not supported: {:?}", ty),

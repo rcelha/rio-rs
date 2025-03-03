@@ -33,7 +33,7 @@ mod test {
     #[test]
     fn test_tie() {
         let table = table();
-        let result = Table::settle(&table.dealer, &table.players.get("Player 1").unwrap());
+        let result = Table::settle(&table.dealer, table.players.get("Player 1").unwrap());
         assert_eq!(result, 0);
     }
 
@@ -41,7 +41,7 @@ mod test {
     fn test_dealer_wins() {
         let mut table = table();
         table.deal_to_dealer();
-        let result = Table::settle(&table.dealer, &table.players.get("Player 1").unwrap());
+        let result = Table::settle(&table.dealer, table.players.get("Player 1").unwrap());
         assert_eq!(result, -1);
     }
 
@@ -49,7 +49,7 @@ mod test {
     fn test_player_1_wins() {
         let mut table = table();
         table.deal("Player 1");
-        let result = Table::settle(&table.dealer, &table.players.get("Player 1").unwrap());
+        let result = Table::settle(&table.dealer, table.players.get("Player 1").unwrap());
         assert_eq!(result, 1);
     }
 }

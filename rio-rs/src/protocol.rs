@@ -204,10 +204,8 @@ impl<E: std::error::Error + DeserializeOwned> From<ResponseError> for RequestErr
                 match des_result {
                     Ok(err) => Self::ApplicationError(err),
                     Err(bincode_err) => {
-                        let error_message = format!(
-                            "Application error deserialization issue: {}",
-                            bincode_err.to_string()
-                        );
+                        let error_message =
+                            format!("Application error deserialization issue: {}", bincode_err);
                         let des_error = ResponseError::DeseralizationError(error_message);
                         Self::ResponseError(des_error)
                     }

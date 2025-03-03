@@ -35,7 +35,7 @@ impl MembersStorage for LocalStorage {
         for i in guard.iter_mut() {
             if i.ip() == ip && i.port() == port {
                 i.set_active(is_active);
-                i.last_seen = last_seen.clone();
+                i.last_seen = last_seen;
             }
         }
         Ok(())
