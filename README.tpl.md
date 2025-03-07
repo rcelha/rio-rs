@@ -8,6 +8,57 @@
 
 There are a few things that must be done before v0.1.0:
 
+### Next
+
+- [ ] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
+- [ ] Improve error message for ManagedState when the storage is not in the context
+- [ ] Improve error message for when the services are not added to the registry (server)
+- [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
+- [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
+- [ ] Create server from config
+- [ ] Bypass clustering for self messages
+- [~] Bypass networking for local messages
+- [ ] Move all the client to user tower
+- [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
+- [ ] Include registry configuration in Server builder
+- [ ] Create a getting started tutorial
+  - [ ] Cargo init
+  - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
+  - [ ] Write a server
+  - [ ] Write a client
+  - [ ] Add service and messages
+  - [ ] Cargo run --bin server
+  - [ ] Cargo run --bin client
+  - [ ] Life cycle
+  - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
+  - [ ] Cargo test?
+- [ ] MySQL support for sql backends
+- [ ] Add pgsql jsonb support
+- [ ] Client/server keep alive
+- [ ] Placement strategies (nodes work with different sets of trait objects)
+- [ ] Supervision
+- [ ] Ephemeral objects (aka regular - local - actors)
+- [ ] Remove magic numbers
+- [ ] Object TTL
+- [ ] Code of conduct
+- [ ] Metrics and Tracing
+- [ ] Deny allocations based on system resources
+- [ ] Dockerized examples
+- [?] Reduce static lifetimes
+
+
+
+### Version 0.2.0
+
+- [x] Support 'typed' message/response on client (TODO define what this means)
+- [x] Ability to hook up own custom errors on message handlers
+- [x] Allow `ServiceObject` trait without state persistence
+- [x] Add more extensive tests to client/server integration
+- [x] Increase public API test coverage
+- [x] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
+- [x] Matrix test with different backends
+- [x] Replace prints with logging
+
 ### Version 0.1.0
 
 - [x] Naive server/client protocol
@@ -28,7 +79,6 @@ There are a few things that must be done before v0.1.0:
 - [x] Re-organize workspace
 - [x] Support ephemeral port
 - [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
-- [ ] Support 'typed' message/response on client (TODO define what this means)
 - [x] `ServiceObject::send` shouldn't need a type for the member storage
 - [x] Handle panics on messages handling
 - [x] Error and panic handling on life cycle hooks (probably kill the object)
@@ -39,48 +89,4 @@ There are a few things that must be done before v0.1.0:
 - [x] Redis support for state backend (loader and saver)
 - [x] Redis support for object placement
 
-### Version 0.2.0
 
-- [ ] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
-- [ ] Improve error message for ManagedState when the storage is not in the context
-- [ ] Improve error message for when the services are not added to the registry (server)
-- [ ] Ability to hook up own custom errors on message handlers
-- [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
-- [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
-- [~] Allow `ServiceObject` trait without state persistence
-- [ ] Create server from config
-- [ ] Bypass clustering for self messages
-- [~] Bypass networking for local messages
-- [ ] Move all the client to user tower
-- [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
-- [ ] Include registry configuration in Server builder
-- [ ] Create a getting started tutorial
-  - [ ] Cargo init
-  - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
-  - [ ] Write a server
-  - [ ] Write a client
-  - [ ] Add service and messages
-  - [ ] Cargo run --bin server
-  - [ ] Cargo run --bin client
-  - [ ] Life cycle
-  - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
-  - [ ] Cargo test?
-- [ ] MySQL support for sql backends
-- [ ] Add more extensive tests to client/server integration
-- [ ] Increase public API test coverage
-- [ ] Client/server keep alive
-- [ ] Reduce static lifetimes
-- [ ] 100% documentation of public API
-- [ ] Placement strategies (nodes work with different sets of trait objects)
-- [~] Dockerized examples
-- [ ] Add pgsql jsonb support
-- [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
-- [ ] Supervision
-- [ ] Ephemeral objects (aka regular - local - actors)
-- [ ] Remove magic numbers
-- [ ] Object TTL
-- [ ] Matrix test with different backends
-- [x] Replace prints with logging
-- [ ] Code of conduct
-- [ ] Metrics and Tracing
-- [ ] Deny allocations based on system resources

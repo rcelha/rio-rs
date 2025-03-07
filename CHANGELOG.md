@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.2.1] - 2025-03-07
 
 ### 🚜 Refactor
 
@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### ⚙️ Miscellaneous Tasks
 
+- Release
 - Release
 
 ## [0.2.0] - 2025-03-04

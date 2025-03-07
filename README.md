@@ -31,11 +31,12 @@ pub struct HelloWorldService {
 #[async_trait]
 impl Handler<HelloMessage> for HelloWorldService {
     type Returns = HelloResponse;
+    type Error = NoopError;
     async fn handle(
         &mut self,
         message: HelloMessage,
         app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, HandlerError> {
+    ) -> Result<Self::Returns, Self::Error> {
         println!("Hello world");
         Ok(HelloResponse {})
     }
@@ -51,13 +52,13 @@ TODO: Include example of other databases
 
 ```rust
 use rio_rs::prelude::*;
-use rio_rs::cluster::storage::sql::{SqlMembersStorage};
-use rio_rs::object_placement::sql::SqlObjectPlacementProvider;
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
 
 
 #[tokio::main]
 async fn main() {
-    let addr = "0.0.0.0:5000";
+    let addr = "0.0.0.0:0";
 
     // Configure types on the server's registry
     let mut registry = Registry::new();
@@ -65,22 +66,22 @@ async fn main() {
     registry.add_handler::<HelloWorldService, HelloMessage>();
 
     // Configure the Cluster Membership provider
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .connect("sqlite::memory:")
         .await
         .expect("Membership database connection failure");
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
 
     let membership_provider_config = PeerToPeerClusterConfig::default();
     let membership_provider =
         PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
 
     // Configure the object placement
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .connect("sqlite::memory:")
         .await
         .expect("Object placement database connection failure");
-    let object_placement_provider = SqlObjectPlacementProvider::new(pool);
+    let object_placement_provider = SqliteObjectPlacementProvider::new(pool);
 
     // Create the server object
     let mut server = Server::new(
@@ -103,16 +104,16 @@ The [`client`] module provides an easy way of achieving this:
 
 ```rust
 use rio_rs::prelude::*;
-use rio_rs::cluster::storage::sql::{SqlMembersStorage};
+use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Member storage configuration (Rendezvous)
-    let pool = SqlMembersStorage::pool()
+    let pool = SqliteMembersStorage::pool()
         .connect("sqlite::memory:")
         .await?;
-    let members_storage = SqlMembersStorage::new(pool);
+    let members_storage = SqliteMembersStorage::new(pool);
     # members_storage.prepare().await;
 
     // Create the client
@@ -122,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let payload = HelloMessage { name: "Client".to_string() };
     let response: HelloResponse = client
-        .send(
+        .send::<HelloResponse, NoopError>(
             "HelloWorldService".to_string(),
             "any-string-id".to_string(),
             &payload,
@@ -138,6 +139,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Roadmap
 
 There are a few things that must be done before v0.1.0:
+
+### Next
+
+- [ ] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
+- [ ] Improve error message for ManagedState when the storage is not in the context
+- [ ] Improve error message for when the services are not added to the registry (server)
+- [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
+- [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
+- [ ] Create server from config
+- [ ] Bypass clustering for self messages
+- [~] Bypass networking for local messages
+- [ ] Move all the client to user tower
+- [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
+- [ ] Include registry configuration in Server builder
+- [ ] Create a getting started tutorial
+  - [ ] Cargo init
+  - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
+  - [ ] Write a server
+  - [ ] Write a client
+  - [ ] Add service and messages
+  - [ ] Cargo run --bin server
+  - [ ] Cargo run --bin client
+  - [ ] Life cycle
+  - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
+  - [ ] Cargo test?
+- [ ] MySQL support for sql backends
+- [ ] Add pgsql jsonb support
+- [ ] Client/server keep alive
+- [ ] Placement strategies (nodes work with different sets of trait objects)
+- [ ] Supervision
+- [ ] Ephemeral objects (aka regular - local - actors)
+- [ ] Remove magic numbers
+- [ ] Object TTL
+- [ ] Code of conduct
+- [ ] Metrics and Tracing
+- [ ] Deny allocations based on system resources
+- [ ] Dockerized examples
+- [?] Reduce static lifetimes
+
+
+
+### Version 0.2.0
+
+- [x] Support 'typed' message/response on client (TODO define what this means)
+- [x] Ability to hook up own custom errors on message handlers
+- [x] Allow `ServiceObject` trait without state persistence
+- [x] Add more extensive tests to client/server integration
+- [x] Increase public API test coverage
+- [x] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
+- [x] Matrix test with different backends
+- [x] Replace prints with logging
 
 ### Version 0.1.0
 
@@ -159,7 +211,6 @@ There are a few things that must be done before v0.1.0:
 - [x] Re-organize workspace
 - [x] Support ephemeral port
 - [x] Remove the need for an `Option<T>` value for `managed_state` attributes (as long as it has a 'Default')
-- [ ] Support 'typed' message/response on client (TODO define what this means)
 - [x] `ServiceObject::send` shouldn't need a type for the member storage
 - [x] Handle panics on messages handling
 - [x] Error and panic handling on life cycle hooks (probably kill the object)
@@ -169,49 +220,3 @@ There are a few things that must be done before v0.1.0:
 - [x] Redis support for members storage
 - [x] Redis support for state backend (loader and saver)
 - [x] Redis support for object placement
-
-### Version 0.2.0
-
-- [ ] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
-- [ ] Improve error message for ManagedState when the storage is not in the context
-- [ ] Improve error message for when the services are not added to the registry (server)
-- [ ] Ability to hook up own custom errors on message handlers
-- [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
-- [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
-- [~] Allow `ServiceObject` trait without state persistence
-- [ ] Create server from config
-- [ ] Bypass clustering for self messages
-- [~] Bypass networking for local messages
-- [ ] Move all the client to user tower
-- [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
-- [ ] Include registry configuration in Server builder
-- [ ] Create a getting started tutorial
-  - [ ] Cargo init
-  - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
-  - [ ] Write a server
-  - [ ] Write a client
-  - [ ] Add service and messages
-  - [ ] Cargo run --bin server
-  - [ ] Cargo run --bin client
-  - [ ] Life cycle
-  - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
-  - [ ] Cargo test?
-- [ ] MySQL support for sql backends
-- [ ] Add more extensive tests to client/server integration
-- [ ] Increase public API test coverage
-- [ ] Client/server keep alive
-- [ ] Reduce static lifetimes
-- [ ] 100% documentation of public API
-- [ ] Placement strategies (nodes work with different sets of trait objects)
-- [~] Dockerized examples
-- [ ] Add pgsql jsonb support
-- [ ] Add all SQL storage behind a feature flag (sqlite, mysql, pgsql, etc)
-- [ ] Supervision
-- [ ] Ephemeral objects (aka regular - local - actors)
-- [ ] Remove magic numbers
-- [ ] Object TTL
-- [ ] Matrix test with different backends
-- [x] Replace prints with logging
-- [ ] Code of conduct
-- [ ] Metrics and Tracing
-- [ ] Deny allocations based on system resources
