@@ -1,6 +1,6 @@
 [package]
 name = "rio-macros"
-version = "0.2.0"
+version = "0.2.1-beta.2"
 edition = "2021"
 description = "Proc macros to help developing rio-rs applications"
 license-file = "../LICENSE"

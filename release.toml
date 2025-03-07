@@ -1,0 +1,4 @@
+tag-name = "{{version}}"
+shared-version = true
+consolidate-commits = true
+pre-release-hook = "../.pre-release"

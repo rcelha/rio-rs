@@ -27,13 +27,30 @@ fmt:
 test:
 	cargo nextest run --no-fail-fast
 
+# Do something
+bump-type:
+    #!/usr/bin/env bash
+    changelog=$(git changelog -- --reverse --since "2 years ago" )
+    if [[ $changelog =~ "BREAKING" ]]; then
+        echo MAJOR
+    elif [[ $changelog =~ "feat:" ]]; then
+       echo MINOR
+    else
+       echo PATCH
+    fi
+
 # Install development tools
 install-tools:
 	cargo install cargo-watch
-	cargo install flamegraph
 	cargo install cargo-nextest
 	cargo install cargo-readme
 	cargo install simple-http-server
+	cargo install cargo-release
+	cargo install git-cliff
+
+# Release a new version
+release:
+    @echo just run `cargo release`
 
 # Generates the README.md file
 generate-readme:
