@@ -4,26 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
-### 📚 Documentation
-
-- Cleanup things
-
-## [0.2.1-beta.2] - 2025-03-07
-
 ### 🚜 Refactor
 
 - Add tools
-- Add internal bump-type command for release
-- Add cargo-release
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release
-- Add changelog and cleanup tooling
-- Release
-- Release
-- Release config
-- Retab justfile
 - Release
 
 ## [0.2.0] - 2025-03-04
