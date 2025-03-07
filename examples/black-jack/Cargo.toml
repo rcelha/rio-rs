@@ -3,18 +3,21 @@ name = "black-jack"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.release]
+release = false
+
 [dependencies]
 async-trait = { package = "async-trait-sync", version = "0.1.36" }
 bevy = { version = "0.8.1", features = [
-  "animation",
-  "bevy_asset",
-  "bevy_scene",
-  "bevy_winit",
-  "render",
-  "png",
-  "hdr",
-  "x11",
-  "filesystem_watcher",
+    "animation",
+    "bevy_asset",
+    "bevy_scene",
+    "bevy_winit",
+    "render",
+    "png",
+    "hdr",
+    "x11",
+    "filesystem_watcher",
 ], default-features = false }
 rand = "0.8.5"
 rio-rs = { path = "../../rio-rs" }
