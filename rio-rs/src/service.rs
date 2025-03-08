@@ -58,7 +58,14 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
             // Ensure the object is started in the registry
             this.start_service_object(&req.handler_type, &req.handler_id)
                 .await
-                .map_err(|_| ResponseError::Allocate)?;
+                .map_err(|err| {
+                    // Transform some internal error types into better user facing errors
+                    // while retaining other error types
+                    match err {
+                        ResponseError::Unknown(_) => ResponseError::Allocate,
+                        e => e,
+                    }
+                })?;
 
             // Req + Response to registry
             let guard = this.registry.read().await;
@@ -292,7 +299,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
 
             let new_object = registry_guard
                 .new_from_type(handler_type, handler_id.to_string())
-                .ok_or(ResponseError::Allocate)?;
+                .ok_or(ResponseError::NotSupported(handler_type.to_string()))?;
 
             registry_guard
                 .insert_boxed_object(handler_type.to_string(), handler_id.to_string(), new_object)

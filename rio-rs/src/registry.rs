@@ -67,9 +67,12 @@ impl Registry {
         self.type_map.insert(type_id, boxed_fn);
     }
 
-    /// TODO
+    /// Creates a new object with some id (using FromId)
+    ///
+    /// <div class="warning">TODO deal existing objects to avoid double allocation</div>
     pub fn new_from_type(&self, type_id: &str, id: String) -> Option<Box<dyn Any + Send + Sync>> {
-        let ret = self.type_map.get(type_id)?(id);
+        let builder = self.type_map.get(type_id)?;
+        let ret = builder(id);
         Some(ret)
     }
 
