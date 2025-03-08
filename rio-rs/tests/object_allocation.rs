@@ -138,3 +138,36 @@ async fn move_object_on_server_failure_single() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn error_when_server_doesnt_have_service_in_registry() {
+    let members_storage = LocalStorage::default();
+    let object_placement_provider = LocalObjectPlacementProvider::default();
+
+    run_integration_test(
+        3,
+        &build_registry,
+        members_storage.clone(),
+        object_placement_provider.clone(),
+        1,
+        || async move {
+            let mut client = ClientBuilder::new()
+                .members_storage(members_storage.clone())
+                .build()
+                .unwrap();
+
+            assert!(!is_allocated(&object_placement_provider, "NopeService", "1").await);
+
+            // As soon as we send the first message, the object is allocated to a server
+            let message = OkMessage {};
+            let resp = client
+                .send::<MockResponse, NoopError>("NopeService", "1", &message)
+                .await;
+            assert!(matches!(
+                resp,
+                Err(RequestError::ResponseError(ResponseError::NotSupported(_)))
+            ))
+        },
+    )
+    .await;
+}

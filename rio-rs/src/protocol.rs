@@ -85,6 +85,9 @@ pub enum ResponseError {
     #[error("ServiceObject could not be allocated")]
     Allocate,
 
+    #[error("ServiceObject not supported")]
+    NotSupported(String),
+
     #[error("unknown execution error")]
     Unknown(String),
 

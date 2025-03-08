@@ -10,9 +10,9 @@ There are a few things that must be done before v0.1.0:
 
 ### Next
 
-- [ ] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
-- [ ] Improve error message for ManagedState when the storage is not in the context
-- [ ] Improve error message for when the services are not added to the registry (server)
+- [x] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
+- [x] Improve error message for ManagedState when the storage is not in the context
+- [x] Improve error message for when the services are not added to the registry (server)
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
 - [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 - [ ] Create server from config
@@ -88,5 +88,3 @@ There are a few things that must be done before v0.1.0:
 - [x] Redis support for members storage
 - [x] Redis support for state backend (loader and saver)
 - [x] Redis support for object placement
-
-

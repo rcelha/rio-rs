@@ -1,0 +1,10 @@
+error[E0412]: cannot find type `SqliteState` in this scope
+  --> tests/ui_fail/managed_state_non_existing_state_provicer.rs:13:32
+   |
+13 |     #[managed_state(provider = SqliteState)]
+   |                                ^^^^^^^^^^^ not found in this scope
+   |
+help: consider importing this struct
+   |
+1  + use rio_rs::state::sqlite::SqliteState;
+   |

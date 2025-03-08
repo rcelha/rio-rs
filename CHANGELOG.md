@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🐛 Bug Fixes
+
+- Improve error story
+
+### 📚 Documentation
+
+- Update roadmap and changelog
+
 ## [0.2.1] - 2025-03-07
 
 ### 🚜 Refactor
