@@ -1,5 +1,11 @@
 # rio-rs
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/rcelha/rio-rs/.github%2Fworkflows%2Frust.yaml?style=for-the-badge)
+![Crates.io Version](https://img.shields.io/crates/v/rio-rs?style=for-the-badge&link=https%3A%2F%2Fcrates.io%2Fcrates%2Frio-rs)
+![docs.rs](https://img.shields.io/docsrs/rio-rs?style=for-the-badge&link=https%3A%2F%2Fdocs.rs%2Frio-rs%2Flatest%2Frio_rs%2F)
+
+---
+
 Distributed stateful services inspired by Orleans
 
 This crate provides a framework for scalable, distributed and stateful services
