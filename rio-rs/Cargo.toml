@@ -1,6 +1,6 @@
 [package]
 name = "rio-rs"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license-file = "../LICENSE"
 repository = "https://github.com/rcelha/rio-rs"
@@ -26,7 +26,7 @@ thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.8", features = ["sync"] }
 tokio-util = { version = "0.6", features = ["full"] }
-rio-macros = { path = "../rio-macros", version = "0.2.1" }
+rio-macros = { path = "../rio-macros", version = "0.2.2" }
 tower = { version = "0.4.12", features = ["full"] }
 
 # Need for futures::SyncExt (Framed.send)
