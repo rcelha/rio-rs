@@ -47,7 +47,7 @@ install-tools:
 
 # Release a new version
 release:
-    @echo just run `cargo release`
+    @echo just run "cargo release"
 
 # Generates the README.md file
 readme:

@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - Update roadmap and changelog
+- Add some badges
 
 ## [0.2.1] - 2025-03-07
 
