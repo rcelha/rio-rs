@@ -19,6 +19,8 @@ There are a few things that must be done before v0.1.0:
 - [x] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
 - [x] Improve error message for ManagedState when the storage is not in the context
 - [x] Improve error message for when the services are not added to the registry (server)
+- [ ] Python client bindings
+- [ ] Guest languages support
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
 - [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 - [ ] Create server from config
