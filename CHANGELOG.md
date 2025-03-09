@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.2.2] - 2025-03-09
 
 ### 🐛 Bug Fixes
 
@@ -11,6 +11,12 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - Update roadmap and changelog
+- Add some badges
+- Changelog
+
+### ⚙️ Miscellaneous Tasks
+
+- Release
 
 ## [0.2.1] - 2025-03-07
 
