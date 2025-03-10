@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
 use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
 use rio_rs::prelude::*;
+use rio_rs::server::NewServerBuilder;
 use rio_rs::state::sqlite::SqliteState;
 use rio_rs::state::StateSaver;
+use tokio::sync::RwLock;
 
 use crate::registry;
 
@@ -46,12 +50,14 @@ pub async fn build_server(
     StateSaver::prepare(&sql_state).await;
 
     // Create the server object
-    let mut server = Server::new(
-        addr,
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
+    let mut server = NewServerBuilder::default()
+        .address(addr)
+        .app_data(Default::default())
+        .http_members_storage_address("0.0.0.0:9876")
+        .registry(Arc::new(RwLock::new(registry)))
+        .cluster_provider(membership_provider)
+        .object_placement_provider(Arc::new(RwLock::new(object_placement_provider)))
+        .build()?;
     server.prepare().await;
     // LifecycleMessage will try to load object from state
     server.app_data(sql_state);

@@ -7,17 +7,16 @@ use chrono::{DateTime, TimeZone, Utc};
 
 use crate::errors::MembershipError;
 
+#[cfg(feature = "http")]
+pub mod http;
 #[cfg(feature = "local")]
 pub mod local;
-
-#[cfg(feature = "redis")]
-pub mod redis;
-
-#[cfg(feature = "sqlite")]
-pub mod sqlite;
-
 #[cfg(feature = "postgres")]
 pub mod postgres;
+#[cfg(feature = "redis")]
+pub mod redis;
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 
 /// Represents a running [Server](crate::server::Server).
 #[derive(Clone, Debug)]
