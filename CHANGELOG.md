@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.2] - 2025-03-09
+## [unreleased]
+
+### 🚀 Features
+
+- HttpMemberStorage
 
 ### 🐛 Bug Fixes
 
@@ -12,7 +16,7 @@ All notable changes to this project will be documented in this file.
 
 - Update roadmap and changelog
 - Add some badges
-- Changelog
+- Update roadmap
 
 ### ⚙️ Miscellaneous Tasks
 
