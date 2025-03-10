@@ -83,6 +83,9 @@ pub enum MembershipError {
 
     #[error("unknown")]
     Unknown(String),
+
+    #[error("This MembersStorage is Read-only")]
+    ReadOnly(String),
 }
 
 #[cfg(feature = "sql")]

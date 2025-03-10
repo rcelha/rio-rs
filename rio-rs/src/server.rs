@@ -91,6 +91,13 @@ where
     #[builder(setter(into, strip_option), default = r#""0.0.0.0:0".to_string()"#)]
     address: String,
 
+    /// Address given by the user
+    #[builder(
+        setter(into, strip_option),
+        default = r#"Some("0.0.0.0:0".to_string())"#
+    )]
+    http_members_storage_address: Option<String>,
+
     registry: Arc<RwLock<Registry>>,
     cluster_provider: C,
     object_placement_provider: Arc<RwLock<P>>,
@@ -232,6 +239,7 @@ where
     ) -> Server<S, C, P> {
         Server {
             address,
+            http_members_storage_address: None,
             registry: Arc::new(RwLock::new(registry)),
             cluster_provider,
             object_placement_provider: Arc::new(RwLock::new(object_placement_provider)),
@@ -306,6 +314,32 @@ where
 
         let admin_commands_fut = self.consume_admin_commands(admin_receiver);
 
+        #[cfg(feature = "http")]
+        let mut cluster_storage_http_server_task =
+            if let Some(addr) = self.http_members_storage_address.clone() {
+                let inner_members_storage = self.cluster_provider.members_storage().clone();
+                tokio::spawn(async move {
+                    crate::cluster::storage::http::serve(addr, inner_members_storage)
+                        .await
+                        .ok();
+                })
+            } else {
+                tokio::spawn(async move {
+                    warn!("HTTP Members Storage not enabled");
+                    loop {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                    }
+                })
+            };
+
+        #[cfg(not(feature = "http"))]
+        let mut cluster_storage_http_server_task = tokio::spawn(async move {
+            warn!("HTTP Members Storage not enabled");
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+            }
+        });
+
         tokio::select! {
             accept_result = &mut accept_task => {
                 accept_result
@@ -343,12 +377,17 @@ where
             _ = admin_commands_fut => {
                 warn!("Admin command serve finished first");
             }
+            _ = &mut cluster_storage_http_server_task => {
+                warn!("Http Server for Cluster Storage finished earlier");
+            }
+
         }
 
         info!("Stoping server");
         accept_task.abort();
         cluster_provider_task.abort();
         internal_client_task.abort();
+        cluster_storage_http_server_task.abort();
         info!("Server stopped");
 
         Ok(())

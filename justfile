@@ -18,7 +18,7 @@ fmt:
     set -euxo pipefail
     cargo fix --allow-dirty --allow-staged
     cargo fmt
-    cargo c
+    cargo check --all-features
 
 # Runs tests for the main project
 test:

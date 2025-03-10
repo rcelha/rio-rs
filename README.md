@@ -154,7 +154,7 @@ There are a few things that must be done before v0.1.0:
 - [ ] Python client bindings
 - [ ] Guest languages support
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
-- [ ] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
+- [x] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 - [ ] Create server from config
 - [ ] Bypass clustering for self messages
 - [~] Bypass networking for local messages

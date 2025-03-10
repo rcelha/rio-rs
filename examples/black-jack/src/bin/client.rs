@@ -6,7 +6,7 @@ use black_jack::registry::client as client_;
 
 use clap::Parser;
 use futures::{pin_mut, StreamExt};
-use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+use rio_rs::cluster::storage::http::HttpMembersStorage;
 use rio_rs::prelude::*;
 use std::process::exit;
 use std::time::Duration;
@@ -17,12 +17,6 @@ use tokio::time::sleep;
 #[command(author, version, about, long_about = None)]
 pub struct Opts {
     pub player_name: String,
-    #[arg(
-        short,
-        long,
-        default_value = "sqlite:///tmp/black-jack-membership.sqlite3?mode=rwc"
-    )]
-    pub cluster_membership_provider_conn: String,
 }
 
 #[tokio::main]
@@ -30,11 +24,9 @@ async fn main() -> anyhow::Result<()> {
     let options = Opts::parse();
     let user_id = options.player_name.clone();
 
-    let pool = SqliteMembersStorage::pool()
-        .max_connections(50)
-        .connect(&options.cluster_membership_provider_conn)
-        .await?;
-    let members_storage = SqliteMembersStorage::new(pool);
+    let members_storage = HttpMembersStorage {
+        remote_address: "http://0.0.0.0:9876".to_string(),
+    };
 
     sleep(Duration::from_secs(1)).await;
 
