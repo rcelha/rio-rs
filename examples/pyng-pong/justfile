@@ -1,0 +1,12 @@
+# Show this message
+help:
+    @just --list
+
+bindings:
+    rm -fr ./rio_rs_guest
+    uvx componentize-py -d ./wit/rio-rs bindings rio_rs_guest
+
+transpile:
+    uvx componentize-py -d ./wit/rio-rs -w rio-service componentize --stub-wasi app -o app.wasm
+
+all: bindings transpile

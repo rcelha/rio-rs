@@ -1,0 +1,15 @@
+[package]
+name = "black-jack-ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+black-jack = { path = "../black-jack", version = "0.1.0" }
+rio-rs = { path = "../../rio-rs", features = ["full"] }
+uniffi = { version = "0.29", features = ["cli"] }
+
+[build-dependencies]
+uniffi = { version = "0.29", features = ["build"] }

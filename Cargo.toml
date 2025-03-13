@@ -5,6 +5,6 @@ members = [
     "examples/black-jack",
     "examples/metric-aggregator",
     "examples/ping-pong",
-    "examples/presence",
+    "examples/presence", "examples/black-jack-ffi", "examples/black-jack-wasm", "examples/wasm-registry",
 ]
 resolver = "2"

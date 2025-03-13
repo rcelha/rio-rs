@@ -1,0 +1,9 @@
+[package]
+name = "wasm-registry"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.97"
+wasmtime = "30.0.2"
+wasmtime-wasi = "30.0.2"

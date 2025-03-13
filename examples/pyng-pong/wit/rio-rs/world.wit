@@ -1,0 +1,51 @@
+package rio-rs:services@0.1.0;
+
+interface people {
+    resource service {
+        constructor(id: string);
+        id: func() -> string;
+    }
+}
+
+interface messages {
+    record ping {
+        count: u32,
+    }
+    record pong {
+        count: u32,
+    }
+    enum ping-pong-error {
+        unknown,
+    }
+}
+
+interface people-ping {
+    use messages.{pong, ping, ping-pong-error};
+    use people.{service};
+
+    type target = service;
+    type message = ping;
+    type error = ping-pong-error;
+    type return = pong;
+    type ping-result = result<return, error>;
+    handle: func(target: target, message: message) -> ping-result;
+}
+
+
+interface people-pong {
+    use messages.{pong, ping, ping-pong-error};
+    use people.{service};
+
+    type target = service;
+    type message = pong;
+    type error = ping-pong-error;
+    type return = ping;
+    type pong-result = result<return, error>;
+    handle: func(target: target, message: message) -> pong-result;
+}
+
+world rio-service {
+    export people;
+    export people-ping;
+    export people-pong;
+}
