@@ -18,21 +18,11 @@ All notable changes to this project will be documented in this file.
 - Add some badges
 - Update roadmap
 
-### ⚙️ Miscellaneous Tasks
-
-- Release
-- Release
-
 ## [0.2.1] - 2025-03-07
 
 ### 🚜 Refactor
 
 - Add tools
-
-### ⚙️ Miscellaneous Tasks
-
-- Release
-- Release
 
 ## [0.2.0] - 2025-03-04
 
