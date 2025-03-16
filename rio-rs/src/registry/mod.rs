@@ -3,18 +3,22 @@
 //! Provides storage for objects and maps their callables to handle registered message types
 
 use crate::{app_data::AppData, errors::HandlerError, WithId};
-use async_trait::async_trait;
 use dashmap::DashMap;
 use log::warn;
-use serde::{de::DeserializeOwned, Serialize};
 use std::{
-    any::{type_name, Any},
+    any::{Any, TypeId},
     collections::HashMap,
     future::Future,
     pin::Pin,
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+mod handler;
+mod identifiable_type;
+
+pub use handler::{Handler, Message};
+pub use identifiable_type::IdentifiableType;
 
 type LockHashMap<K, V> = Arc<DashMap<K, RwLock<V>>>;
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
@@ -28,14 +32,19 @@ type BoxedDefaultWithId = Box<dyn Fn(String) -> Box<dyn Any + Send + Sync> + Sen
 /// and return type
 #[derive(Default)]
 pub struct Registry {
-    // (ObjectTypeName, ObjectId) -> Box<Obj>
+    /// Object allocation map
+    /// (ObjectTypeName, ObjectId) -> Box<Obj>
     object_map: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
 
-    // (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
+    /// Maps the objects types and messages to their handler functions
+    /// (ObjectTypeName, MessageTypeName) -> Result<SerializedResult, Error>
     handler_map_: papaya::HashMap<(String, String), BoxedCallback>,
 
-    /// TODO
+    /// Maps the types to the object constructors
     type_map: HashMap<String, BoxedDefaultWithId>,
+
+    /// Internal control for duplicate type ids
+    supported_types: HashMap<String, TypeId>,
 }
 
 impl Registry {
@@ -53,18 +62,38 @@ impl Registry {
             .insert((type_id, k), RwLock::new(Box::new(v)));
     }
 
-    /// TODO
+    /// Add new types to the contructor map
+    ///
+    /// It will emmit warnings regarding duplicate types, and it won't add the duplicates
     pub fn add_type<T>(&mut self)
     where
         T: IdentifiableType + 'static + Send + Sync + Default + WithId,
     {
         let type_id = T::user_defined_type_id().to_string();
+        let type_of = TypeId::of::<T>();
+
+        if self.type_map.contains_key(&type_id) {
+            return;
+        }
+
+        if let Some(duplicate_control) = self.supported_types.get(&type_id) {
+            if duplicate_control != &type_of {
+                warn!(
+                    "The type {:?} is already present, and it represents another object type",
+                    type_id
+                );
+                warn!("You might have a duplicate on your code-base");
+                return;
+            }
+        }
+
         let boxed_fn = Box::new(move |id: String| -> Box<dyn Any + Send + Sync> {
             let mut value = T::default();
             value.set_id(id);
             Box::new(value)
         });
-        self.type_map.insert(type_id, boxed_fn);
+        self.type_map.insert(type_id.clone(), boxed_fn);
+        self.supported_types.insert(type_id, type_of);
     }
 
     /// Creates a new object with some id (using FromId)
@@ -181,47 +210,11 @@ impl Registry {
     }
 }
 
-/// Define a name for a given Struct so it can be used at runtime.
-///
-/// By default this will use [std::any::type_name] (which might not be compatible across all your
-/// infrastructure), so it is advised to implement your own 'user_defined_type_id'
-///
-/// <div class="warning">TODO deal with duplicates</div>
-pub trait IdentifiableType {
-    fn user_defined_type_id() -> &'static str {
-        type_name::<Self>()
-    }
-
-    /// Same as IdentifiableType::user_defined_type_id, but it can be
-    /// called directly from the struct instance. This is handy for when
-    /// one uses impl Trait instead of generic
-    fn instance_type_id(&self) -> &'static str {
-        Self::user_defined_type_id()
-    }
-}
-
-#[async_trait]
-pub trait Handler<M>
-where
-    Self: Send + Sync,
-    M: Message + Send + Sync,
-{
-    type Returns: Serialize + Sync + Send;
-    type Error: Serialize;
-
-    async fn handle(
-        &mut self,
-        message: M,
-        context: Arc<AppData>,
-    ) -> Result<Self::Returns, Self::Error>;
-}
-
-pub trait Message: Serialize + DeserializeOwned {}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use serde::Deserialize;
+    use async_trait::async_trait;
+    use serde::{Deserialize, Serialize};
     use tokio::sync::RwLock;
 
     #[derive(Default, Debug, PartialEq)]

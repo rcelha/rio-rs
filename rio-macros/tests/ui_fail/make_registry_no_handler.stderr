@@ -9,7 +9,7 @@ error[E0277]: the trait bound `TestService: Handler<Ping>` is not satisfied
    | |_^ the trait `Handler<Ping>` is not implemented for `TestService`
    |
 note: required by a bound in `Registry::add_handler`
-  --> $WORKSPACE/rio-rs/src/registry.rs
+  --> $WORKSPACE/rio-rs/src/registry/mod.rs
    |
    |     pub fn add_handler<T, M>(&mut self)
    |            ----------- required by a bound in this associated function

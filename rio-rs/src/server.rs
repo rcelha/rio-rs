@@ -96,6 +96,7 @@ where
         setter(into, strip_option),
         default = r#"Some("0.0.0.0:0".to_string())"#
     )]
+    #[cfg(feature = "http")]
     http_members_storage_address: Option<String>,
 
     registry: Arc<RwLock<Registry>>,
@@ -239,6 +240,7 @@ where
     ) -> Server<S, C, P> {
         Server {
             address,
+            #[cfg(feature = "http")]
             http_members_storage_address: None,
             registry: Arc::new(RwLock::new(registry)),
             cluster_provider,
