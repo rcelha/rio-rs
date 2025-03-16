@@ -89,7 +89,7 @@ mod test {
 
         conn_1.fetch_active_servers().await.unwrap();
 
-        assert_eq!(conn_1.members_storage.members().await.unwrap().len(), 1);
-        assert_eq!(conn_2.members_storage.members().await.unwrap().len(), 1);
+        assert_eq!(conn_1.membership_storage.members().await.unwrap().len(), 1);
+        assert_eq!(conn_2.membership_storage.members().await.unwrap().len(), 1);
     }
 }

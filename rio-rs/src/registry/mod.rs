@@ -33,7 +33,7 @@ type BoxedDefaultWithId = Box<dyn Fn(String) -> Box<dyn Any + Send + Sync> + Sen
 #[derive(Default)]
 pub struct Registry {
     /// Object allocation map
-    /// (ObjectTypeName, ObjectId) -> Box<Obj>
+    /// `(ObjectTypeName, ObjectId)` -> `Box<Obj>`
     object_map: LockHashMap<(String, String), Box<dyn Any + Send + Sync>>,
 
     /// Maps the objects types and messages to their handler functions

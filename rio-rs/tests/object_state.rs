@@ -24,7 +24,9 @@ impl State<TestState1> for TestService {
     }
 }
 
-async fn persist_state_for_object_test(state_manager: impl StateLoader + StateSaver) {
+async fn persist_state_for_object_test(
+    state_manager: impl StateLoader<TestState1> + StateSaver<TestState1>,
+) {
     // Local Storage
     let mut svc_object = TestService::default();
     svc_object.set_id("one".to_string());
@@ -93,7 +95,7 @@ mod sqlite {
             .await
             .unwrap();
         let state_manager = SqliteState::new(pool);
-        StateSaver::prepare(&state_manager).await;
+        StateSaver::<TestState1>::prepare(&state_manager).await;
         persist_state_for_object_test(state_manager).await;
     }
 
@@ -131,7 +133,7 @@ mod sqlite {
                 .await
                 .unwrap();
             let state_manager = SqliteState::new(pool);
-            StateSaver::prepare(&state_manager).await;
+            StateSaver::<TestState1>::prepare(&state_manager).await;
 
             svc_object
                 .save_state::<TestState1, _>(&state_manager)

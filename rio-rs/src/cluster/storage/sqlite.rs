@@ -31,7 +31,7 @@ pub struct SqliteMembershipStorage {
 }
 
 impl SqliteMembershipStorage {
-    /// Builds a [SqlMembershipStorage] from a [sqlx]'s [AnyPool]
+    /// Builds a [SqliteMembershipStorage ] from a [sqlx]'s [SqlitePool]
     pub fn new(pool: SqlitePool) -> SqliteMembershipStorage {
         SqliteMembershipStorage { pool }
     }

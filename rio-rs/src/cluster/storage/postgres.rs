@@ -31,7 +31,7 @@ pub struct PostgresMembershipStorage {
 }
 
 impl PostgresMembershipStorage {
-    /// Builds a [SqlMembershipStorage] from a [sqlx]'s [AnyPool]
+    /// Builds a [PostgresMembershipStorage ] from a [sqlx]'s [PgPool]
     pub fn new(pool: PgPool) -> PostgresMembershipStorage {
         PostgresMembershipStorage { pool }
     }

@@ -18,6 +18,8 @@ jobs:
         run: cargo check
       - name: Clippy
         run: cargo clippy
+      - name: Docs
+        run: cargo doc -p rio-rs -p rio-macros
 
   test:
     runs-on: ubuntu-latest
