@@ -1,7 +1,7 @@
 use metric_aggregator::messages;
 use metric_aggregator::services::{self, Counter};
-use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
-use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
+use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
+use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::state::sqlite::SqliteState;
 use rio_rs::state::StateSaver;
 use rio_rs::{prelude::*, state::local::LocalState};
@@ -34,12 +34,12 @@ async fn main() {
         .get() as u32;
     let num_cpus = num_cpus * 2;
 
-    let pool = SqliteMembersStorage::pool()
+    let pool = SqliteMembershipStorage::pool()
         .max_connections(num_cpus)
         .connect(&members_storage_connection)
         .await
         .expect("Connection failure");
-    let members_storage = SqliteMembersStorage::new(pool);
+    let members_storage = SqliteMembershipStorage::new(pool);
 
     let mut cluster_config = PeerToPeerClusterConfig::default();
     cluster_config.interval_secs = 5;
@@ -47,13 +47,13 @@ async fn main() {
     cluster_config.interval_secs_threshold = 30;
     let cluster = PeerToPeerClusterProvider::new(members_storage, cluster_config);
 
-    let pool = SqliteObjectPlacementProvider::pool()
+    let pool = SqliteObjectPlacement::pool()
         .max_connections(num_cpus)
         .connect(&placement_connection)
         .await
         .expect("Connection failure");
 
-    let object_placement_provider = SqliteObjectPlacementProvider::new(pool);
+    let object_placement_provider = SqliteObjectPlacement::new(pool);
 
     let mut server = ServerBuilder::new()
         .address(addr.to_string())

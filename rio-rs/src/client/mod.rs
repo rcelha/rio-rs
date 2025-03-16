@@ -32,7 +32,7 @@ use tokio::time::timeout;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tower::Service as TowerService;
 
-use crate::cluster::storage::MembersStorage;
+use crate::cluster::storage::MembershipStorage;
 use crate::protocol::pubsub::{SubscriptionRequest, SubscriptionResponse};
 use crate::protocol::{ClientError, RequestEnvelope, RequestError, ResponseError};
 use crate::registry::IdentifiableType;
@@ -43,7 +43,7 @@ pub const DEFAULT_TIMEOUT_MILLIS: u64 = 500;
 #[derive(Clone)]
 pub struct Client<S>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
 {
     timeout_millis: u64,
 
@@ -129,7 +129,7 @@ type ClientResult<T> = Result<T, ClientError>;
 
 impl<S> Client<S>
 where
-    S: 'static + MembersStorage,
+    S: 'static + MembershipStorage,
 {
     /// TODO
     pub fn new(members_storage: S) -> Self {
@@ -416,7 +416,7 @@ where
         Ok(stream)
     }
 
-    /// Connects to a the first server of the MembersStorage
+    /// Connects to a the first server of the MembershipStorage
     ///
     /// This is used mostly by the PeerToPeerClusterProvider to check whether
     /// a set of servers is reacheable and alive
@@ -450,7 +450,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::cluster::storage::{local::LocalStorage, Member, MembersStorage};
+    use crate::cluster::storage::{local::LocalStorage, Member, MembershipStorage};
 
     fn client() -> Client<LocalStorage> {
         Client {

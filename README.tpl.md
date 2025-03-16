@@ -16,7 +16,10 @@ There are a few things that must be done before v0.1.0:
 
 ### Next
 
-- [ ] Do some renaming around: membership_protocol, cluster.storage, ObjectPlacementProvider, StateLoader, StateSaver, ObjectStateManager
+- [x] Do some renaming around:
+  - rename MembersStorage to MembershipStorage (rio_rs::cluster::storage)
+  - ObjectPlacement to ObjectPlacementItem (rio_rs::object_placement)
+  - ObjectPlacementProvider to ObjectPlacement (rio_rs::object_placement)
 - [ ] MDNs
 - [ ] Client bindings for other languages
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)

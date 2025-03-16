@@ -4,7 +4,7 @@ use rio_macros::{Message, TypeName, WithId};
 use rio_rs::app_data::AppDataExt;
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::message_router::MessageRouter;
-use rio_rs::object_placement::local::LocalObjectPlacementProvider;
+use rio_rs::object_placement::local::LocalObjectPlacement;
 use rio_rs::prelude::*;
 use rio_rs::protocol::pubsub::SubscriptionResponse;
 use rio_rs::protocol::NoopError;
@@ -102,7 +102,7 @@ fn build_registry() -> Registry {
 #[tokio::test]
 async fn request_response() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
     run_integration_test(
         5,
         &build_registry,
@@ -130,7 +130,7 @@ async fn request_response() {
 #[tokio::test]
 async fn request_response_error() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
     run_integration_test(
         5,
         &build_registry,
@@ -159,7 +159,7 @@ async fn request_response_error() {
 #[tokio::test]
 async fn request_response_redirectt() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         5,
@@ -188,7 +188,7 @@ async fn request_response_redirectt() {
 #[tokio::test]
 async fn pubsub() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         5,
@@ -247,7 +247,7 @@ async fn pubsub() {
 #[tokio::test]
 async fn pubsub_redirect() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         15,

@@ -1,4 +1,4 @@
-//! SQL implementation of the trait [ObjectPlacementProvider] to work with relational databases
+//! SQL implementation of the trait [ObjectPlacement] to work with relational databases
 //!
 //! This uses [sqlx] under the hood
 
@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{self, PgPool, Row};
 
-use super::{ObjectPlacement, ObjectPlacementProvider};
+use super::{ObjectPlacement, ObjectPlacementItem};
 use crate::sql_migration::SqlMigrations;
 use crate::ObjectId;
 
@@ -23,13 +23,13 @@ impl SqlMigrations for PgObjectPlacementMigrations {
 }
 
 #[derive(Clone)]
-pub struct PostgresObjectPlacementProvider {
+pub struct PostgresObjectPlacement {
     pool: PgPool,
 }
 
-impl PostgresObjectPlacementProvider {
+impl PostgresObjectPlacement {
     pub fn new(pool: PgPool) -> Self {
-        PostgresObjectPlacementProvider { pool }
+        PostgresObjectPlacement { pool }
     }
 
     /// Pool builder, so one doesn't need to include sqlx as a dependency
@@ -37,13 +37,13 @@ impl PostgresObjectPlacementProvider {
     /// # Example
     ///
     /// ```
-    /// # use rio_rs::object_placement::postgres::PostgresObjectPlacementProvider;
+    /// # use rio_rs::object_placement::postgres::PostgresObjectPlacement;
     /// # async fn test_fn() {
-    /// let pool = PostgresObjectPlacementProvider::pool()
+    /// let pool = PostgresObjectPlacement::pool()
     ///     .connect("sqlite::memory:")
     ///     .await
     ///     .expect("Connection failure");
-    /// let object_placement = PostgresObjectPlacementProvider::new(pool);
+    /// let object_placement = PostgresObjectPlacement::new(pool);
     /// # }
     /// ```
     pub fn pool() -> PgPoolOptions {
@@ -52,7 +52,7 @@ impl PostgresObjectPlacementProvider {
 }
 
 #[async_trait]
-impl ObjectPlacementProvider for PostgresObjectPlacementProvider {
+impl ObjectPlacement for PostgresObjectPlacement {
     /// Run the schema/data migrations for this membership storage.
     ///
     /// For now, the Rio server doesn't run this at start-up and it needs
@@ -69,7 +69,7 @@ impl ObjectPlacementProvider for PostgresObjectPlacementProvider {
         transaction.commit().await.unwrap();
     }
 
-    async fn update(&self, object_placement: ObjectPlacement) {
+    async fn update(&self, object_placement: ObjectPlacementItem) {
         sqlx::query(
             r#"
             INSERT INTO

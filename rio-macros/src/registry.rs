@@ -162,7 +162,7 @@ impl Codegen for RegistryInput {
                         object_id: impl AsRef<str>,
                         msg: &super::super::#input_,
                     ) -> Result<super::super::#output_, rio_rs::protocol::RequestError<super::super::#error_>>
-                    where S: rio_rs::cluster::storage::MembersStorage + 'static,
+                    where S: rio_rs::cluster::storage::MembershipStorage + 'static,
                     {
                         let ret_msg = client
                             .send(#service_name_str, object_id, msg)

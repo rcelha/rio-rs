@@ -1,4 +1,4 @@
-//! MembersStorage implementation to work with relational databases
+//! MembershipStorage implementation to work with relational databases
 //!
 //! This uses [sqlx] under the hood
 
@@ -10,11 +10,11 @@ use sqlx::{self, Row, SqlitePool};
 
 use crate::sql_migration::SqlMigrations;
 
-use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
+use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
-pub struct SqliteMembersStorageMigrations {}
+pub struct SqliteMembershipStorageMigrations {}
 
-impl SqlMigrations for SqliteMembersStorageMigrations {
+impl SqlMigrations for SqliteMembershipStorageMigrations {
     fn queries() -> Vec<String> {
         let migrations: Vec<_> = include_str!("./migrations/0001-sqlite-init.sql")
             .split(";")
@@ -24,16 +24,16 @@ impl SqlMigrations for SqliteMembersStorageMigrations {
     }
 }
 
-/// MembersStorage implementation to work with relational databases
+/// MembershipStorage implementation to work with relational databases
 #[derive(Clone)]
-pub struct SqliteMembersStorage {
+pub struct SqliteMembershipStorage {
     pool: SqlitePool,
 }
 
-impl SqliteMembersStorage {
-    /// Builds a [SqlMembersStorage] from a [sqlx]'s [AnyPool]
-    pub fn new(pool: SqlitePool) -> SqliteMembersStorage {
-        SqliteMembersStorage { pool }
+impl SqliteMembershipStorage {
+    /// Builds a [SqlMembershipStorage] from a [sqlx]'s [AnyPool]
+    pub fn new(pool: SqlitePool) -> SqliteMembershipStorage {
+        SqliteMembershipStorage { pool }
     }
 
     /// Pool builder, so one doesn't need to include sqlx as a dependency
@@ -41,13 +41,13 @@ impl SqliteMembersStorage {
     /// # Example
     ///
     /// ```
-    /// # use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+    /// # use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
     /// # async fn test_fn() {
-    /// let pool = SqliteMembersStorage::pool()
+    /// let pool = SqliteMembershipStorage::pool()
     ///     .connect("sqlite::memory:")
     ///     .await
     ///     .expect("Connection failure");
-    /// let members_storage = SqliteMembersStorage::new(pool);
+    /// let members_storage = SqliteMembershipStorage::new(pool);
     /// # }
     /// ```
     pub fn pool() -> SqlitePoolOptions {
@@ -56,11 +56,11 @@ impl SqliteMembersStorage {
 }
 
 #[async_trait]
-impl MembersStorage for SqliteMembersStorage {
+impl MembershipStorage for SqliteMembershipStorage {
     /// Run the schema/data migrations for this membership storage.
     async fn prepare(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
-        let queries = SqliteMembersStorageMigrations::queries();
+        let queries = SqliteMembershipStorageMigrations::queries();
 
         for query in queries {
             sqlx::query(&query)
@@ -183,17 +183,17 @@ impl MembersStorage for SqliteMembersStorage {
 mod test {
     use super::*;
 
-    async fn members_storage() -> impl MembersStorage {
-        let pool = SqliteMembersStorage::pool()
+    async fn members_storage() -> impl MembershipStorage {
+        let pool = SqliteMembershipStorage::pool()
             .connect("sqlite::memory:")
             .await
             .expect("TODO: Connection failure");
-        let members_storage = SqliteMembersStorage::new(pool);
+        let members_storage = SqliteMembershipStorage::new(pool);
         members_storage.prepare().await;
         members_storage
     }
 
-    async fn members_with_value() -> impl MembersStorage {
+    async fn members_with_value() -> impl MembershipStorage {
         let members_storage = members_storage().await;
         let mut active_member = Member::new("0.0.0.0".to_string(), "5000".to_string());
         active_member.set_active(true);

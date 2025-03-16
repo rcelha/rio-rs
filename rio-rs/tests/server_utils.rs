@@ -5,14 +5,14 @@ use tokio::net::TcpListener;
 use tokio::task::JoinSet;
 
 use rio_rs::cluster::storage::local::LocalStorage;
-use rio_rs::object_placement::local::LocalObjectPlacementProvider;
-use rio_rs::object_placement::ObjectPlacementProvider;
+use rio_rs::object_placement::local::LocalObjectPlacement;
+use rio_rs::object_placement::ObjectPlacement;
 use rio_rs::prelude::Registry;
 use rio_rs::prelude::*;
 use rio_rs::server::Server;
 
 pub type LocalServer =
-    Server<LocalStorage, PeerToPeerClusterProvider<LocalStorage>, LocalObjectPlacementProvider>;
+    Server<LocalStorage, PeerToPeerClusterProvider<LocalStorage>, LocalObjectPlacement>;
 
 pub type BuildRegistry = dyn Fn() -> Registry;
 
@@ -20,7 +20,7 @@ pub type BuildRegistry = dyn Fn() -> Registry;
 async fn build_server(
     registry: Registry,
     members_storage: LocalStorage,
-    object_placement_provider: LocalObjectPlacementProvider,
+    object_placement_provider: LocalObjectPlacement,
 ) -> (LocalServer, TcpListener) {
     let mut cluster_provider_config = PeerToPeerClusterConfig::default();
     // Test connectivity every second. If, for the past 2 seconds, it had more than 1 failure, the
@@ -48,7 +48,7 @@ pub async fn run_integration_test<Fut>(
     timeout_seconds: u64,
     registry_builder: &BuildRegistry,
     members_storage: LocalStorage,
-    object_placement_provider: LocalObjectPlacementProvider,
+    object_placement_provider: LocalObjectPlacement,
     num_servers: usize,
     test_fn: impl FnOnce() -> Fut,
 ) where
@@ -101,7 +101,7 @@ pub async fn run_integration_test<Fut>(
 
 #[allow(dead_code)] // It might be included on an integration test but not used
 pub async fn is_allocated(
-    object_placement_provider: &impl ObjectPlacementProvider,
+    object_placement_provider: &impl ObjectPlacement,
     service_type: impl ToString,
     service_id: impl ToString,
 ) -> bool {

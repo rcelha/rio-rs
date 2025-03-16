@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use rio_rs::prelude::*;
 
 use rio_rs::cluster::storage::local::LocalStorage;
-use rio_rs::object_placement::local::LocalObjectPlacementProvider;
+use rio_rs::object_placement::local::LocalObjectPlacement;
 use rio_rs::state::local::LocalState;
 
 mod server_utils;
@@ -81,7 +81,7 @@ fn build_registry() -> Registry {
 #[tokio::test]
 async fn request_response_with_proxy() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         5,

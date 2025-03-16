@@ -6,7 +6,7 @@ use black_jack::registry::client as client_;
 
 use clap::Parser;
 use futures::{pin_mut, StreamExt};
-use rio_rs::cluster::storage::http::HttpMembersStorage;
+use rio_rs::cluster::storage::http::HttpMembershipStorage;
 use rio_rs::prelude::*;
 use std::process::exit;
 use std::time::Duration;
@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     let options = Opts::parse();
     let user_id = options.player_name.clone();
 
-    let members_storage = HttpMembersStorage {
+    let members_storage = HttpMembershipStorage {
         remote_address: "http://0.0.0.0:9876".to_string(),
     };
 

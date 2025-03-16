@@ -3,7 +3,7 @@
 //! There is a pooled client. The client also does proper placement lookups and controls its own
 //! caching strategy
 
-use crate::cluster::storage::MembersStorage;
+use crate::cluster::storage::MembershipStorage;
 use crate::errors::ClientBuilderError;
 
 use super::pool::ClientConnectionManager;
@@ -11,12 +11,12 @@ use super::Client;
 use super::DEFAULT_TIMEOUT_MILLIS;
 
 /// Helper Struct to build clients from configuration
-pub struct ClientBuilder<S: MembersStorage> {
+pub struct ClientBuilder<S: MembershipStorage> {
     members_storage: Option<S>,
     timeout_millis: u64,
 }
 
-impl<S: MembersStorage> Default for ClientBuilder<S> {
+impl<S: MembershipStorage> Default for ClientBuilder<S> {
     fn default() -> Self {
         ClientBuilder {
             members_storage: None,
@@ -25,7 +25,7 @@ impl<S: MembersStorage> Default for ClientBuilder<S> {
     }
 }
 
-impl<S: MembersStorage + 'static> ClientBuilder<S> {
+impl<S: MembershipStorage + 'static> ClientBuilder<S> {
     pub fn new() -> Self {
         ClientBuilder {
             timeout_millis: DEFAULT_TIMEOUT_MILLIS,
@@ -47,7 +47,7 @@ impl<S: MembersStorage + 'static> ClientBuilder<S> {
         let members_storage = self
             .members_storage
             .clone()
-            .ok_or(ClientBuilderError::NoMembersStorage)?;
+            .ok_or(ClientBuilderError::NoMembershipStorage)?;
 
         let mut client = Client::new(members_storage);
         client.timeout_millis = self.timeout_millis;
@@ -60,7 +60,7 @@ impl<S: MembersStorage + 'static> ClientBuilder<S> {
         let members_storage = self
             .members_storage
             .clone()
-            .ok_or(ClientBuilderError::NoMembersStorage)?;
+            .ok_or(ClientBuilderError::NoMembershipStorage)?;
         let mut connection_manager = ClientConnectionManager::new(members_storage);
         connection_manager.timeout_millis = self.timeout_millis;
         Ok(connection_manager)

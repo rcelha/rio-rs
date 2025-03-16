@@ -40,19 +40,19 @@ pub enum ServiceObjectLifeCycleError {
 /// [crate::client::ClientBuilder]
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ClientBuilderError {
-    #[error("no MembersStorage provided")]
-    NoMembersStorage,
+    #[error("no MembershipStorage provided")]
+    NoMembershipStorage,
 }
 
 /// Errors triggered while building a [crate::server::Server] using
 /// [crate::server::ServerBuilder]
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServerBuilderError {
-    #[error("no MembersStorage provided")]
-    NoMembersStorage,
+    #[error("no MembershipStorage configured")]
+    NoMembershipStorage,
 
-    #[error("no ObjectPlacementProvider")]
-    NoObjectPlacementProvider,
+    #[error("no ObjectPlacement configured")]
+    NoObjectPlacement,
 
     #[error("unknown")]
     Unknown(String),
@@ -75,7 +75,7 @@ pub enum ServerError {
 }
 
 /// Error type for the cluster redevouz/membeship trait
-/// ([crate::cluster::storage::MembersStorage])
+/// ([crate::cluster::storage::MembershipStorage])
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum MembershipError {
     #[error("upstream error")]
@@ -84,7 +84,7 @@ pub enum MembershipError {
     #[error("unknown")]
     Unknown(String),
 
-    #[error("This MembersStorage is Read-only")]
+    #[error("This MembershipStorage is Read-only")]
     ReadOnly(String),
 }
 

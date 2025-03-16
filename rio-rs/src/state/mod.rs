@@ -24,6 +24,28 @@ pub mod sqlite;
 #[cfg(feature = "postgres")]
 pub mod postgres;
 
+/// Trait to define how to get and set states in and out of an object
+///
+/// One need to implement this trait for each state a object holds
+#[async_trait]
+pub trait State<T>
+where
+    T: Serialize + DeserializeOwned + Default,
+{
+    fn get_state(&self) -> &T;
+    fn set_state(&mut self, value: T);
+
+    async fn load<S: StateLoader + Sync + Send>(
+        &self,
+        state_loader: &S,
+        object_kind: &str,
+        object_id: &str,
+        state_type: &str,
+    ) -> Result<T, LoadStateError> {
+        state_loader.load(object_kind, object_id, state_type).await
+    }
+}
+
 /// The `StateLoader` defines an interface to load serialized state from a source
 ///
 /// **important** This trait is not responsible for serializing it back to its
@@ -119,6 +141,8 @@ where
 /// With this trait one can load/save individual states from an orig (Self) object
 #[async_trait]
 pub trait ObjectStateManager {
+    /// Load the state from the backend, deserialize it, and map it into the
+    /// right state
     async fn load_state<T, S>(&mut self, state_loader: &S) -> Result<(), LoadStateError>
     where
         T: IdentifiableType + Serialize + DeserializeOwned + Default, // neends default cause of trait State
@@ -137,6 +161,7 @@ pub trait ObjectStateManager {
         Ok(())
     }
 
+    /// Serialize the data out of the state and save it to the backend provided
     async fn save_state<T, S>(&self, state_saver: &S) -> Result<(), LoadStateError>
     where
         T: IdentifiableType + Serialize + DeserializeOwned + Sync + Default, // Needs default cause of trait State
@@ -157,28 +182,6 @@ pub trait ObjectStateManager {
 
 // If an struct implements ServiceObject, it gets ObjectStateManager out of the box
 impl<T> ObjectStateManager for T where T: ServiceObject {}
-
-/// Trait to define how to get and set states in and out of an object
-///
-/// One need to implement this trait for each state a object holds
-#[async_trait]
-pub trait State<T>
-where
-    T: Serialize + DeserializeOwned + Default,
-{
-    fn get_state(&self) -> &T;
-    fn set_state(&mut self, value: T);
-
-    async fn load<S: StateLoader + Sync + Send>(
-        &self,
-        state_loader: &S,
-        object_kind: &str,
-        object_id: &str,
-        state_type: &str,
-    ) -> Result<T, LoadStateError> {
-        state_loader.load(object_kind, object_id, state_type).await
-    }
-}
 
 #[cfg(test)]
 mod test {

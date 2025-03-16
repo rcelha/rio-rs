@@ -13,9 +13,9 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tower::Service as TowerService;
 
 use crate::app_data::{AppData, AppDataExt};
-use crate::cluster::storage::MembersStorage;
+use crate::cluster::storage::MembershipStorage;
 use crate::message_router::MessageRouter;
-use crate::object_placement::{ObjectPlacement, ObjectPlacementProvider};
+use crate::object_placement::{ObjectPlacement, ObjectPlacementItem};
 use crate::protocol::pubsub::{SubscriptionRequest, SubscriptionResponse};
 use crate::protocol::{RequestEnvelope, ResponseEnvelope, ResponseError};
 use crate::registry::Registry;
@@ -23,7 +23,7 @@ use crate::{LifecycleMessage, ObjectId};
 
 /// Service to respond to Requests from [crate::client::Client]
 #[derive(Clone)]
-pub struct Service<S: MembersStorage, P: ObjectPlacementProvider> {
+pub struct Service<S: MembershipStorage, P: ObjectPlacement> {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
     pub(crate) members_storage: S,
@@ -32,8 +32,8 @@ pub struct Service<S: MembersStorage, P: ObjectPlacementProvider> {
 }
 
 /// Service implementation to handle [RequestEnvelope] request
-impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
-    TowerService<RequestEnvelope> for Service<S, P>
+impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> TowerService<RequestEnvelope>
+    for Service<S, P>
 {
     type Response = ResponseEnvelope;
     type Error = ResponseError;
@@ -86,7 +86,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static>
                 Ok(Err(err)) => Err(ResponseError::from(err)),
                 Err(_) => {
                     // When there is a panic, we will 'remove' the service object
-                    // from both the registry and the ObjectPlacementProvider
+                    // from both the registry and the ObjectPlacement
                     this.registry
                         .read()
                         .await
@@ -145,8 +145,8 @@ impl Stream for SubscriptionResponseIter {
 /// Service implementation to handle [SubscriptionRequest] messages
 impl<S, P> TowerService<SubscriptionRequest> for Service<S, P>
 where
-    S: MembersStorage + 'static,
-    P: ObjectPlacementProvider + 'static,
+    S: MembershipStorage + 'static,
+    P: ObjectPlacement + 'static,
 {
     type Response = SubscriptionResponseIter;
     type Error = ResponseError;
@@ -181,7 +181,7 @@ where
     }
 }
 
-impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<S, P> {
+impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P> {
     /// Returns the ip:port for where this object is placed
     ///
     /// If the object is not instantiated anywhere, it will allocate locally
@@ -232,7 +232,7 @@ impl<S: MembersStorage + 'static, P: ObjectPlacementProvider + 'static> Service<
         if let Some(server_address) = maybe_server_address {
             server_address
         } else {
-            let new_placement = ObjectPlacement::new(object_id, Some(self.address.clone()));
+            let new_placement = ObjectPlacementItem::new(object_id, Some(self.address.clone()));
             {
                 self.object_placement_provider
                     .write()
@@ -415,7 +415,7 @@ mod test {
 
     use super::*;
     use crate::cluster::storage::local::LocalStorage;
-    use crate::object_placement::local::LocalObjectPlacementProvider;
+    use crate::object_placement::local::LocalObjectPlacement;
 
     use crate::registry::Handler;
 
@@ -453,7 +453,7 @@ mod test {
         }
     }
 
-    fn svc() -> Service<LocalStorage, LocalObjectPlacementProvider> {
+    fn svc() -> Service<LocalStorage, LocalObjectPlacement> {
         let mut registry = Registry::new();
         registry.add_type::<MockService>();
         registry.add_handler::<MockService, MockMessage>();
@@ -462,9 +462,7 @@ mod test {
             address: "0.0.0.0:5000".to_string(),
             registry: Arc::new(RwLock::new(registry)),
             members_storage: LocalStorage::default(),
-            object_placement_provider: Arc::new(RwLock::new(
-                LocalObjectPlacementProvider::default(),
-            )),
+            object_placement_provider: Arc::new(RwLock::new(LocalObjectPlacement::default())),
             app_data: Arc::new(AppData::new()),
         }
     }

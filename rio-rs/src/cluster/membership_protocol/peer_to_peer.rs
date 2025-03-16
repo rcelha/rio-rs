@@ -12,7 +12,7 @@ use std::{net::SocketAddr, str::FromStr};
 use crate::client::Client;
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::local::LocalStorage;
-use crate::cluster::storage::{Member, MembersStorage};
+use crate::cluster::storage::{Member, MembershipStorage};
 use crate::errors::ClusterProviderServeError;
 
 /// Marks a node as inactive if we have more than `num_failures_threshold` in the past
@@ -48,7 +48,7 @@ impl PeerToPeerClusterConfig {
 #[derive(Clone)]
 pub struct PeerToPeerClusterProvider<T>
 where
-    T: MembersStorage,
+    T: MembershipStorage,
 {
     members_storage: T,
     config: PeerToPeerClusterConfig,
@@ -56,7 +56,7 @@ where
 
 impl<T> PeerToPeerClusterProvider<T>
 where
-    T: MembersStorage,
+    T: MembershipStorage,
 {
     pub fn new(
         members_storage: T,
@@ -100,7 +100,7 @@ where
 
     /// TODO remove very old servers from the list
     async fn test_member(&self, member: &Member) -> Result<(), ClusterProviderServeError> {
-        // Client needs a MembersStorage, so we create a in-memory one
+        // Client needs a MembershipStorage, so we create a in-memory one
         // for local use only
         let local_storage = LocalStorage::default();
         local_storage.push(member.clone()).await?;
@@ -136,7 +136,7 @@ where
 #[async_trait]
 impl<T> ClusterProvider<T> for PeerToPeerClusterProvider<T>
 where
-    T: MembersStorage,
+    T: MembershipStorage,
 {
     fn members_storage(&self) -> &T {
         &self.members_storage
@@ -151,14 +151,14 @@ where
     /// member and update its state in the storage
     ///
     /// If the test fails `self.config.num_failures_threshold` times, the member is flagged
-    /// as inactive in the `MembersStorage`
+    /// as inactive in the `MembershipStorage`
     ///
     ///
     /// <div class="warning">
     ///
     /// # TODO
     ///
-    /// 1. _If communication with MembersStorage fails, this server should be able to keep running_
+    /// 1. _If communication with MembershipStorage fails, this server should be able to keep running_
     /// 1. _It shouldn't bring dead servers back to life_
     ///
     /// </div>
@@ -179,7 +179,7 @@ where
             let test_members = self.get_members_to_monitor(address, &members);
             let t0 = SystemTime::now();
 
-            // Tests reachability and talks to the MembersStorage to set
+            // Tests reachability and talks to the MembershipStorage to set
             // servers as active or inactive
             let mut future_member_tests = vec![];
 
@@ -238,7 +238,7 @@ mod test {
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    async fn storage() -> impl MembersStorage {
+    async fn storage() -> impl MembershipStorage {
         let storage = LocalStorage::default();
         for (ip, port) in [
             ("0.0.0.0", "5000"),
