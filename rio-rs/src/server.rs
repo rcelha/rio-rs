@@ -417,6 +417,8 @@ where
         }
     }
 
+    /// Consumes messages coming from a mpsc channel and make the bridge to
+    /// the server service (need better naming here) to call another object service
     async fn consume_internal_client_commands(
         mut receiver: InternalClientReceiver,
         service: Service<S, P>,

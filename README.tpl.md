@@ -20,15 +20,15 @@ There are a few things that must be done before v0.1.0:
   - rename MembersStorage to MembershipStorage (rio_rs::cluster::storage)
   - ObjectPlacement to ObjectPlacementItem (rio_rs::object_placement)
   - ObjectPlacementProvider to ObjectPlacement (rio_rs::object_placement)
+- [x] Bypass clustering for self messages
+  - Not an issue. You can do just `Self::handle(my_other_message)?`
+- [x] Bypass networking for local messages
+  - Already handled by `rio_rs::service::Service::call`
 - [ ] MDNs
 - [ ] Client bindings for other languages
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
 - [ ] Guest languages support - Currently possible with WASM + tons of boiler-plate
 - [ ] Create server from config
-- [ ] Bypass clustering for self messages
-  - _possibly a no-issue_
-- [ ] Bypass networking for local messages
-  - _partialy done?_
 - [ ] Move all the client to user tower
 - [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
   - Might not be feasible, there are a few workarounds for testing that I might write some examples

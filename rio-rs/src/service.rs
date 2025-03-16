@@ -46,6 +46,9 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> TowerService<
         std::task::Poll::Ready(Ok(()))
     }
 
+    /// Call a service locally, or return an error that will
+    /// indicate whether this service is allocated somewhere
+    /// else
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let this = self.clone();
         let result = async move {
@@ -244,7 +247,10 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
         }
     }
 
-    /// TODO
+    /// Checks if the given address is from the local server.
+    /// There are various checks that needs to run.
+    ///
+    /// It returns an Error if it is not
     async fn check_address_mismatch(&self, server_address: String) -> Result<(), ResponseError> {
         if server_address == self.address {
             return Ok(());
@@ -284,7 +290,9 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
         Err(ResponseError::DeallocateServiceObject)
     }
 
-    /// TODO
+    /// Startup a service object and insert it into registry
+    ///
+    /// If is already running, ignore it
     async fn start_service_object(
         &self,
         handler_type: &str,
