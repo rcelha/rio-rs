@@ -148,45 +148,56 @@ There are a few things that must be done before v0.1.0:
 
 ### Next
 
-- [x] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
-- [x] Improve error message for ManagedState when the storage is not in the context
-- [x] Improve error message for when the services are not added to the registry (server)
-- [ ] Python client bindings
-- [ ] Guest languages support
+- [ ] Do some renaming around: membership_protocol, cluster.storage, ObjectPlacementProvider, StateLoader, StateSaver, ObjectStateManager
+- [ ] MDNs
+- [ ] Client bindings for other languages
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
-- [x] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
+- [ ] Guest languages support - Currently possible with WASM + tons of boiler-plate
 - [ ] Create server from config
 - [ ] Bypass clustering for self messages
-- [~] Bypass networking for local messages
+  - _possibly a no-issue_
+- [ ] Bypass networking for local messages
+  - _partialy done?_
 - [ ] Move all the client to user tower
 - [ ] Remove the need to pass the StateSaver to `ObjectStateManager::save_state`
+  - Might not be feasible, there are a few workarounds for testing that I might write some examples
+    and call it a day
 - [ ] Include registry configuration in Server builder
 - [ ] Create a getting started tutorial
-  - [ ] Cargo init
-  - [ ] Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
-  - [ ] Write a server
-  - [ ] Write a client
-  - [ ] Add service and messages
-  - [ ] Cargo run --bin server
-  - [ ] Cargo run --bin client
-  - [ ] Life cycle
-  - [ ] Life cycle depends on app_data(StateLoader + StateSaver)
-  - [ ] Cargo test?
+  - Cargo init
+  - Add deps (rio-rs, tokio, async_trait, serde, sqlx - optional)
+  - Write a server
+  - Write a client
+  - Add service and messages
+  - Cargo run --bin server
+  - Cargo run --bin client
+  - Life cycle
+  - Life cycle depends on app_data(StateLoader + StateSaver)
+  - Cargo test?
 - [ ] MySQL support for sql backends
 - [ ] Add pgsql jsonb support
 - [ ] Client/server keep alive
-- [ ] Placement strategies (nodes work with different sets of trait objects)
+- [ ] Topology - nodes work with different sets of service types
+- [ ] Placement strategies - sets where to place objects
 - [ ] Supervision
 - [ ] Ephemeral objects (aka regular - local - actors)
 - [ ] Remove magic numbers
 - [ ] Object TTL
 - [ ] Code of conduct
-- [ ] Metrics and Tracing
+- [ ] Metrics
+- [ ] Tracing
 - [ ] Deny allocations based on system resources
 - [ ] Dockerized examples
-- [?] Reduce static lifetimes
+- [ ] Reduce static lifetimes
+  - Might not be feasible
 
 
+### Version 0.2.3
+
+- [x] Improve error message for ManagedState macro when the struct doesn't implement ServiceObject
+- [x] Improve error message for ManagedState when the storage is not in the context
+- [x] Improve error message for when the services are not added to the registry (server)
+- [x] Client doesn't need to have a access to the cluster backend if we implement an HTTP API
 
 ### Version 0.2.0
 
