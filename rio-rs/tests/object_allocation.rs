@@ -4,13 +4,13 @@ use std::time::Duration;
 use async_trait::async_trait;
 use log::debug;
 use rio_rs::server::AdminSender;
-use rio_rs::{object_placement::ObjectPlacementProvider, protocol::NoopError};
+use rio_rs::{object_placement::ObjectPlacement, protocol::NoopError};
 use serde::{Deserialize, Serialize};
 
 use rio_rs::prelude::*;
 
 use rio_rs::cluster::storage::local::LocalStorage;
-use rio_rs::object_placement::local::LocalObjectPlacementProvider;
+use rio_rs::object_placement::local::LocalObjectPlacement;
 
 mod server_utils;
 use server_utils::{is_allocated, run_integration_test};
@@ -85,7 +85,7 @@ async fn move_object_on_server_failure() {
 
 async fn move_object_on_server_failure_single() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         20,
@@ -142,7 +142,7 @@ async fn move_object_on_server_failure_single() {
 #[tokio::test]
 async fn error_when_server_doesnt_have_service_in_registry() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         3,

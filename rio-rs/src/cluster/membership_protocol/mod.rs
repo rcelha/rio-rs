@@ -1,8 +1,6 @@
-//! Controls which cluster members' are healthy
-
 use async_trait::async_trait;
 
-use crate::{cluster::storage::MembersStorage, errors::ClusterProviderServeError};
+use crate::{cluster::storage::MembershipStorage, errors::ClusterProviderServeError};
 
 pub mod local;
 pub mod peer_to_peer;
@@ -11,15 +9,15 @@ pub mod peer_to_peer;
 /// servers are part of the cluster and which of these are healthy
 /// or not.
 ///
-/// To list which servers are part of the cluster, it uses a [MembersStorage](super::storage::MembersStorage).
-/// The cluster provider uses the MembersStorage's API to update the state of the providers.
+/// To list which servers are part of the cluster, it uses a [MembershipStorage](super::storage::MembershipStorage).
+/// The cluster provider uses the MembershipStorage's API to update the state of the providers.
 #[async_trait]
 pub trait ClusterProvider<T>
 where
     Self: Clone,
-    T: MembersStorage,
+    T: MembershipStorage,
 {
-    /// Every ClusterProvider needs to have an [MembersStorage] associated to it
+    /// Every ClusterProvider needs to have an [MembershipStorage] associated to it
     ///
     /// <div class="warning">
     /// I am not sure this function is needed

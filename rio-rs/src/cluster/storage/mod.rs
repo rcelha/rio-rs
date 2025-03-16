@@ -1,7 +1,3 @@
-//! Stores a list of running servers
-//!
-//! It serves Rendevouz and Cluster Membership APIs
-
 use async_trait::async_trait;
 use chrono::{DateTime, TimeZone, Utc};
 
@@ -63,10 +59,13 @@ impl Member {
 pub type MembershipResult<T> = Result<T, MembershipError>;
 pub type MembershipUnitResult = Result<(), MembershipError>;
 
-/// `MembersStorage` is a trait describing how to manage a list of servers and their respective
+/// `MembersshipStorage` is a trait describing how to manage a list of servers and their respective
 /// status.
+///
+/// It is **not** reponsible for asserting the nodes' state, only to store their state.
+/// This is done by the [crate::cluster::membership_protocol::ClusterProvider]
 #[async_trait]
-pub trait MembersStorage: Send + Sync + Clone {
+pub trait MembershipStorage: Send + Sync + Clone {
     async fn prepare(&self) {}
 
     /// Saves a new member to the storage

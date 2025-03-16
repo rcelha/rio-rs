@@ -1,4 +1,4 @@
-//! SQL implementation of the trait [ObjectPlacementProvider] to work with relational databases
+//! SQL implementation of the trait [ObjectPlacement] to work with relational databases
 //!
 //! This uses [sqlx] under the hood
 
@@ -8,16 +8,16 @@ use async_trait::async_trait;
 use bb8_redis::{bb8::Pool, RedisConnectionManager};
 use redis::AsyncCommands;
 
-use super::{ObjectPlacement, ObjectPlacementProvider};
+use super::{ObjectPlacement, ObjectPlacementItem};
 use crate::ObjectId;
 
 #[derive(Clone)]
-pub struct RedisObjectPlacementProvider {
+pub struct RedisObjectPlacement {
     pool: Pool<RedisConnectionManager>,
     key_prefix: String,
 }
 
-impl RedisObjectPlacementProvider {
+impl RedisObjectPlacement {
     pub async fn from_connect_string(connection_string: &str, key_prefix: Option<String>) -> Self {
         let conn_manager = RedisConnectionManager::new(connection_string).expect("TODO");
         let pool = Pool::builder().build(conn_manager).await.expect("TODO");
@@ -27,8 +27,8 @@ impl RedisObjectPlacementProvider {
 }
 
 #[async_trait]
-impl ObjectPlacementProvider for RedisObjectPlacementProvider {
-    async fn update(&self, object_placement: ObjectPlacement) {
+impl ObjectPlacement for RedisObjectPlacement {
+    async fn update(&self, object_placement: ObjectPlacementItem) {
         let object_id = format!(
             "{}:{}",
             object_placement.object_id.0, object_placement.object_id.1

@@ -16,7 +16,7 @@ use tokio::net::ToSocketAddrs;
 
 use crate::errors::MembershipError;
 
-use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
+use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HttpMember {
@@ -27,13 +27,13 @@ pub struct HttpMember {
 }
 
 #[derive(Clone)]
-struct AppData<S: MembersStorage + 'static> {
+struct AppData<S: MembershipStorage + 'static> {
     pub inner: S,
 }
 
 pub async fn serve(
     bind: impl ToSocketAddrs,
-    backend: impl MembersStorage + 'static,
+    backend: impl MembershipStorage + 'static,
 ) -> MembershipUnitResult {
     // build our application with a route
     let app = Router::new()
@@ -48,7 +48,7 @@ pub async fn serve(
     Ok(())
 }
 
-async fn list_members<S: MembersStorage + 'static>(
+async fn list_members<S: MembershipStorage + 'static>(
     State(app_data): State<AppData<S>>,
 ) -> (StatusCode, Json<Vec<HttpMember>>) {
     let members: Vec<_> = app_data
@@ -68,7 +68,7 @@ async fn list_members<S: MembersStorage + 'static>(
     (StatusCode::OK, Json(members))
 }
 
-async fn member_failures<S: MembersStorage + 'static>(
+async fn member_failures<S: MembershipStorage + 'static>(
     Path((ip, port)): Path<(String, String)>,
     State(app_data): State<AppData<S>>,
 ) -> (StatusCode, Json<Vec<String>>) {
@@ -82,12 +82,12 @@ async fn member_failures<S: MembersStorage + 'static>(
 }
 
 #[derive(Clone, Default)]
-pub struct HttpMembersStorage {
+pub struct HttpMembershipStorage {
     pub remote_address: String,
 }
 
 #[async_trait]
-impl MembersStorage for HttpMembersStorage {
+impl MembershipStorage for HttpMembershipStorage {
     async fn push(&self, _member: Member) -> MembershipUnitResult {
         Err(MembershipError::ReadOnly("push".to_string()))
     }

@@ -1,4 +1,4 @@
-//! SQL implementation of the trait [ObjectPlacementProvider] to work with relational databases
+//! SQL implementation of the trait [ObjectPlacement] to work with relational databases
 //!
 //! This uses [sqlx] under the hood
 
@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{self, Row, SqlitePool};
 
-use super::{ObjectPlacement, ObjectPlacementProvider};
+use super::{ObjectPlacement, ObjectPlacementItem};
 use crate::sql_migration::SqlMigrations;
 use crate::ObjectId;
 
@@ -20,13 +20,13 @@ impl SqlMigrations for SqliteObjectPlacementMigrations {
 }
 
 #[derive(Clone)]
-pub struct SqliteObjectPlacementProvider {
+pub struct SqliteObjectPlacement {
     pool: SqlitePool,
 }
 
-impl SqliteObjectPlacementProvider {
+impl SqliteObjectPlacement {
     pub fn new(pool: SqlitePool) -> Self {
-        SqliteObjectPlacementProvider { pool }
+        SqliteObjectPlacement { pool }
     }
 
     /// Pool builder, so one doesn't need to include sqlx as a dependency
@@ -34,13 +34,13 @@ impl SqliteObjectPlacementProvider {
     /// # Example
     ///
     /// ```
-    /// # use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
+    /// # use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
     /// # async fn test_fn() {
-    /// let pool = SqliteObjectPlacementProvider::pool()
+    /// let pool = SqliteObjectPlacement::pool()
     ///     .connect("sqlite::memory:")
     ///     .await
     ///     .expect("Connection failure");
-    /// let object_placement = SqliteObjectPlacementProvider::new(pool);
+    /// let object_placement = SqliteObjectPlacement::new(pool);
     /// # }
     /// ```
     pub fn pool() -> SqlitePoolOptions {
@@ -49,7 +49,7 @@ impl SqliteObjectPlacementProvider {
 }
 
 #[async_trait]
-impl ObjectPlacementProvider for SqliteObjectPlacementProvider {
+impl ObjectPlacement for SqliteObjectPlacement {
     /// Run the schema/data migrations for this membership storage.
     ///
     /// For now, the Rio server doesn't run this at start-up and it needs
@@ -66,7 +66,7 @@ impl ObjectPlacementProvider for SqliteObjectPlacementProvider {
         transaction.commit().await.unwrap();
     }
 
-    async fn update(&self, object_placement: ObjectPlacement) {
+    async fn update(&self, object_placement: ObjectPlacementItem) {
         sqlx::query(
             r#"
             INSERT INTO
@@ -137,9 +137,9 @@ mod test {
             .expect("TODO: Connection failure")
     }
 
-    async fn object_placement_provider() -> (SqlitePool, impl ObjectPlacementProvider) {
+    async fn object_placement_provider() -> (SqlitePool, impl ObjectPlacement) {
         let pool = pool().await;
-        let object_placement_provider = SqliteObjectPlacementProvider::new(pool.clone());
+        let object_placement_provider = SqliteObjectPlacement::new(pool.clone());
         object_placement_provider.prepare().await;
         (pool, object_placement_provider)
     }
@@ -153,7 +153,7 @@ mod test {
         assert_eq!(placement, None);
 
         let object_placement =
-            ObjectPlacement::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5000".to_string()));
+            ObjectPlacementItem::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5000".to_string()));
         object_placement_provider.update(object_placement).await;
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))
@@ -162,7 +162,7 @@ mod test {
         assert_eq!(placement, "0.0.0.0:5000");
 
         let object_placement =
-            ObjectPlacement::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5001".to_string()));
+            ObjectPlacementItem::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5001".to_string()));
         object_placement_provider.update(object_placement).await;
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))

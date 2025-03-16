@@ -7,7 +7,7 @@ use log::{error, info, warn};
 use serde::de::DeserializeOwned;
 use tower::Service as TowerService;
 
-use crate::cluster::storage::MembersStorage;
+use crate::cluster::storage::MembershipStorage;
 use crate::protocol::RequestError;
 use crate::protocol::{ClientError, RequestEnvelope, ResponseEnvelope, ResponseError};
 
@@ -18,12 +18,12 @@ use super::Client;
 /// This contains the [Client] because it does
 ///
 /// - `'a` is the lifetime for the tower service's box future
-/// - `S` is the MemberStorage for the internal client
+/// - `S` is the MembershipStorage for the internal client
 /// - `E` is the generic for the RequestError
 #[derive(Clone)]
 pub struct Request<'a, S, E>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
 {
     client: Client<S>,
     _lifetime_marker: PhantomData<&'a ()>,
@@ -32,7 +32,7 @@ where
 
 impl<'a, S, E> Request<'a, S, E>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
 {
     pub fn new(client: Client<S>) -> Self {
         Request {
@@ -46,7 +46,7 @@ where
 impl<'a, S, E: std::error::Error + DeserializeOwned> TowerService<RequestEnvelope>
     for Request<'a, S, E>
 where
-    S: MembersStorage + 'static, // TODO remove 'static
+    S: MembershipStorage + 'static, // TODO remove 'static
 {
     type Response = Vec<u8>;
     type Error = RequestError<E>;
@@ -97,7 +97,7 @@ where
 /// - When the object is not yet allocated
 pub struct RequestRedirect<'a, S, E>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
     Request<'a, S, E>: Clone,
 {
     inner: Request<'a, S, E>,
@@ -105,7 +105,7 @@ where
 
 impl<'a, S, E> RequestRedirect<'a, S, E>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
     Request<'a, S, E>: Clone,
 {
     pub fn new(inner: Request<'a, S, E>) -> Self {
@@ -116,7 +116,7 @@ where
 impl<'a, S, E> TowerService<RequestEnvelope> for RequestRedirect<'a, S, E>
 where
     E: std::error::Error + DeserializeOwned + Send + Sync + 'a,
-    S: MembersStorage + 'static,
+    S: MembershipStorage + 'static,
     Request<'a, S, E>: Clone,
 {
     type Response = Vec<u8>;
@@ -212,7 +212,7 @@ mod test {
     use super::*;
     use crate::{
         cluster::storage::{
-            local::LocalStorage, Member, MembersStorage, MembershipResult, MembershipUnitResult,
+            local::LocalStorage, Member, MembershipResult, MembershipStorage, MembershipUnitResult,
         },
         errors::MembershipError,
     };
@@ -224,10 +224,10 @@ mod test {
     }
 
     #[derive(Clone, Default)]
-    struct FailMemberStorage {}
+    struct FailMembershipStorage {}
 
     #[async_trait]
-    impl MembersStorage for FailMemberStorage {
+    impl MembershipStorage for FailMembershipStorage {
         async fn push(&self, _: Member) -> MembershipUnitResult {
             Ok(())
         }
@@ -294,7 +294,7 @@ mod test {
     async fn test_poll_ready_error() {
         let client = Client {
             timeout_millis: 1000,
-            members_storage: FailMemberStorage {},
+            members_storage: FailMembershipStorage {},
             active_servers: None,
             ts_active_servers_refresh: 0,
             streams: Arc::default(),

@@ -14,9 +14,9 @@ use tower::{Service as TowerService, ServiceExt};
 
 use crate::app_data::AppData;
 use crate::cluster::membership_protocol::ClusterProvider;
-use crate::cluster::storage::MembersStorage;
+use crate::cluster::storage::MembershipStorage;
 use crate::errors::{ServerBuilderError, ServerError};
-use crate::object_placement::ObjectPlacementProvider;
+use crate::object_placement::ObjectPlacement;
 use crate::protocol::pubsub::SubscriptionRequest;
 use crate::protocol::ResponseError;
 use crate::protocol::{RequestEnvelope, ResponseEnvelope};
@@ -83,9 +83,9 @@ pub type InternalClientSender = mpsc::UnboundedSender<SendCommand>;
 #[builder(name = "NewServerBuilder")]
 pub struct Server<S, C, P>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
     C: ClusterProvider<S>,
-    P: ObjectPlacementProvider,
+    P: ObjectPlacement,
 {
     /// Address given by the user
     #[builder(setter(into, strip_option), default = r#""0.0.0.0:0".to_string()"#)]
@@ -116,7 +116,7 @@ where
 /// # Example
 /// ```rust
 /// # use rio_rs::server::ServerBuilder;
-/// # use rio_rs::object_placement::local::LocalObjectPlacementProvider;
+/// # use rio_rs::object_placement::local::LocalObjectPlacement;
 /// # use rio_rs::registry::Registry;
 /// # use rio_rs::cluster::membership_protocol::local::LocalClusterProvider;
 /// # use rio_rs::cluster::storage::local::LocalStorage;
@@ -125,7 +125,7 @@ where
 /// let mut server = ServerBuilder::default()
 ///     .registry(Registry::default())
 ///     .cluster_provider(LocalClusterProvider {members_storage: LocalStorage::default()})
-///     .object_placement_provider(LocalObjectPlacementProvider::default())
+///     .object_placement_provider(LocalObjectPlacement::default())
 ///     .client_pool_size(10)
 ///     .build().unwrap();
 /// let listener = server.bind().await.unwrap();
@@ -135,9 +135,9 @@ where
 /// ```
 pub struct ServerBuilder<S, C, P>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
     C: ClusterProvider<S>,
-    P: ObjectPlacementProvider,
+    P: ObjectPlacement,
 {
     address: String,
     registry: Option<Registry>,
@@ -150,9 +150,9 @@ where
 
 impl<S, C, P> Default for ServerBuilder<S, C, P>
 where
-    S: MembersStorage,
+    S: MembershipStorage,
     C: ClusterProvider<S>,
-    P: ObjectPlacementProvider,
+    P: ObjectPlacement,
 {
     fn default() -> Self {
         ServerBuilder {
@@ -168,9 +168,9 @@ where
 
 impl<S, C, P> ServerBuilder<S, C, P>
 where
-    S: MembersStorage + 'static,
+    S: MembershipStorage + 'static,
     C: ClusterProvider<S> + 'static + Send + Sync,
-    P: ObjectPlacementProvider + 'static,
+    P: ObjectPlacement + 'static,
 {
     pub fn new() -> Self {
         Self::default()
@@ -206,10 +206,10 @@ where
         let registry = self.registry.unwrap_or_default();
         let cluster_provider = self
             .cluster_provider
-            .ok_or(ServerBuilderError::NoMembersStorage)?;
+            .ok_or(ServerBuilderError::NoMembershipStorage)?;
         let object_placement_provider = self
             .object_placement_provider
-            .ok_or(ServerBuilderError::NoObjectPlacementProvider)?;
+            .ok_or(ServerBuilderError::NoObjectPlacement)?;
         let client_pool_size = self.client_pool_size;
 
         let mut server = Server::new(
@@ -228,9 +228,9 @@ type ServerResult<T> = Result<T, ServerError>;
 
 impl<S, C, P> Server<S, C, P>
 where
-    S: MembersStorage + 'static,
+    S: MembershipStorage + 'static,
     C: ClusterProvider<S> + Send + Sync + 'static,
-    P: ObjectPlacementProvider + 'static,
+    P: ObjectPlacement + 'static,
 {
     pub fn new(
         address: String,
@@ -479,9 +479,9 @@ where
 /// so it can generate a Service
 impl<S, C, P> TryFrom<&Server<S, C, P>> for Service<S, P>
 where
-    S: MembersStorage + 'static,
+    S: MembershipStorage + 'static,
     C: ClusterProvider<S> + 'static + Send + Sync,
-    P: ObjectPlacementProvider + 'static,
+    P: ObjectPlacement + 'static,
 {
     type Error = ServerError;
     fn try_from(server: &Server<S, C, P>) -> Result<Self, Self::Error> {
@@ -506,7 +506,7 @@ mod test {
     use super::*;
     use crate::cluster::membership_protocol::local::LocalClusterProvider;
     use crate::cluster::storage::local::LocalStorage;
-    use crate::object_placement::local::LocalObjectPlacementProvider;
+    use crate::object_placement::local::LocalObjectPlacement;
     use crate::registry::Registry;
 
     #[tokio::test]
@@ -518,9 +518,7 @@ mod test {
             .cluster_provider(LocalClusterProvider {
                 members_storage: LocalStorage::default(),
             })
-            .object_placement_provider(Arc::new(RwLock::new(
-                LocalObjectPlacementProvider::default(),
-            )))
+            .object_placement_provider(Arc::new(RwLock::new(LocalObjectPlacement::default())))
             .build()
             .expect("Builder Failed");
     }

@@ -50,8 +50,8 @@
 //!
 //! ```rust
 //! use rio_rs::prelude::*;
-//! use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
-//! use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
+//! use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
+//! use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 //!
 //! # // Copied from the snippet above
 //! # use async_trait::async_trait;
@@ -91,22 +91,22 @@
 //!     registry.add_handler::<HelloWorldService, HelloMessage>();
 //!
 //!     // Configure the Cluster Membership provider
-//!     let pool = SqliteMembersStorage::pool()
+//!     let pool = SqliteMembershipStorage::pool()
 //!         .connect("sqlite::memory:")
 //!         .await
 //!         .expect("Membership database connection failure");
-//!     let members_storage = SqliteMembersStorage::new(pool);
+//!     let members_storage = SqliteMembershipStorage::new(pool);
 //!
 //!     let membership_provider_config = PeerToPeerClusterConfig::default();
 //!     let membership_provider =
 //!         PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
 //!
 //!     // Configure the object placement
-//!     let pool = SqliteMembersStorage::pool()
+//!     let pool = SqliteMembershipStorage::pool()
 //!         .connect("sqlite::memory:")
 //!         .await
 //!         .expect("Object placement database connection failure");
-//!     let object_placement_provider = SqliteObjectPlacementProvider::new(pool);
+//!     let object_placement_provider = SqliteObjectPlacement::new(pool);
 //!
 //!     // Create the server object
 //!     let mut server = Server::new(
@@ -129,7 +129,7 @@
 //!
 //! ```no_run
 //! use rio_rs::prelude::*;
-//! use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+//! use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 //!
 //! # // Copied from the snippet above
 //! # use async_trait::async_trait;
@@ -162,10 +162,10 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Member storage configuration (Rendezvous)
-//!     let pool = SqliteMembersStorage::pool()
+//!     let pool = SqliteMembershipStorage::pool()
 //!         .connect("sqlite::memory:")
 //!         .await?;
-//!     let members_storage = SqliteMembersStorage::new(pool);
+//!     let members_storage = SqliteMembershipStorage::new(pool);
 //!     # members_storage.prepare().await;
 //!
 //!     // Create the client
@@ -223,7 +223,7 @@ pub mod prelude {
         PeerToPeerClusterConfig, PeerToPeerClusterProvider,
     };
     pub use super::cluster::membership_protocol::ClusterProvider;
-    pub use super::cluster::storage::MembersStorage;
+    pub use super::cluster::storage::MembershipStorage;
     pub use super::derive::{make_registry, ManagedState, Message, TypeName, WithId};
     pub use super::errors::{ClientBuilderError, HandlerError, ServiceObjectLifeCycleError};
     pub use super::protocol::{ClientError, NoopError, RequestError, ResponseError};

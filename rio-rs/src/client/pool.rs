@@ -7,7 +7,7 @@ use async_trait::async_trait;
 pub use bb8::PooledConnection;
 pub use bb8::{ManageConnection, Pool};
 
-use crate::cluster::storage::MembersStorage;
+use crate::cluster::storage::MembershipStorage;
 use crate::protocol::ClientError;
 
 use super::Client;
@@ -22,12 +22,12 @@ use super::DEFAULT_TIMEOUT_MILLIS;
 /// - Move the cache out of the Client struct so we can share the cache across all connections in the pool
 ///
 /// </div>
-pub struct ClientConnectionManager<S: MembersStorage> {
+pub struct ClientConnectionManager<S: MembershipStorage> {
     pub(crate) members_storage: S,
     pub(crate) timeout_millis: u64,
 }
 
-impl<S: MembersStorage + 'static> ClientConnectionManager<S> {
+impl<S: MembershipStorage + 'static> ClientConnectionManager<S> {
     pub fn new(members_storage: S) -> Self {
         ClientConnectionManager {
             members_storage,
@@ -41,7 +41,7 @@ impl<S: MembersStorage + 'static> ClientConnectionManager<S> {
 }
 
 #[async_trait]
-impl<S: MembersStorage + 'static> ManageConnection for ClientConnectionManager<S> {
+impl<S: MembershipStorage + 'static> ManageConnection for ClientConnectionManager<S> {
     type Connection = Client<S>;
     type Error = ClientError;
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {

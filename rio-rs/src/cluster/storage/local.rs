@@ -1,11 +1,11 @@
-//! In-Memory implementation of [MembersStorage]
+//! In-Memory implementation of [MembershipStorage]
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tokio::sync::RwLock;
 
-use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
+use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
 type ArcMembers = Arc<RwLock<Vec<Member>>>;
 type ArcFailures = Arc<RwLock<Vec<(String, String, DateTime<Utc>)>>>;
@@ -17,7 +17,7 @@ pub struct LocalStorage {
 }
 
 #[async_trait]
-impl MembersStorage for LocalStorage {
+impl MembershipStorage for LocalStorage {
     async fn push(&self, member: Member) -> MembershipUnitResult {
         self.members.write().await.push(member);
         Ok(())
@@ -68,7 +68,7 @@ impl MembersStorage for LocalStorage {
 mod test {
     use super::*;
 
-    async fn storage() -> impl MembersStorage {
+    async fn storage() -> impl MembershipStorage {
         let storage = LocalStorage::default();
         for (ip, port) in [
             ("0.0.0.0", "5000"),

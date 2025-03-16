@@ -5,15 +5,15 @@ use bb8_redis::{bb8::Pool, RedisConnectionManager};
 use chrono::{DateTime, Utc};
 use redis::AsyncCommands;
 
-use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
+use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
 #[derive(Clone)]
-pub struct RedisMembersStorage {
+pub struct RedisMembershipStorage {
     pool: Pool<RedisConnectionManager>,
     key_prefix: String,
 }
 
-impl RedisMembersStorage {
+impl RedisMembershipStorage {
     fn members_key(&self) -> String {
         format!("{}members", self.key_prefix)
     }
@@ -23,12 +23,12 @@ impl RedisMembersStorage {
     }
 }
 
-impl RedisMembersStorage {
+impl RedisMembershipStorage {
     pub async fn from_connect_string(connection_string: &str, key_prefix: Option<String>) -> Self {
         let conn_manager = RedisConnectionManager::new(connection_string).expect("TODO");
         let pool = Pool::builder().build(conn_manager).await.expect("TODO");
         let key_prefix = key_prefix.unwrap_or_default();
-        RedisMembersStorage { pool, key_prefix }
+        RedisMembershipStorage { pool, key_prefix }
     }
 }
 
@@ -65,7 +65,7 @@ fn parse_member(member: &str) -> Member {
 }
 
 #[async_trait]
-impl MembersStorage for RedisMembersStorage {
+impl MembershipStorage for RedisMembershipStorage {
     async fn push(&self, member: Member) -> MembershipUnitResult {
         let mut client = self.pool.get().await.expect("TODO");
         let member_key = member_key(&member.ip, &member.port);

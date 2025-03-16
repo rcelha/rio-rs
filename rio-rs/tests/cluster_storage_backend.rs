@@ -1,9 +1,9 @@
-use rio_rs::{cluster::storage::Member, prelude::MembersStorage};
+use rio_rs::{cluster::storage::Member, prelude::MembershipStorage};
 
 #[cfg(any(feature = "sqlite", feature = "postgres"))]
 mod db_utils;
 
-async fn members_sanity_check<T: MembersStorage>(storage: T) {
+async fn members_sanity_check<T: MembershipStorage>(storage: T) {
     storage.prepare().await;
 
     let members = storage.members().await.unwrap();
@@ -26,7 +26,7 @@ async fn members_sanity_check<T: MembersStorage>(storage: T) {
     assert_eq!(members.len(), 0);
 }
 
-async fn failures_sanity_check<T: MembersStorage>(storage: T) {
+async fn failures_sanity_check<T: MembershipStorage>(storage: T) {
     storage.prepare().await;
 
     let failures = storage.member_failures("0.0.0.0", "9090").await.unwrap();
@@ -40,13 +40,14 @@ async fn failures_sanity_check<T: MembersStorage>(storage: T) {
 
 #[cfg(feature = "redis")]
 mod redis {
-    use rio_rs::cluster::storage::redis::RedisMembersStorage;
+    use rio_rs::cluster::storage::redis::RedisMembershipStorage;
 
     #[tokio::test]
     async fn members_sanity_check() {
         let prefix = chrono::Local::now().timestamp().to_string();
         let storage =
-            RedisMembersStorage::from_connect_string("redis://localhost:16379", Some(prefix)).await;
+            RedisMembershipStorage::from_connect_string("redis://localhost:16379", Some(prefix))
+                .await;
         super::members_sanity_check(storage).await;
     }
 
@@ -54,7 +55,8 @@ mod redis {
     async fn failures_sanity_check() {
         let prefix = chrono::Local::now().timestamp().to_string();
         let storage =
-            RedisMembersStorage::from_connect_string("redis://localhost:16379", Some(prefix)).await;
+            RedisMembershipStorage::from_connect_string("redis://localhost:16379", Some(prefix))
+                .await;
         super::failures_sanity_check(storage).await;
     }
 }
@@ -62,22 +64,22 @@ mod redis {
 #[cfg(feature = "sql")]
 mod sqlite {
     use super::db_utils::sqlite::pool;
-    use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+    use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 
     #[tokio::test]
     async fn members_sanity_check() {
         let pool = pool().await;
-        let storage = SqliteMembersStorage::new(pool);
+        let storage = SqliteMembershipStorage::new(pool);
         super::members_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn failures_sanity_check() {
-        let pool = SqliteMembersStorage::pool()
+        let pool = SqliteMembershipStorage::pool()
             .connect("sqlite://:memory:")
             .await
             .unwrap();
-        let storage = SqliteMembersStorage::new(pool);
+        let storage = SqliteMembershipStorage::new(pool);
         super::failures_sanity_check(storage).await;
     }
 }
@@ -85,19 +87,19 @@ mod sqlite {
 #[cfg(feature = "sql")]
 mod pgsql {
     use super::db_utils::pgsql::pool;
-    use rio_rs::cluster::storage::postgres::PostgresMembersStorage;
+    use rio_rs::cluster::storage::postgres::PostgresMembershipStorage;
 
     #[tokio::test]
     async fn members_sanity_check() {
         let pool = pool("members_sanity_check").await;
-        let storage = PostgresMembersStorage::new(pool);
+        let storage = PostgresMembershipStorage::new(pool);
         super::members_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn failures_sanity_check() {
         let pool = pool("failure_sanity_check").await;
-        let storage = PostgresMembersStorage::new(pool);
+        let storage = PostgresMembershipStorage::new(pool);
         super::failures_sanity_check(storage).await;
     }
 }

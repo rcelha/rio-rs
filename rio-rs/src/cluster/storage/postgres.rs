@@ -1,4 +1,4 @@
-//! MembersStorage implementation to work with relational databases
+//! MembershipStorage implementation to work with relational databases
 //!
 //! This uses [sqlx] under the hood
 
@@ -10,11 +10,11 @@ use sqlx::{self, PgPool, Row};
 
 use crate::sql_migration::SqlMigrations;
 
-use super::{Member, MembersStorage, MembershipResult, MembershipUnitResult};
+use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
-pub struct PgMembersStorageMigrations {}
+pub struct PgMembershipStorageMigrations {}
 
-impl SqlMigrations for PgMembersStorageMigrations {
+impl SqlMigrations for PgMembershipStorageMigrations {
     fn queries() -> Vec<String> {
         let migrations: Vec<_> = include_str!("./migrations/0001-postgres-init.sql")
             .split(";")
@@ -24,16 +24,16 @@ impl SqlMigrations for PgMembersStorageMigrations {
     }
 }
 
-/// MembersStorage implementation to work with relational databases
+/// MembershipStorage implementation to work with relational databases
 #[derive(Clone)]
-pub struct PostgresMembersStorage {
+pub struct PostgresMembershipStorage {
     pool: PgPool,
 }
 
-impl PostgresMembersStorage {
-    /// Builds a [SqlMembersStorage] from a [sqlx]'s [AnyPool]
-    pub fn new(pool: PgPool) -> PostgresMembersStorage {
-        PostgresMembersStorage { pool }
+impl PostgresMembershipStorage {
+    /// Builds a [SqlMembershipStorage] from a [sqlx]'s [AnyPool]
+    pub fn new(pool: PgPool) -> PostgresMembershipStorage {
+        PostgresMembershipStorage { pool }
     }
 
     /// Pool builder, so one doesn't need to include sqlx as a dependency
@@ -41,13 +41,13 @@ impl PostgresMembersStorage {
     /// # Example
     ///
     /// ```
-    /// # use rio_rs::cluster::storage::postgres::PostgresMembersStorage;
+    /// # use rio_rs::cluster::storage::postgres::PostgresMembershipStorage;
     /// # async fn test_fn() {
-    /// let pool = PostgresMembersStorage::pool()
+    /// let pool = PostgresMembershipStorage::pool()
     ///     .connect("sqlite::memory:")
     ///     .await
     ///     .expect("Connection failure");
-    /// let members_storage = PostgresMembersStorage::new(pool);
+    /// let members_storage = PostgresMembershipStorage::new(pool);
     /// # }
     /// ```
     pub fn pool() -> PgPoolOptions {
@@ -56,11 +56,11 @@ impl PostgresMembersStorage {
 }
 
 #[async_trait]
-impl MembersStorage for PostgresMembersStorage {
+impl MembershipStorage for PostgresMembershipStorage {
     /// Run the schema/data migrations for this membership storage.
     async fn prepare(&self) {
         let mut transaction = self.pool.begin().await.unwrap();
-        let queries = PgMembersStorageMigrations::queries();
+        let queries = PgMembershipStorageMigrations::queries();
         for query in queries {
             sqlx::query(&query)
                 .execute(&mut *transaction)

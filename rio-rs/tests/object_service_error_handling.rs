@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rio_rs::object_placement::local::LocalObjectPlacementProvider;
+use rio_rs::object_placement::local::LocalObjectPlacement;
 use serde::{Deserialize, Serialize};
 
 use rio_macros::{Message, TypeName, WithId};
@@ -89,7 +89,7 @@ fn build_registry() -> Registry {
 #[tokio::test]
 async fn service_is_allocated_ok() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         5,
@@ -116,7 +116,7 @@ async fn service_is_allocated_ok() {
 #[tokio::test]
 async fn service_is_allocated_after_error() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         5,
@@ -145,7 +145,7 @@ async fn service_is_allocated_after_error() {
 #[tokio::test]
 async fn service_is_not_allocated_after_panic() {
     let members_storage = LocalStorage::default();
-    let object_placement_provider = LocalObjectPlacementProvider::default();
+    let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
         5,

@@ -58,8 +58,8 @@ TODO: Include example of other databases
 
 ```rust
 use rio_rs::prelude::*;
-use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
-use rio_rs::object_placement::sqlite::SqliteObjectPlacementProvider;
+use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
+use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 
 
 #[tokio::main]
@@ -72,22 +72,22 @@ async fn main() {
     registry.add_handler::<HelloWorldService, HelloMessage>();
 
     // Configure the Cluster Membership provider
-    let pool = SqliteMembersStorage::pool()
+    let pool = SqliteMembershipStorage::pool()
         .connect("sqlite::memory:")
         .await
         .expect("Membership database connection failure");
-    let members_storage = SqliteMembersStorage::new(pool);
+    let members_storage = SqliteMembershipStorage::new(pool);
 
     let membership_provider_config = PeerToPeerClusterConfig::default();
     let membership_provider =
         PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
 
     // Configure the object placement
-    let pool = SqliteMembersStorage::pool()
+    let pool = SqliteMembershipStorage::pool()
         .connect("sqlite::memory:")
         .await
         .expect("Object placement database connection failure");
-    let object_placement_provider = SqliteObjectPlacementProvider::new(pool);
+    let object_placement_provider = SqliteObjectPlacement::new(pool);
 
     // Create the server object
     let mut server = Server::new(
@@ -110,16 +110,16 @@ The [`client`] module provides an easy way of achieving this:
 
 ```rust
 use rio_rs::prelude::*;
-use rio_rs::cluster::storage::sqlite::SqliteMembersStorage;
+use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Member storage configuration (Rendezvous)
-    let pool = SqliteMembersStorage::pool()
+    let pool = SqliteMembershipStorage::pool()
         .connect("sqlite::memory:")
         .await?;
-    let members_storage = SqliteMembersStorage::new(pool);
+    let members_storage = SqliteMembershipStorage::new(pool);
     # members_storage.prepare().await;
 
     // Create the client
@@ -148,7 +148,10 @@ There are a few things that must be done before v0.1.0:
 
 ### Next
 
-- [ ] Do some renaming around: membership_protocol, cluster.storage, ObjectPlacementProvider, StateLoader, StateSaver, ObjectStateManager
+- [x] Do some renaming around:
+  - rename MembersStorage to MembershipStorage (rio_rs::cluster::storage)
+  - ObjectPlacement to ObjectPlacementItem (rio_rs::object_placement)
+  - ObjectPlacementProvider to ObjectPlacement (rio_rs::object_placement)
 - [ ] MDNs
 - [ ] Client bindings for other languages
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)

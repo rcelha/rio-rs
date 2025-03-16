@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 use super::ClusterProvider;
-use crate::{cluster::storage::MembersStorage, errors::ClusterProviderServeError};
+use crate::{cluster::storage::MembershipStorage, errors::ClusterProviderServeError};
 
 /// Local server compatible with the ClusterProvider API
 ///
@@ -18,7 +18,7 @@ pub struct LocalClusterProvider<T> {
 #[async_trait]
 impl<T> ClusterProvider<T> for LocalClusterProvider<T>
 where
-    T: MembersStorage,
+    T: MembershipStorage,
 {
     fn members_storage(&self) -> &T {
         &self.members_storage
