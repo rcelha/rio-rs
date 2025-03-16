@@ -47,7 +47,7 @@ pub async fn build_server(
     let sql_state_pool = SqliteState::pool().connect(sql_state_conn).await?;
     let sql_state = SqliteState::new(sql_state_pool);
     // TODO StateLoader::prepare(&sql_state).await;
-    StateSaver::prepare(&sql_state).await;
+    StateSaver::<()>::prepare(&sql_state).await;
 
     // Create the server object
     let mut server = NewServerBuilder::default()

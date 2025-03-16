@@ -47,12 +47,12 @@ impl PostgresState {
 }
 
 #[async_trait]
-impl StateLoader for PostgresState {
+impl<T: DeserializeOwned> StateLoader<T> for PostgresState {
     async fn prepare(&self) {
         self.migrate().await;
     }
 
-    async fn load<T: DeserializeOwned>(
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
@@ -81,7 +81,7 @@ impl StateLoader for PostgresState {
 }
 
 #[async_trait]
-impl StateSaver for PostgresState {
+impl<T: Serialize + Send + Sync> StateSaver<T> for PostgresState {
     async fn prepare(&self) {
         self.migrate().await;
     }
@@ -91,7 +91,7 @@ impl StateSaver for PostgresState {
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-        data: &(impl Serialize + Send + Sync),
+        data: &T,
     ) -> Result<(), LoadStateError> {
         let serialized_data = serde_json::to_string(&data).expect("TODO");
         sqlx::query(

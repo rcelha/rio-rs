@@ -1,4 +1,4 @@
-//! In-memory implementation of the trait [ObjectPlacementProvider]
+//! In-memory implementation of the trait [ObjectPlacement]
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};

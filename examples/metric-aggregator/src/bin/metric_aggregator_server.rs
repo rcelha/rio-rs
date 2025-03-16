@@ -1,42 +1,33 @@
-use clap::Parser;
-use ping_pong::messages;
-use ping_pong::services;
+use metric_aggregator::messages;
+use metric_aggregator::services::{self, Counter};
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
-use rio_rs::prelude::*;
 use rio_rs::state::sqlite::SqliteState;
 use rio_rs::state::StateSaver;
+use rio_rs::{prelude::*, state::local::LocalState};
+use std::sync::atomic::AtomicUsize;
 
-#[derive(Parser, Debug)]
-struct Args {
-    #[clap(value_parser)]
-    port: String,
-
-    #[clap(short, value_parser)]
-    membership_conn: Option<String>,
-
-    #[clap(short, value_parser)]
-    placement_conn: Option<String>,
-}
+static USAGE: &str =
+    "usage: server ip:port [MEMBERSHIP_CONNECTION_STRING] [PLACEMENT_CONNECTION_STRING]";
 
 #[tokio::main]
 async fn main() {
-    let mut args = Args::parse();
-
-    let addr = format!("0.0.0.0:{}", args.port);
-
+    let mut args = std::env::args().skip(1);
+    let addr = args.next().expect(USAGE);
     let members_storage_connection = args
-        .membership_conn
-        .get_or_insert("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string());
-
+        .next()
+        .unwrap_or("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string());
     let placement_connection = args
-        .placement_conn
-        .get_or_insert("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
+        .next()
+        .unwrap_or("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
     let mut registry = Registry::new();
-    registry.add_type::<services::Room>();
-    registry.add_handler::<services::Room, LifecycleMessage>();
-    registry.add_handler::<services::Room, messages::Ping>();
+    registry.add_type::<services::MetricAggregator>();
+    registry.add_handler::<services::MetricAggregator, LifecycleMessage>();
+    registry.add_handler::<services::MetricAggregator, messages::Ping>();
+    registry.add_handler::<services::MetricAggregator, messages::Metric>();
+    registry.add_handler::<services::MetricAggregator, messages::GetMetric>();
+    registry.add_handler::<services::MetricAggregator, messages::Drop>();
 
     let num_cpus = std::thread::available_parallelism()
         .expect("error getting num of CPUs")
@@ -45,7 +36,7 @@ async fn main() {
 
     let pool = SqliteMembershipStorage::pool()
         .max_connections(num_cpus)
-        .connect(members_storage_connection)
+        .connect(&members_storage_connection)
         .await
         .expect("Connection failure");
     let members_storage = SqliteMembershipStorage::new(pool);
@@ -58,7 +49,7 @@ async fn main() {
 
     let pool = SqliteObjectPlacement::pool()
         .max_connections(num_cpus)
-        .connect(placement_connection)
+        .connect(&placement_connection)
         .await
         .expect("Connection failure");
 
@@ -74,14 +65,16 @@ async fn main() {
         .expect("TODO: server builder fail");
     server.prepare().await;
 
+    server.app_data(Counter(AtomicUsize::new(0)));
+    server.app_data(LocalState::new());
+
     let sql_state_pool = SqliteState::pool()
-        .max_connections(num_cpus)
         .connect("sqlite:///tmp/state.sqlite3?mode=rwc")
         .await
-        .expect("TODO: Connection failure");
+        .expect("Connection failure");
     let sql_state = SqliteState::new(sql_state_pool);
-    sql_state.prepare().await;
+    StateSaver::<()>::prepare(&sql_state).await;
     server.app_data(sql_state);
     let listener = server.bind().await.unwrap();
-    server.run(listener).await.unwrap();
+    server.run(listener).await.expect("");
 }

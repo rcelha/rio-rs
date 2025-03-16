@@ -24,8 +24,8 @@ impl RedisState {
 }
 
 #[async_trait]
-impl StateLoader for RedisState {
-    async fn load<T: DeserializeOwned>(
+impl<T: DeserializeOwned> StateLoader<T> for RedisState {
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
@@ -50,13 +50,13 @@ impl StateLoader for RedisState {
 }
 
 #[async_trait]
-impl StateSaver for RedisState {
+impl<T: Serialize + Send + Sync> StateSaver<T> for RedisState {
     async fn save(
         &self,
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-        data: &(impl Serialize + Send + Sync),
+        data: &T,
     ) -> Result<(), LoadStateError> {
         let object_kind = object_kind.to_string();
         let object_id = object_id.to_string();

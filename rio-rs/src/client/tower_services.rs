@@ -251,8 +251,8 @@ mod test {
     fn client() -> Client<LocalStorage> {
         Client {
             timeout_millis: 1000,
-            members_storage: LocalStorage::default(),
-            active_servers: None,
+            membership_storage: LocalStorage::default(),
+            active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
             placement: Arc::new(RwLock::new(LruCache::new(10))),
@@ -264,19 +264,19 @@ mod test {
         let client = client();
         let mut request: Request<_, NoopError> = Request::new(client);
         request.ready().await.expect("poll_ready");
-        assert!(request.client.active_servers.unwrap().is_empty());
+        assert!(request.client.active_servers.is_empty());
     }
 
     #[tokio::test]
     async fn test_poll_ready_with_active_servers() {
         // starts with no active servers
         let client = client();
-        assert!(client.active_servers.is_none());
+        assert!(client.active_servers.is_empty());
 
         let mut server = Member::new("0.0.0.0".to_string(), "1234".to_string());
         server.set_active(true);
         client
-            .members_storage
+            .membership_storage
             .push(server)
             .await
             .expect("add member");
@@ -284,18 +284,15 @@ mod test {
         // When poll_ready is called, it fetches the active servers
         let mut request: Request<_, NoopError> = Request::new(client);
         request.ready().await.expect("poll_ready");
-        assert_eq!(
-            request.client.active_servers.expect("active servers").len(),
-            1
-        );
+        assert_eq!(request.client.active_servers.len(), 1);
     }
 
     #[tokio::test]
     async fn test_poll_ready_error() {
         let client = Client {
             timeout_millis: 1000,
-            members_storage: FailMembershipStorage {},
-            active_servers: None,
+            membership_storage: FailMembershipStorage {},
+            active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
             placement: Arc::new(RwLock::new(LruCache::new(10))),

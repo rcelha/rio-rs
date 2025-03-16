@@ -35,7 +35,7 @@ where
     fn get_state(&self) -> &T;
     fn set_state(&mut self, value: T);
 
-    async fn load<S: StateLoader + Sync + Send>(
+    async fn load<S: StateLoader<T> + Sync + Send>(
         &self,
         state_loader: &S,
         object_kind: &str,
@@ -53,7 +53,7 @@ where
 ///
 /// TODO use a reader type instead of String on load fn
 #[async_trait]
-pub trait StateLoader: Send + Sync {
+pub trait StateLoader<T>: Send + Sync {
     /// <div class="warning">
     /// TODO
     ///
@@ -65,14 +65,12 @@ pub trait StateLoader: Send + Sync {
     /// </div>
     async fn prepare(&self) {}
 
-    async fn load<T>(
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-    ) -> Result<T, LoadStateError>
-    where
-        T: DeserializeOwned;
+    ) -> Result<T, LoadStateError>;
 }
 
 /// Auto implement [StateLoader] for every type that derefs to a [StateLoader]
@@ -80,12 +78,13 @@ pub trait StateLoader: Send + Sync {
 /// This way you can create a wrapper for a [StateLoader] and it will automatically
 /// get this implementation
 #[async_trait]
-impl<T, S> StateLoader for T
+impl<O, T, S> StateLoader<O> for T
 where
     T: Deref<Target = S> + Send + Sync,
-    S: StateLoader,
+    S: StateLoader<O>,
+    O: DeserializeOwned,
 {
-    async fn load<O: DeserializeOwned>(
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
@@ -100,8 +99,11 @@ where
 ///
 /// **important** This trait is not responsible for serializing the state from
 /// its original type
+///
+/// TODO it sucks this needs to be generic over T (the type it is persisting)
+///      because then we are forced to do like `StateSaver::<TestState1>::prepare`
 #[async_trait]
-pub trait StateSaver: Sync + Send {
+pub trait StateSaver<T>: Sync + Send {
     async fn prepare(&self) {}
 
     async fn save(
@@ -109,7 +111,7 @@ pub trait StateSaver: Sync + Send {
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-        data: &(impl Serialize + Send + Sync),
+        data: &T,
     ) -> Result<(), LoadStateError>;
 }
 
@@ -118,17 +120,18 @@ pub trait StateSaver: Sync + Send {
 /// This way you can create a wrapper for a [StateSaver] and it will automatically
 /// get this implementation
 #[async_trait]
-impl<T, S> StateSaver for T
+impl<O, T, S> StateSaver<O> for T
 where
     T: Deref<Target = S> + Send + Sync,
-    S: StateSaver,
+    S: StateSaver<O>,
+    O: Serialize + Send + Sync,
 {
     async fn save(
         &self,
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-        data: &(impl Serialize + Send + Sync),
+        data: &O,
     ) -> Result<(), LoadStateError> {
         self.deref()
             .save(object_kind, object_id, state_type, data)
@@ -146,7 +149,7 @@ pub trait ObjectStateManager {
     async fn load_state<T, S>(&mut self, state_loader: &S) -> Result<(), LoadStateError>
     where
         T: IdentifiableType + Serialize + DeserializeOwned + Default, // neends default cause of trait State
-        S: StateLoader + Send + Sync,
+        S: StateLoader<T> + Send + Sync,
         Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
         let object_kind = Self::user_defined_type_id();
@@ -165,7 +168,7 @@ pub trait ObjectStateManager {
     async fn save_state<T, S>(&self, state_saver: &S) -> Result<(), LoadStateError>
     where
         T: IdentifiableType + Serialize + DeserializeOwned + Sync + Default, // Needs default cause of trait State
-        S: StateSaver,
+        S: StateSaver<T>,
         Self: State<T> + IdentifiableType + WithId + Send + Sync,
     {
         let object_kind = Self::user_defined_type_id();
@@ -247,10 +250,11 @@ mod test {
                 Ok(())
             }
 
-            async fn save_all_states<S: StateSaver>(
+            async fn save_all_states(
                 &mut self,
-                state_saver: &S,
+                state_saver: &local::LocalState,
             ) -> Result<(), LoadStateError> {
+                // WUT?
                 self.save_state::<Option<PersonState>, _>(state_saver)
                     .await?;
                 self.save_state::<LegalPersonState, _>(state_saver).await?;

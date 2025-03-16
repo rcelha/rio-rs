@@ -47,12 +47,12 @@ impl SqliteState {
 }
 
 #[async_trait]
-impl StateLoader for SqliteState {
+impl<T: DeserializeOwned> StateLoader<T> for SqliteState {
     async fn prepare(&self) {
         self.migrate().await;
     }
 
-    async fn load<T: DeserializeOwned>(
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
@@ -81,7 +81,7 @@ impl StateLoader for SqliteState {
 }
 
 #[async_trait]
-impl StateSaver for SqliteState {
+impl<T: Serialize + Send + Sync> StateSaver<T> for SqliteState {
     async fn prepare(&self) {
         self.migrate().await;
     }
@@ -91,7 +91,7 @@ impl StateSaver for SqliteState {
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-        data: &(impl Serialize + Send + Sync),
+        data: &T,
     ) -> Result<(), LoadStateError> {
         let serialized_data = serde_json::to_string(&data).expect("TODO");
         sqlx::query(

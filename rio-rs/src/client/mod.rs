@@ -48,10 +48,10 @@ where
     timeout_millis: u64,
 
     /// Membership view used for Server's service discovery
-    members_storage: S,
+    membership_storage: S,
 
     /// List of servers that are accepting requests
-    active_servers: Option<HashSet<String>>,
+    active_servers: HashSet<String>,
 
     /// Timestamp of the last time self.active_servers was refresh
     ts_active_servers_refresh: u64,
@@ -59,7 +59,7 @@ where
     /// Framed TCP Stream mapped by ip+port address
     streams: Arc<DashMap<String, Framed<TcpStream, LengthDelimitedCodec>>>,
 
-    /// TODO
+    /// Cached location of objects previously used by  the client
     placement: Arc<RwLock<LruCache<(String, String), String>>>,
 }
 
@@ -131,12 +131,12 @@ impl<S> Client<S>
 where
     S: 'static + MembershipStorage,
 {
-    /// TODO
+    /// Create a new Client from a MembershipStorage
     pub fn new(members_storage: S) -> Self {
         Client {
-            members_storage,
+            membership_storage: members_storage,
             timeout_millis: DEFAULT_TIMEOUT_MILLIS,
-            active_servers: None,
+            active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
             placement: Arc::new(RwLock::new(LruCache::new(1000))),
@@ -144,14 +144,18 @@ where
     }
 
     /// Fetch a list of active servers if it hasn't done yet, or if the current list is too old
-    /// TODO
+    ///
+    /// Note that this is not an incremental operation. It will replace all the current active servers
+    /// cached on the client
     async fn fetch_active_servers(&mut self) -> ClientResult<()> {
-        if self.active_servers.is_some() && self.ts_active_servers_refresh > 0 {
+        // if there are active servers and the refresh time stamp has changed
+        // We assume the cache is good
+        if self.active_servers.len() > 0 && self.ts_active_servers_refresh > 0 {
             return Ok(());
         }
 
         let active_servers: HashSet<String> = self
-            .members_storage
+            .membership_storage
             .active_members()
             .await
             .map_err(|_| ClientError::RendevouzUnavailable)?
@@ -159,7 +163,7 @@ where
             .map(|member| member.address())
             .collect();
 
-        self.active_servers = Some(active_servers);
+        self.active_servers = active_servers;
         self.ts_active_servers_refresh = 1;
         Ok(())
     }
@@ -169,33 +173,22 @@ where
 
         // We start this method fetching the active servers, so if there are no active servers we
         // fail
-        //
+        if self.active_servers.is_empty() {
+            return Err(ClientError::NoServersAvailable);
+        }
+
         // If we do have items but the asked address is not there, the active_servers might be
         // outdated and it will reset the refresh time and fetch it again
-        match &self.active_servers {
-            None => return Err(ClientError::NoServersAvailable),
-            Some(active_servers) => {
-                if active_servers.is_empty() {
-                    return Err(ClientError::NoServersAvailable);
-                }
-
-                if !active_servers.contains(address) {
-                    self.ts_active_servers_refresh = 0;
-                    self.fetch_active_servers().await?;
-                }
-            }
-        };
+        if !self.active_servers.contains(address) {
+            self.ts_active_servers_refresh = 0;
+            self.fetch_active_servers().await?;
+        }
 
         // After fetch and re-fetch, if the asked address is not on the list, it means the caller
         // is outdated
-        match &self.active_servers {
-            None => return Err(ClientError::NoServersAvailable),
-            Some(active_servers) => {
-                if !active_servers.contains(address) {
-                    return Err(ClientError::ServerNotAvailable(address.to_string()));
-                }
-            }
-        };
+        if !self.active_servers.contains(address) {
+            return Err(ClientError::ServerNotAvailable(address.to_string()));
+        }
 
         // If there are no stream for the address, create a new one
         // This is on a nested block so it controlls the guards in `self.stream`
@@ -213,8 +206,6 @@ where
     ///
     /// If the address is not one of the known online servers, it will fetch
     /// the list of active servers again
-    ///
-    /// TODO can I change this to read only?
     async fn server_stream(
         &mut self,
         address: &String,
@@ -225,12 +216,7 @@ where
             .ok_or(ClientError::Connectivity)
     }
 
-    /// same as server_stream, but it pops from the stream cache
-    ///
-    /// <div class="warning">
-    /// TODO - Remove copy and pasta
-    /// </div>
-    ///
+    /// Same as [Self::server_stream], but it pops from the stream cache
     async fn pop_server_stream(
         &mut self,
         address: &String,
@@ -266,13 +252,7 @@ where
                     // If there is no address associated with this service,
                     // it will pick one at random (allowing the server to 'correct' it)
                     let mut rng = thread_rng();
-                    let servers: Vec<String> = self
-                        .active_servers
-                        .as_ref()
-                        .ok_or(ClientError::NoServersAvailable)?
-                        .iter()
-                        .cloned()
-                        .collect();
+                    let servers: Vec<String> = self.active_servers.iter().cloned().collect();
                     let random_server = servers
                         .choose(&mut rng)
                         .ok_or(ClientError::NoServersAvailable)?;
@@ -284,7 +264,6 @@ where
     }
 
     /// Returns a stream to the server that a given ServiceObject might be allocated into
-    /// TODO can I change this to read only?
     async fn service_object_stream(
         &mut self,
         service_object_type: impl ToString,
@@ -300,10 +279,13 @@ where
     /// Send a request to the cluster transparently (the caller doesn't need to know where the
     /// object is placed)
     ///
+    /// <div class="warning">
+    /// <b>TODO</b>
     ///
-    /// TODO -  When the cached or selected server are not available, it needs to refresh all the
-    ///         cache and try a different server, this process needs to repeat until it finds a new
-    ///         available server
+    /// When the cached or selected server are not available, it needs to refresh all the
+    /// cache and try a different server, this process needs to repeat until it finds a new
+    /// available server
+    /// </div>
     pub async fn send<T, E>(
         &mut self,
         handler_type: impl AsRef<str>,
@@ -376,7 +358,7 @@ where
     /// Subscribe to events from a service object
     ///
     /// <div class="warning">
-    /// TODO
+    /// <b>TODO</b>
     ///
     /// - [x] Returns async iter
     /// - [x] Handle redirects
@@ -422,7 +404,7 @@ where
     /// a set of servers is reacheable and alive
     pub async fn ping(&mut self) -> Result<(), ClientError> {
         let servers = self
-            .members_storage
+            .membership_storage
             .members()
             .await
             .map_err(|_| ClientError::Connectivity)?;
@@ -455,8 +437,8 @@ mod test {
     fn client() -> Client<LocalStorage> {
         Client {
             timeout_millis: 1000,
-            members_storage: LocalStorage::default(),
-            active_servers: None,
+            membership_storage: LocalStorage::default(),
+            active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
             placement: Arc::new(RwLock::new(LruCache::new(10))),
@@ -468,7 +450,7 @@ mod test {
         let mut server = Member::new("0.0.0.0".to_string(), "1234".to_string());
         server.set_active(true);
         client
-            .members_storage
+            .membership_storage
             .push(server)
             .await
             .expect("add member");

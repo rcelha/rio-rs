@@ -12,7 +12,7 @@ struct State {
     labels: Vec<String>,
 }
 
-async fn state_save_sanity_check<S: StateSaver + StateLoader>(storage: S) {
+async fn state_save_sanity_check<S: StateSaver<State> + StateLoader<State>>(storage: S) {
     StateSaver::prepare(&storage).await;
 
     let state = State {
@@ -31,7 +31,7 @@ async fn state_save_sanity_check<S: StateSaver + StateLoader>(storage: S) {
     assert_eq!(state, loaded_state);
 }
 
-async fn state_load_not_found<S: StateSaver + StateLoader>(storage: S) {
+async fn state_load_not_found<S: StateSaver<State> + StateLoader<State>>(storage: S) {
     StateSaver::prepare(&storage).await;
 
     let loaded_state: Result<State, _> = storage.load("ObjectWithState", "999", "state_attr").await;

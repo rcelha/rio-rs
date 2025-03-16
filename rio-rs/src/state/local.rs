@@ -22,8 +22,8 @@ impl LocalState {
 }
 
 #[async_trait]
-impl StateLoader for LocalState {
-    async fn load<T: DeserializeOwned>(
+impl<T: DeserializeOwned> StateLoader<T> for LocalState {
+    async fn load(
         &self,
         object_kind: &str,
         object_id: &str,
@@ -43,13 +43,13 @@ impl StateLoader for LocalState {
 }
 
 #[async_trait]
-impl StateSaver for LocalState {
+impl<T: Serialize + Send + Sync> StateSaver<T> for LocalState {
     async fn save(
         &self,
         object_kind: &str,
         object_id: &str,
         state_type: &str,
-        data: &(impl Serialize + Send + Sync),
+        data: &T,
     ) -> Result<(), LoadStateError> {
         let object_kind = object_kind.to_string();
         let object_id = object_id.to_string();
