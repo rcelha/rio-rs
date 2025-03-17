@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚜 Refactor
+
+- Massive renaming
+
+### 📚 Documentation
+
+- Update internal docs
+
+### ⚙️ Miscellaneous Tasks
+
+- Update roadmap
+- Break registry down into submodules
+
 ## [0.2.3-alpha.1] - 2025-03-10
 
 ### 🚀 Features
