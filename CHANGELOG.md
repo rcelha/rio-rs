@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- BREAKING - Revert generics on state to be at the trait level
+
 ### 🚜 Refactor
 
 - Massive renaming
