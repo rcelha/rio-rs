@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Map local address when for client connection [416bf8d](https://github.com/rcelha/rio-rs/commit/416bf8d05cc2e7523244be32f1ac5ba6c639f0f6) 
+
 ### 📚 Documentation
 
-- Update changelog format to include commit [ac84962](https://github.com/rcelha/rio-rs/commit/ac84962bb698b172d12f8c1823a0f84a1c3bd36b) 
+- Update changelog format to include commit [df3745e](https://github.com/rcelha/rio-rs/commit/df3745ef2de01da2bcc6f240dd2fae1302d22dd5) 
 
 ### ⚙️ Miscellaneous Tasks
 
