@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use derive_builder::Builder;
 use log::{error, info, warn};
+use netwatch::ip::LocalAddresses;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tokio::{net::TcpListener, sync::RwLock};
@@ -272,12 +273,31 @@ where
         Ok(listener)
     }
 
+    /// Tries to get a local address
+    ///
+    /// It will get the first ip address for the machine where it is running,
+    /// and fallback to the address given by tokio's listener
+    ///
+    /// <div class="warning">
+    /// **TODO**
+    ///
+    /// It potentially won't work on machine with multiple interfaces. So we need to
+    /// add support to address mapping per node before merging this.
+    ///
+    /// For now, if that is your case, you need to specify the IP for binding
+    /// </div>
     pub fn try_local_addr(listener: &TcpListener) -> ServerResult<SocketAddr> {
         let addr_result = listener.local_addr();
-        let addr = addr_result.map_err(|x| {
+        let mut addr = addr_result.map_err(|x| {
             let err = x.to_string();
             ServerError::Bind(err)
         })?;
+
+        // Try to update the local address using netwatch's LocalAddress
+        let nw_local_addr = LocalAddresses::new();
+        if let Some(first_local_address) = nw_local_addr.regular.first() {
+            addr.set_ip(*first_local_address);
+        }
         Ok(addr)
     }
 
