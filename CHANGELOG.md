@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - Backoff retry for client connection [b11c908](https://github.com/rcelha/rio-rs/commit/b11c90870878a954ec16384da5edc759093957f4) 
+- Map local address when for client connection [416bf8d](https://github.com/rcelha/rio-rs/commit/416bf8d05cc2e7523244be32f1ac5ba6c639f0f6) 
 
 ### 📚 Documentation
 
