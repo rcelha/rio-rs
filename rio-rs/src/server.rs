@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use derive_builder::Builder;
 use log::{error, info, warn};
+use netwatch::ip::LocalAddresses;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tokio::{net::TcpListener, sync::RwLock};
@@ -274,10 +275,16 @@ where
 
     pub fn try_local_addr(listener: &TcpListener) -> ServerResult<SocketAddr> {
         let addr_result = listener.local_addr();
-        let addr = addr_result.map_err(|x| {
+        let mut addr = addr_result.map_err(|x| {
             let err = x.to_string();
             ServerError::Bind(err)
         })?;
+        let nw_local_addr = LocalAddresses::new();
+        let first_local_address = nw_local_addr
+            .regular
+            .first()
+            .ok_or(ServerError::Bind("No local address found".to_string()))?;
+        addr.set_ip(*first_local_address);
         Ok(addr)
     }
 
