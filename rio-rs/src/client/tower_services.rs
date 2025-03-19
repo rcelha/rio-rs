@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 use std::task::Poll;
+use std::time::Duration;
 
 use futures::future::BoxFuture;
 use futures::{pin_mut, FutureExt, SinkExt, StreamExt};
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use serde::de::DeserializeOwned;
 use tower::Service as TowerService;
 
@@ -141,6 +142,12 @@ where
         let request = req.clone();
         let mut inner_service = self.inner.clone();
 
+        // TODO move this to config
+        let retry_min_duration = Duration::from_nanos(10);
+        let retry_max_duration = Duration::from_secs(2);
+        // END: TODO move this to config
+
+        let mut retry_duration = retry_min_duration.clone();
         Box::pin(async move {
             loop {
                 // Used a cloned request, so it can be used in a loop
@@ -148,6 +155,7 @@ where
                 match response {
                     // This case happens when there is a mismatch between the client and the
                     // servers regarding where the service object is allocated
+                    // Ps.: No need to sleep on redirect
                     Err(RequestError::ResponseError(ResponseError::Redirect(to))) => {
                         // Add the new address to the placement so in the next iteration
                         // it will use the right server
@@ -168,10 +176,16 @@ where
                         | RequestError::ClientError(ClientError::ServerNotAvailable(_))
                         | RequestError::ClientError(ClientError::IoError(_)),
                     ) => {
+                        warn!("{:?}", response.err());
+                        debug!("Retry in {:?}", retry_duration);
+                        tokio::time::sleep(retry_duration).await;
+                        retry_duration *= 2;
+                        retry_duration =
+                            retry_duration.clamp(retry_min_duration, retry_max_duration);
+
                         // Removed the old placement, the next request
                         // will pickup a new placement to try from
                         warn!("Refresh the list of servers");
-                        warn!("{:?}", response.err());
                         inner_service.client.ts_active_servers_refresh = 0; // forces re-fetching the
                                                                             // active servers
                         inner_service
