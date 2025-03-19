@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Backoff retry for client connection [382ccf6](https://github.com/rcelha/rio-rs/commit/382ccf60b9adadf648fc289d26163e45d707c2dd) 
+
 ### 📚 Documentation
 
-- Update changelog format to include commit [ac84962](https://github.com/rcelha/rio-rs/commit/ac84962bb698b172d12f8c1823a0f84a1c3bd36b) 
+- Update changelog format to include commit [df3745e](https://github.com/rcelha/rio-rs/commit/df3745ef2de01da2bcc6f240dd2fae1302d22dd5) 
 
 ### ⚙️ Miscellaneous Tasks
 
