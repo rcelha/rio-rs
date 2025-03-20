@@ -20,11 +20,3 @@ note: the trait `ServiceObject` must be implemented
   = note: the following trait defines an item `load_state`, perhaps you need to implement it:
           candidate #1: `ObjectStateManager`
   = note: this error originates in the derive macro `ManagedState` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-warning: unused import: `rio_rs::state::ObjectStateManager`
- --> tests/ui_fail/managed_state_missing_service_object_imp.rs:3:5
-  |
-3 | use rio_rs::state::ObjectStateManager;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
