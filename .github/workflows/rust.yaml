@@ -11,7 +11,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
       - name: Fmt
         run: cargo fmt -- --check
       - name: Check
@@ -37,13 +38,15 @@ jobs:
         ports:
           - 15432:5432
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
       - name: Tests
         run: cargo test
 
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --release --verbose
