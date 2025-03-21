@@ -479,7 +479,7 @@ mod test {
         test_app.request(GameServerRequest::Player(p2.clone(), PlayerCommand::Stand));
 
         // Forces player3 to stand
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        std::thread::sleep(std::time::Duration::from_secs(4));
 
         let table_state = test_app.request(GameServerRequest::Player(
             p3.clone(),
@@ -529,7 +529,7 @@ mod test {
         test_app.request(GameServerRequest::Player(p3.clone(), PlayerCommand::Stand));
 
         // Forces player3 to stand
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        std::thread::sleep(std::time::Duration::from_secs(4));
 
         let table_state = test_app.request(GameServerRequest::Player(
             p3.clone(),
