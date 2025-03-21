@@ -7,15 +7,25 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - Backoff retry for client connection [cd9296f](https://github.com/rcelha/rio-rs/commit/cd9296f6a7aed71e5238e801fe0fca16d5930ad4) 
-- Map local address when for client connection [842b6dd](https://github.com/rcelha/rio-rs/commit/842b6ddfe47cdca67340284a36b12d164a2b39f8) 
+- Map local address when for client connection [223b740](https://github.com/rcelha/rio-rs/commit/223b7406689e20ead639485008101ff4be007eb4) 
+
+### 💼 Other
+
+- Run tests with nextest on CI (#30) [4ef4ab8](https://github.com/rcelha/rio-rs/commit/4ef4ab8ae3b476f58311c852f3d1bf399b91488d) 
 
 ### 📚 Documentation
 
 - Update changelog format to include commit [df3745e](https://github.com/rcelha/rio-rs/commit/df3745ef2de01da2bcc6f240dd2fae1302d22dd5) 
 
+### 🧪 Testing
+
+- Fix failing ui test [a55128b](https://github.com/rcelha/rio-rs/commit/a55128b0fe38e52e994cbaee3c536745af2acc16) 
+
 ### ⚙️ Miscellaneous Tasks
 
 - Update changelog [0f563b2](https://github.com/rcelha/rio-rs/commit/0f563b281b959c4fe80dc9d213210c125c1f7e5d) 
+- Uses cache for CI [1eabd63](https://github.com/rcelha/rio-rs/commit/1eabd63a2d6f08d2ed9b9d64122c3d68c3d75019) 
+- Generate only this crates docs [c8c52c3](https://github.com/rcelha/rio-rs/commit/c8c52c3d5b46537d06eb89773464cc530b3583f4) 
 
 ## [0.3.2] - 2025-03-17
 
