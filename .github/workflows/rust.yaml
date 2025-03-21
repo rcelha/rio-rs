@@ -55,6 +55,8 @@ jobs:
         run: cargo install cargo-nextest
       - name: Tests
         run: cargo nextest run --config-file .config/nextest.ci.toml
+      - name: Doc tests
+        run: cargo test --doc
 
   build:
     runs-on: ubuntu-latest
