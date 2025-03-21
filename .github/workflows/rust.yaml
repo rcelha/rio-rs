@@ -20,7 +20,7 @@ jobs:
       - name: Clippy
         run: cargo clippy
       - name: Docs
-        run: cargo doc -p rio-rs -p rio-macros
+        run: cargo doc -p rio-rs -p rio-macros --no-deps
 
   test:
     runs-on: ubuntu-latest
