@@ -8,8 +8,17 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  quick-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Check
+        run: cargo check
+
   check:
     runs-on: ubuntu-latest
+    needs: [quick-check]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -24,6 +33,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    needs: [quick-check]
     services:
       redis:
         image: valkey/valkey:7.2.7-alpine
@@ -37,14 +47,20 @@ jobs:
           POSTGRES_DB: test
         ports:
           - 15432:5432
+
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
+      - name: Install nextest
+        run: cargo install cargo-nextest
       - name: Tests
-        run: cargo test
+        run: cargo nextest run --config-file .config/nextest.ci.toml
+      - name: Doc tests
+        run: cargo test --doc
 
   build:
     runs-on: ubuntu-latest
+    needs: [quick-check]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
