@@ -235,4 +235,16 @@ pub mod pubsub {
     pub struct SubscriptionResponse {
         pub body: Result<Vec<u8>, ResponseError>,
     }
+
+    impl SubscriptionResponse {
+        /// New `Ok` variant
+        pub fn new(body: Vec<u8>) -> Self {
+            SubscriptionResponse { body: Ok(body) }
+        }
+
+        /// New `Err` Variant
+        pub fn err(error: ResponseError) -> Self {
+            SubscriptionResponse { body: Err(error) }
+        }
+    }
 }

@@ -369,7 +369,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                 (Ok(message), _) => AllRequest::ReqResp(message),
                 (_, Ok(message)) => AllRequest::PubSub(message),
                 _ => {
-                    panic!("TODO: Handle mismatch gracefuly")
+                    unreachable!("Got both or neither requests")
                 }
             };
             match either_request {
@@ -378,26 +378,56 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                         Ok(x) => x,
                         Err(err) => ResponseEnvelope::err(err),
                     };
-                    let ser_response = bincode::serialize(&response).expect("TODO");
+                    let ser_result = bincode::serialize(&response);
+                    let ser_response = match ser_result {
+                        Ok(value) => value,
+                        Err(err) => {
+                            let new_return = ResponseEnvelope::err(
+                                ResponseError::SeralizationError(err.to_string()),
+                            );
+                            bincode::serialize(&new_return)
+                                .expect("Serialization of response error should be infalible")
+                        }
+                    };
                     frames.send(ser_response.into()).await.unwrap();
                 }
                 AllRequest::PubSub(message) => {
                     let stream = self.call(message).await;
 
-                    if let Err(err) = stream {
-                        let response = SubscriptionResponse { body: Err(err) };
-                        let ser_value = bincode::serialize(&response).expect("TODO");
-                        frames.send(ser_value.into()).await.unwrap();
-                        return;
-                    }
+                    // If there is an upstream error to establish the subscription,
+                    // wrapi it in a SubscriptionResponse and return earlier
+                    let mut stream = match stream {
+                        Ok(value) => value,
+                        Err(err) => {
+                            let sub_response = SubscriptionResponse::err(err);
+                            let ser_response = bincode::serialize(&sub_response)
+                                .expect("Error serialization should be infalible");
+                            frames.send(ser_response.into()).await.ok();
+                            return;
+                        }
+                    };
 
-                    let mut stream =
-                        stream.expect("TODO improve error handling on the block above");
-
-                    // TODO handle termination
                     while let Some(value) = StreamExt::next(&mut stream).await {
-                        let ser_value = bincode::serialize(&value).expect("TODO");
-                        frames.send(ser_value.into()).await.expect("TODO");
+                        let ser_result = bincode::serialize(&value);
+                        let ser_response = match ser_result {
+                            Ok(value) => value,
+                            Err(err) => {
+                                let new_return = SubscriptionResponse::err(
+                                    ResponseError::SeralizationError(err.to_string()),
+                                );
+                                bincode::serialize(&new_return)
+                                    .expect("Serialization of response error should be infalible")
+                            }
+                        };
+
+                        let send_result = frames.send(ser_response.into()).await;
+
+                        // Stop receiving messages if the sink we redirect messages to is
+                        // closed
+                        if let Err(err) = send_result {
+                            error!("Channel is closed due {}", err.to_string());
+                            break;
+                        }
                     }
                 }
             }
