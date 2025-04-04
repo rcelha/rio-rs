@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
-- Improve error handling on pubsub [1cb07cb](https://github.com/rcelha/rio-rs/commit/1cb07cb596d6e5309a9bdca66503c5d2b2a59e7a) 
+- Improve error handling on pubsub (#32) [072259c](https://github.com/rcelha/rio-rs/commit/072259c7c92bafc0b99a95f1e4f823ddd3a4f1b8) 
 
 ## [0.3.3] - 2025-03-21
 
