@@ -7,10 +7,11 @@ use dashmap::DashMap;
 use log::warn;
 use std::{
     any::{Any, TypeId},
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     future::Future,
     pin::Pin,
     sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::RwLock;
 
@@ -43,6 +44,9 @@ pub struct Registry {
     /// Maps the types to the object constructors
     type_map: HashMap<String, BoxedDefaultWithId>,
 
+    /// Object TTL
+    objects_expiry: BTreeMap<u64, (String, String)>,
+
     /// Internal control for duplicate type ids
     supported_types: HashMap<String, TypeId>,
 }
@@ -60,6 +64,50 @@ impl Registry {
         let type_id = T::user_defined_type_id().to_string();
         self.object_map
             .insert((type_id, k), RwLock::new(Box::new(v)));
+    }
+
+    pub fn ttl(&mut self, type_name: impl AsRef<str>, object_id: impl AsRef<str>, ttl: u64) {
+        let type_name = type_name.as_ref().to_string();
+        let object_id = object_id.as_ref().to_string();
+        let k = (type_name, object_id);
+        if !self.object_map.contains_key(&k) {
+            warn!("Won't set TTL for {:?}: Object not found in registry", k);
+            return;
+        }
+        let ttl_duration = Duration::from_secs(ttl);
+        let expiry_time = SystemTime::now()
+            .checked_add(ttl_duration)
+            .expect("TODO: Deal with overflow");
+        let expiry = expiry_time.duration_since(UNIX_EPOCH).expect("TODO");
+        let expiry_secs = expiry.as_secs();
+        self.objects_expiry.insert(expiry_secs, k);
+    }
+
+    /// Remove all expired objects and return the count of objects removed
+    pub async fn expire(&mut self, limit: Option<usize>) -> usize {
+        let expiry_time = SystemTime::now();
+        let now = expiry_time.duration_since(UNIX_EPOCH).expect("TODO");
+        let now_secs = now.as_secs();
+
+        let mut count = 0;
+        for (expiry, i) in &self.objects_expiry {
+            // As self.objects_expiry is ordered, we can stop removing
+            // as soon as we see the first non-expired object
+            if expiry > &now_secs {
+                break;
+            }
+
+            // Impose limit
+            if let Some(limit) = limit {
+                if limit >= count {
+                    break;
+                }
+            }
+
+            self.remove(i.0.clone(), i.1.clone()).await;
+            count += 1;
+        }
+        count
     }
 
     /// Add new types to the contructor map
@@ -98,7 +146,9 @@ impl Registry {
 
     /// Creates a new object with some id (using FromId)
     ///
-    /// <div class="warning">TODO deal existing objects to avoid double allocation</div>
+    /// <div class="warning">
+    /// TODO deal existing objects to avoid double allocation
+    /// </div>
     pub fn new_from_type(&self, type_id: &str, id: String) -> Option<Box<dyn Any + Send + Sync>> {
         let builder = self.type_map.get(type_id)?;
         let ret = builder(id);
@@ -675,5 +725,37 @@ mod test {
         let boxed_human = registry.new_from_type("Human", "1".to_string()).unwrap();
         let human = boxed_human.downcast::<Human>().unwrap();
         assert_eq!(human.id(), "1");
+    }
+
+    #[tokio::test]
+    async fn test_expiry() {
+        let mut registry = Registry::new();
+        registry.add_handler::<Human, HiMessage>();
+        registry
+            .insert_boxed_object(
+                "Human".to_string(),
+                "john".to_string(),
+                Box::new(Human::default()),
+            )
+            .await;
+        registry
+            .insert_boxed_object(
+                "Human".to_string(),
+                "john2".to_string(),
+                Box::new(Human::default()),
+            )
+            .await;
+
+        assert_eq!(registry.object_map.len(), 2);
+
+        registry.ttl("Human", "john2", 1);
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        registry.expire(None).await;
+        assert_eq!(registry.object_map.len(), 1);
+
+        registry.ttl("Human", "john", 1);
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        registry.expire(None).await;
+        assert_eq!(registry.object_map.len(), 0);
     }
 }
