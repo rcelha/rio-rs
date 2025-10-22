@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::{cluster::storage::MembershipStorage, errors::ClusterProviderServeError};
+use crate::errors::ClusterProviderServeError;
 
 pub mod local;
 pub mod peer_to_peer;
@@ -15,9 +15,8 @@ pub mod peer_to_peer;
 pub trait ClusterProvider<T>
 where
     Self: Clone,
-    T: MembershipStorage,
 {
-    /// Every ClusterProvider needs to have an [MembershipStorage] associated to it
+    /// Every ClusterProvider needs to have an [MembershipStorage](super::storage::MembershipStorage) associated to it
     ///
     /// <div class="warning">
     /// I am not sure this function is needed

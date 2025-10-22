@@ -28,10 +28,7 @@ pub mod postgres;
 ///
 /// One need to implement this trait for each state a object holds
 #[async_trait]
-pub trait State<T>
-where
-    T: Serialize + DeserializeOwned + Default,
-{
+pub trait State<T> {
     fn get_state(&self) -> &T;
     fn set_state(&mut self, value: T);
 

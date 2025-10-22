@@ -22,7 +22,7 @@ use super::DEFAULT_TIMEOUT_MILLIS;
 /// - Move the cache out of the Client struct so we can share the cache across all connections in the pool
 ///
 /// </div>
-pub struct ClientConnectionManager<S: MembershipStorage> {
+pub struct ClientConnectionManager<S> {
     pub(crate) members_storage: S,
     pub(crate) timeout_millis: u64,
 }

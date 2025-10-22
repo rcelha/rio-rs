@@ -1,5 +1,8 @@
 experimental = ["setup-scripts"]
 
+[profile.default]
+slow-timeout = { period = "120s" }
+
 [script.services]
 command = 'bash -c "docker compose up -d --wait ; sleep 1"'
 

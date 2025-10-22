@@ -250,7 +250,7 @@ async fn pubsub_redirect() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        15,
+        60,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),

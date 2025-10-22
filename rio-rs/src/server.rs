@@ -134,12 +134,7 @@ where
 /// #
 /// # }
 /// ```
-pub struct ServerBuilder<S, C, P>
-where
-    S: MembershipStorage,
-    C: ClusterProvider<S>,
-    P: ObjectPlacement,
-{
+pub struct ServerBuilder<S, C, P> {
     address: String,
     registry: Option<Registry>,
     cluster_provider: Option<C>,
@@ -149,12 +144,7 @@ where
     _marker: PhantomData<S>,
 }
 
-impl<S, C, P> Default for ServerBuilder<S, C, P>
-where
-    S: MembershipStorage,
-    C: ClusterProvider<S>,
-    P: ObjectPlacement,
-{
+impl<S, C, P> Default for ServerBuilder<S, C, P> {
     fn default() -> Self {
         ServerBuilder {
             address: "0.0.0.0:5000".to_string(),

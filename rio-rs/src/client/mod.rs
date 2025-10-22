@@ -40,11 +40,10 @@ use crate::registry::IdentifiableType;
 pub const DEFAULT_TIMEOUT_MILLIS: u64 = 500;
 
 /// Client struct to interact with a cluster for requests and subscriptions
+///
+/// S is the MembershipStorage implementation to fetch the cluster members
 #[derive(Clone)]
-pub struct Client<S>
-where
-    S: MembershipStorage,
-{
+pub struct Client<S> {
     timeout_millis: u64,
 
     /// Membership view used for Server's service discovery

@@ -46,10 +46,7 @@ impl PeerToPeerClusterConfig {
 
 /// Gossip-based [ClusterProvider]
 #[derive(Clone)]
-pub struct PeerToPeerClusterProvider<T>
-where
-    T: MembershipStorage,
-{
+pub struct PeerToPeerClusterProvider<T> {
     members_storage: T,
     config: PeerToPeerClusterConfig,
 }
