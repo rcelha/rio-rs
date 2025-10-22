@@ -11,7 +11,8 @@ use super::Client;
 use super::DEFAULT_TIMEOUT_MILLIS;
 
 /// Helper Struct to build clients from configuration
-pub struct ClientBuilder<S: MembershipStorage> {
+/// S is the MembershipStorage implementation to be used by the client
+pub struct ClientBuilder<S> {
     members_storage: Option<S>,
     timeout_millis: u64,
 }

@@ -9,11 +9,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 #[async_trait]
-pub trait Handler<M>
-where
-    Self: Send + Sync,
-    M: Message + Send + Sync,
-{
+pub trait Handler<M>: Send + Sync {
     type Returns: Serialize + Sync + Send;
     type Error: Serialize;
 

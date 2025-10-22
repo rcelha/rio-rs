@@ -22,10 +22,7 @@ use super::Client;
 /// - `S` is the MembershipStorage for the internal client
 /// - `E` is the generic for the RequestError
 #[derive(Clone)]
-pub struct Request<'a, S, E>
-where
-    S: MembershipStorage,
-{
+pub struct Request<'a, S, E> {
     client: Client<S>,
     _lifetime_marker: PhantomData<&'a ()>,
     _error_marker: PhantomData<E>,
