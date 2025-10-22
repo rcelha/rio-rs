@@ -1,0 +1,33 @@
+services:
+  server:
+    image: rio_telemetry_example
+    build: .
+    command: ["cargo", "run", "--bin", "telemetry_server", "9999"]
+    volumes:
+      - .:/usr/src/app
+      - ../../rio-rs:/usr/rio-rs
+      - ../../rio-macros:/usr/rio-macros
+      - target:/usr/src/app/target
+      - tmp:/tmp
+  client:
+    image: rio_telemetry_example
+    build: .
+    command: ["cargo", "run", "--bin", "telemetry_client"]
+    volumes:
+      - .:/usr/src/app
+      - ../../rio-rs:/usr/rio-rs
+      - ../../rio-macros:/usr/rio-macros
+      - target:/usr/src/app/target
+      - tmp:/tmp
+
+  # Tracing
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    ports:
+      - "16686:16686"
+    environment:
+      - LOG_LEVEL=debug
+
+volumes:
+  target:
+  tmp:

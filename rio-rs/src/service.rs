@@ -3,7 +3,7 @@
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use futures::{FutureExt, Stream, StreamExt};
-use log::error;
+use log::{debug, error, info, warn};
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
@@ -22,8 +22,11 @@ use crate::registry::Registry;
 use crate::{LifecycleMessage, ObjectId};
 
 /// Service to respond to Requests from [crate::client::Client]
+///
+/// S Is the MembershipStorage implementation to check active members
+/// P Is the ObjectPlacement implementation to check object placements
 #[derive(Clone)]
-pub struct Service<S: MembershipStorage, P: ObjectPlacement> {
+pub struct Service<S, P> {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
     pub(crate) members_storage: S,
@@ -51,11 +54,18 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> TowerService<
     /// else
     fn call(&mut self, req: RequestEnvelope) -> Self::Future {
         let this = self.clone();
+        debug!("Request call {}.{}", req.handler_type, req.handler_id);
         let result = async move {
             // Test if this object is in fact allocated in this instance
             let server_address = this
                 .get_or_create_placement(req.handler_type.clone(), req.handler_id.clone())
                 .await;
+
+            info!(
+                "Service Address for {}.{} is {}",
+                req.handler_type, req.handler_id, server_address
+            );
+
             this.check_address_mismatch(server_address).await?;
 
             // Ensure the object is started in the registry
@@ -162,6 +172,7 @@ where
         std::task::Poll::Ready(Ok(()))
     }
 
+    /// TODO add logging and metrics
     fn call(&mut self, req: SubscriptionRequest) -> Self::Future {
         let this = self.clone();
         let result = async move {
@@ -258,26 +269,38 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
 
         let mut split_address = server_address.split(':');
         let ip = split_address.next().ok_or_else(|| {
-            ResponseError::Unknown(format!(
+            let resp = ResponseError::Unknown(format!(
                 "Malformed address: Missing IP in '{}'",
                 server_address
-            ))
+            ));
+            error!("{resp:?}");
+            resp
         })?;
         let port = split_address.next().ok_or_else(|| {
-            ResponseError::Unknown(format!(
+            let resp = ResponseError::Unknown(format!(
                 "Malformed address: Missing PORT in '{}'",
                 server_address
-            ))
+            ));
+            error!("{resp:?}");
+            resp
         })?;
 
         let is_active = self
             .members_storage
             .is_active(ip, port)
             .await
-            .map_err(|e| ResponseError::Unknown(e.to_string()))?;
+            .map_err(|e| {
+                let resp = ResponseError::Unknown(e.to_string());
+                error!("{resp:?}");
+                resp
+            })?;
 
         // This object is active somewhere else
         if is_active {
+            warn!(
+                "Object is allocated in another server {} != {}",
+                server_address, self.address
+            );
             return Err(ResponseError::Redirect(server_address));
         }
 
@@ -287,7 +310,9 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
             .await
             .clean_server(server_address)
             .await;
-        Err(ResponseError::DeallocateServiceObject)
+        let resp = Err(ResponseError::DeallocateServiceObject);
+        error!("{resp:?}");
+        resp
     }
 
     /// Startup a service object and insert it into registry
