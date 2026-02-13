@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use bb8_redis::{bb8::Pool, RedisConnectionManager};
-use redis::AsyncCommands;
+use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
