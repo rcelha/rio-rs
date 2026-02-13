@@ -47,7 +47,6 @@ sqlx = { version = "0.8", optional = true, features = [
     "chrono",
 ] }
 state = "0.5" # AppData/context
-sync_wrapper = "1.0.1"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.8", features = ["sync"] }
