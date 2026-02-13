@@ -1,3 +1,5 @@
+import? 'local.just'
+
 # Installs the pre-commit hook as soon as one runs `just`
 _ := `ln -sf ${PWD}/pre-commit ${PWD}/.git/hooks/`
 
