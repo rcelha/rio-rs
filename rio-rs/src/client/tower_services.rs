@@ -231,7 +231,10 @@ mod test {
     use chrono::{DateTime, Utc};
     use lru::LruCache;
     use serde::{Deserialize, Serialize};
-    use std::sync::{Arc, RwLock};
+    use std::{
+        num::NonZero,
+        sync::{Arc, RwLock},
+    };
     use thiserror::Error;
     use tower::ServiceExt;
 
@@ -281,7 +284,7 @@ mod test {
             active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
-            placement: Arc::new(RwLock::new(LruCache::new(10))),
+            placement: Arc::new(RwLock::new(LruCache::new(NonZero::new(10).unwrap()))),
         }
     }
 
@@ -321,7 +324,7 @@ mod test {
             active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
-            placement: Arc::new(RwLock::new(LruCache::new(10))),
+            placement: Arc::new(RwLock::new(LruCache::new(NonZero::new(10).unwrap()))),
         };
         let mut request: Request<_, NoopError> = Request::new(client);
         let waker = futures::task::noop_waker();

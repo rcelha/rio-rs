@@ -30,7 +30,7 @@ derive_builder = "0.20.2"
 env_logger = "0.11.9"
 futures = "0.3.31" # Need for futures::SyncExt (Framed.send)
 log = { version = "0.4.29", features = ["kv"] }
-lru = "0.7.7" # Store ServiceObject's placements locally
+lru = "0.16.3" # Store ServiceObject's placements locally
 netwatch = "0.4.0"
 papaya = "0.1.4"
 rand = "0.8"
