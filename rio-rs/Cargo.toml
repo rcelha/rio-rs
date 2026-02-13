@@ -18,7 +18,7 @@ http = ["dep:axum", "dep:reqwest"]
 full = ["redis", "sqlite", "postgres", "local", "http"]
 
 [dependencies]
-async-stream = "0.3.5"
+async-stream = "0.3.6"
 async-trait = { package = "async-trait-sync", version = "0.1.36" }
 axum = { version = "0.7.5", optional = true }
 bb8 = "0.7.1" # Client Pool
