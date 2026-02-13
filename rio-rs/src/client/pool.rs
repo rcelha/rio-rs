@@ -1,7 +1,8 @@
 //! This is a pooled client. The client also does proper placement lookups and controls its own
 //! caching strategy
 
-use async_trait::async_trait;
+use std::future::Future;
+
 // TODO expose the bb8 pool so the user ensure it uses the right one
 #[allow(unused)]
 pub use bb8::PooledConnection;
@@ -40,23 +41,24 @@ impl<S: MembershipStorage + 'static> ClientConnectionManager<S> {
     }
 }
 
-#[async_trait]
 impl<S: MembershipStorage + 'static> ManageConnection for ClientConnectionManager<S> {
     type Connection = Client<S>;
     type Error = ClientError;
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        ClientBuilder::new()
-            .members_storage(self.members_storage.clone())
-            .timeout_millis(self.timeout_millis)
-            .build()
-            .map_err(|err| ClientError::Unknown(err.to_string()))
+    fn connect(&self) -> impl Future<Output = Result<Self::Connection, Self::Error>> + Send {
+        futures::future::ready(
+            ClientBuilder::new()
+                .members_storage(self.members_storage.clone())
+                .timeout_millis(self.timeout_millis)
+                .build()
+                .map_err(|err| ClientError::Unknown(err.to_string())),
+        )
     }
 
-    async fn is_valid(
+    fn is_valid(
         &self,
-        _conn: &mut bb8::PooledConnection<'_, Self>,
-    ) -> Result<(), Self::Error> {
-        Ok(())
+        _conn: &mut Self::Connection,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send {
+        futures::future::ok(())
     }
 
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
