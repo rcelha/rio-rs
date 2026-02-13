@@ -21,7 +21,8 @@ use dashmap::DashMap;
 use futures::SinkExt;
 use futures::{Stream, StreamExt};
 use lru::LruCache;
-use rand::{prelude::SliceRandom, thread_rng};
+use rand::rng;
+use rand::seq::IndexedRandom;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -253,7 +254,7 @@ where
                 None => {
                     // If there is no address associated with this service,
                     // it will pick one at random (allowing the server to 'correct' it)
-                    let mut rng = thread_rng();
+                    let mut rng = rng();
                     let servers: Vec<String> = self.active_servers.iter().cloned().collect();
                     let random_server = servers
                         .choose(&mut rng)
