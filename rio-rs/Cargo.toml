@@ -18,7 +18,6 @@ http = ["dep:axum", "dep:reqwest"]
 full = ["redis", "sqlite", "postgres", "local", "http"]
 
 [dependencies]
-async-recursion = "0.3.2" # Client::send needs recursion (for now)
 async-stream = "0.3.5"
 async-trait = { package = "async-trait-sync", version = "0.1.36" }
 axum = { version = "0.7.5", optional = true }
