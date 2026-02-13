@@ -46,7 +46,7 @@ sqlx = { version = "0.8", optional = true, features = [
     "postgres",
     "chrono",
 ] }
-state = "0.5.2" # AppData/context
+state = "0.5" # AppData/context
 sync_wrapper = "1.0.1"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
