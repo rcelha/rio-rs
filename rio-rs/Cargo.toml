@@ -31,7 +31,7 @@ env_logger = "0.11.9"
 futures = "0.3.31" # Need for futures::SyncExt (Framed.send)
 log = { version = "0.4.29", features = ["kv"] }
 lru = "0.16.3" # Store ServiceObject's placements locally
-netwatch = "0.4.0" # TODO upgrade
+netwatch = "0.12"
 papaya = "0.2.3"
 rand = "0.10"
 redis = { version = "1.0.3", optional = true, features = ["aio"] }
