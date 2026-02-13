@@ -26,6 +26,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::num::NonZeroUsize;
 use std::sync::{Arc, RwLock};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -132,13 +133,15 @@ where
 {
     /// Create a new Client from a MembershipStorage
     pub fn new(members_storage: S) -> Self {
+        let lru_limit = NonZeroUsize::new(1_000).expect("LruCache limit must be greater than 0");
+
         Client {
             membership_storage: members_storage,
             timeout_millis: DEFAULT_TIMEOUT_MILLIS,
             active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
-            placement: Arc::new(RwLock::new(LruCache::new(1000))),
+            placement: Arc::new(RwLock::new(LruCache::new(lru_limit))),
         }
     }
 
@@ -440,7 +443,7 @@ mod test {
             active_servers: Default::default(),
             ts_active_servers_refresh: 0,
             streams: Arc::default(),
-            placement: Arc::new(RwLock::new(LruCache::new(10))),
+            placement: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(10).unwrap()))),
         }
     }
 
