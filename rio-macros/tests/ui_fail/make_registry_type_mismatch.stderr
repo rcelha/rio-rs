@@ -6,8 +6,13 @@ error[E0271]: type mismatch resolving `<TestService as Handler<Ping>>::Returns =
 47 | |         Ping => (Ping, NoopError),
 48 | |     ]
 49 | | }
-   | |_^ expected `Ping`, found `Pong`
+   | |_^ type mismatch resolving `<TestService as Handler<Ping>>::Returns == Ping`
    |
+note: expected this to be `Ping`
+  --> tests/ui_fail/make_registry_type_mismatch.rs:31:20
+   |
+31 |     type Returns = Pong;
+   |                    ^^^^
 note: required by a bound in `assert_handler_type`
   --> tests/ui_fail/make_registry_type_mismatch.rs:45:1
    |

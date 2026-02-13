@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - name: Install nextest
-        run: cargo install cargo-nextest
+        run: cargo install --locked cargo-nextest
       - name: Tests
         run: cargo nextest run --config-file .config/nextest.ci.toml
       - name: Doc tests
