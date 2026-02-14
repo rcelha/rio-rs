@@ -70,6 +70,8 @@ fn build_registry() -> Registry {
 }
 
 #[tokio::test]
+/// Tests that when a server dies, the objects that were allocated to it
+/// gets re-allocated to another servers in the cluster
 async fn move_object_on_server_failure() {
     let members_storage = LocalStorage::default();
     let object_placement_provider = LocalObjectPlacement::default();
@@ -127,6 +129,7 @@ async fn move_object_on_server_failure() {
 }
 
 #[tokio::test]
+/// When we send a message to an object that is not setup in the registry we get an error
 async fn error_when_server_doesnt_have_service_in_registry() {
     let members_storage = LocalStorage::default();
     let object_placement_provider = LocalObjectPlacement::default();
@@ -143,6 +146,7 @@ async fn error_when_server_doesnt_have_service_in_registry() {
                 .build()
                 .unwrap();
 
+            // Make sure the object is not allocated to any service
             assert!(!is_allocated(&object_placement_provider, "NopeService", "1").await);
 
             // As soon as we send the first message, the object is allocated to a server
