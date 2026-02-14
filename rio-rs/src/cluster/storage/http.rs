@@ -38,7 +38,7 @@ pub async fn serve(
     // build our application with a route
     let app = Router::new()
         .route("/members", routing::get(list_members))
-        .route("/members/:ip/:port/", routing::get(member_failures))
+        .route("/members/{ip}/{port}/", routing::get(member_failures))
         .with_state(AppData { inner: backend });
 
     // run our app with hyper, listening globally on port 3000
