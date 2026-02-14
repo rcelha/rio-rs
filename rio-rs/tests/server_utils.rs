@@ -3,6 +3,7 @@ use rio_rs::state::local::LocalState;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::object_placement::local::LocalObjectPlacement;
@@ -16,7 +17,6 @@ pub type LocalServer =
 
 pub type BuildRegistry = dyn Fn() -> Registry;
 
-#[allow(dead_code)] // It might be included on an integration test but not used
 async fn build_server(
     registry: Registry,
     members_storage: LocalStorage,
@@ -43,7 +43,11 @@ async fn build_server(
     (server, listener)
 }
 
-// Run a test and fail if it takes more then `timeout_seconds`
+#[allow(dead_code)]
+/// Run a test and fail if it takes more then `timeout_seconds`
+///
+/// The test will run in a cluster of `num_servers` servers, all sharing the same
+/// `members_storage` and `object_placement_provider`.
 pub async fn run_integration_test<Fut>(
     timeout_seconds: u64,
     registry_builder: &BuildRegistry,
@@ -99,7 +103,8 @@ pub async fn run_integration_test<Fut>(
     };
 }
 
-#[allow(dead_code)] // It might be included on an integration test but not used
+#[allow(dead_code)]
+/// Checks if an object is allocated to a server by looking it up in the object placement provider
 pub async fn is_allocated(
     object_placement_provider: &impl ObjectPlacement,
     service_type: impl ToString,
@@ -108,4 +113,29 @@ pub async fn is_allocated(
     let object_id = ObjectId(service_type.to_string(), service_id.to_string());
     let where_is_it = object_placement_provider.lookup(&object_id).await;
     where_is_it.is_some()
+}
+
+#[allow(dead_code)]
+/// Polls until the number of active members matches the expected count.
+/// Times out after `timeout` duration, polling every 100ms.
+pub async fn wait_for_active_members<S: MembershipStorage>(
+    members_storage: &S,
+    expected_count: usize,
+    timeout: Duration,
+) {
+    let start = std::time::Instant::now();
+    loop {
+        let active = members_storage.active_members().await.unwrap();
+        if active.len() == expected_count {
+            return;
+        }
+        if start.elapsed() > timeout {
+            panic!(
+                "Timeout waiting for {} active members, got {}",
+                expected_count,
+                active.len()
+            );
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
 }

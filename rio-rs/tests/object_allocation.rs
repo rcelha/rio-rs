@@ -7,14 +7,12 @@ use rio_rs::server::AdminSender;
 use rio_rs::{object_placement::ObjectPlacement, protocol::NoopError};
 use serde::{Deserialize, Serialize};
 
-use rio_rs::prelude::*;
-
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::object_placement::local::LocalObjectPlacement;
+use rio_rs::prelude::*;
 
 mod server_utils;
-use server_utils::{is_allocated, run_integration_test};
-use tokio::time::sleep;
+use server_utils::{is_allocated, run_integration_test, wait_for_active_members};
 
 #[derive(Default, Debug, Message, TypeName, Serialize, Deserialize)]
 struct OkMessage {}
@@ -71,19 +69,8 @@ fn build_registry() -> Registry {
     registry
 }
 
-// This test runs [move_object_on_server_failure_single] several times
-// to ensure it will try to pick up the same server even after it gets
-// terminated
-//
-// Unfortunetely this makes the test quite slow
 #[tokio::test]
 async fn move_object_on_server_failure() {
-    for _ in 0..10 {
-        move_object_on_server_failure_single().await;
-    }
-}
-
-async fn move_object_on_server_failure_single() {
     let members_storage = LocalStorage::default();
     let object_placement_provider = LocalObjectPlacement::default();
 
@@ -113,13 +100,13 @@ async fn move_object_on_server_failure_single() {
             let first_server = object_placement_provider.lookup(&object_id).await.unwrap();
 
             // Now we send a message that will cause the server where this object is in to die.
-            // Notice we need to wait a few seconds so the cluster provider marks it as inactive
+            // Wait for the cluster provider to mark the killed server as inactive
             let message = KillServer {};
             client
                 .send::<MockResponse, NoopError>("MockService", "1", &message)
                 .await
                 .unwrap();
-            sleep(Duration::from_secs(5)).await;
+            wait_for_active_members(&members_storage, 1, Duration::from_secs(5)).await;
 
             // The first server is now dead, we send another message to the object
             // so it gets re-allocated somewhere else in the cluster
@@ -145,7 +132,7 @@ async fn error_when_server_doesnt_have_service_in_registry() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        3,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),
