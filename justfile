@@ -25,6 +25,7 @@ fmt:
 # Runs tests for the main project
 test:
     cargo nextest run --no-fail-fast
+    cargo test --doc
 
 # Do something
 bump-type:
