@@ -146,7 +146,7 @@ where
         // END: TODO move this to config
 
         let mut retry_count = 0;
-        let mut retry_duration = retry_min_duration.clone();
+        let mut retry_duration = retry_min_duration;
         Box::pin(async move {
             loop {
                 // Used a cloned request, so it can be used in a loop

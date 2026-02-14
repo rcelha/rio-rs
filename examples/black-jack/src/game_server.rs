@@ -146,6 +146,7 @@ fn util_finish_player_turn(
     turn_timer.0.reset();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn pool_commands(
     time: Res<Time>,
     mut timer: ResMut<PoolTimer>,

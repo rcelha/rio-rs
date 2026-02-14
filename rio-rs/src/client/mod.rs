@@ -153,7 +153,7 @@ where
     async fn fetch_active_servers(&mut self) -> ClientResult<()> {
         // if there are active servers and the refresh time stamp has changed
         // We assume the cache is good
-        if self.active_servers.len() > 0 && self.ts_active_servers_refresh > 0 {
+        if !self.active_servers.is_empty() && self.ts_active_servers_refresh > 0 {
             return Ok(());
         }
 
@@ -366,8 +366,7 @@ where
     /// - [x] Returns async iter
     /// - [x] Handle redirects
     /// - [ ] Move this logic into a tower service
-    /// - [ ] Support moving service object (after you connect to a node and the handler you are
-    ///       listening to moves to some other node)
+    /// - [ ] Support moving service object (after you connect to a node and the handler you are listening to moves to some other node)
     /// - [x] Use dedicated connection
     ///
     /// </div>

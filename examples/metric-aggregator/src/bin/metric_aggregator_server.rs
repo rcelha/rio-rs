@@ -41,10 +41,7 @@ async fn main() {
         .expect("Connection failure");
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let mut cluster_config = PeerToPeerClusterConfig::default();
-    cluster_config.interval_secs = 5;
-    cluster_config.num_failures_threshold = 2;
-    cluster_config.interval_secs_threshold = 30;
+    let cluster_config = PeerToPeerClusterConfig::new();
     let cluster = PeerToPeerClusterProvider::new(members_storage, cluster_config);
 
     let pool = SqliteObjectPlacement::pool()
