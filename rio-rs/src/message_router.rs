@@ -3,8 +3,7 @@
 //! <div class="warning">
 //!
 //! # TODO
-//! - [ ] This component might be temporary. It serves as a router between
-//!       different publishers and subscribers
+//! - [ ] This component might be temporary. It serves as a router between different publishers and subscribers
 //! - [ ] I need a way to remove unused channels (use LRU)
 //! - [ ] Configure channel limits
 //!

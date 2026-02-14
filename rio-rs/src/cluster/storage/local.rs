@@ -53,7 +53,6 @@ impl MembershipStorage for LocalStorage {
         let items = guard
             .iter()
             .filter(|(ip_, port_, ..)| ip_ == ip && port_ == port)
-            .cloned()
             .map(|x| x.2)
             .collect();
         Ok(items)

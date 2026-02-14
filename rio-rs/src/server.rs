@@ -358,7 +358,7 @@ where
                     .map_err(|err| {
                         error!(
                             "accept: JoinHandle error: {}",
-                            err.to_string()
+                            err
                         );
                         ServerError::Run
                     })??;
@@ -368,7 +368,7 @@ where
                     .map_err(|err| {
                         error!(
                             "cluster provider server: JoinHandle error: {}",
-                            err.to_string()
+                            err
                         );
                         ServerError::Run
                     })?
@@ -380,7 +380,7 @@ where
                     .map_err(|err| {
                         error!(
                             "internal client: JoinHandle error: {}",
-                            err.to_string()
+                            err
                         );
                         ServerError::Run
                     })??;
@@ -409,7 +409,7 @@ where
         let local_addr = listener.local_addr().map_err(|_| {
             ServerError::Bind("Cannot get the local address for the listener".to_string())
         })?;
-        info!("Listening on `{}`", local_addr.to_string());
+        info!("Listening on `{}`", local_addr);
         let mut joinset = JoinSet::new();
 
         loop {

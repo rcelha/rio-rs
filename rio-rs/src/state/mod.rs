@@ -174,7 +174,7 @@ pub trait ObjectStateManager {
         let state_type = T::user_defined_type_id();
         let state_value: &T = self.get_state();
         state_saver
-            .save(object_kind, object_id, state_type, &state_value)
+            .save(object_kind, object_id, state_type, state_value)
             .await?;
         Ok(())
     }

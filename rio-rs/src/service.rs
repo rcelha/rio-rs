@@ -425,7 +425,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                         // Stop receiving messages if the sink we redirect messages to is
                         // closed
                         if let Err(err) = send_result {
-                            error!("Channel is closed due {}", err.to_string());
+                            error!("Channel is closed due {}", err);
                             break;
                         }
                     }
