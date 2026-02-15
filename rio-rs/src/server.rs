@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use derive_builder::Builder;
+use bon::Builder;
 use log::{error, info, warn};
 use netwatch::ip::LocalAddresses;
 use tokio::sync::mpsc;
@@ -16,7 +16,7 @@ use tower::{Service as TowerService, ServiceExt};
 use crate::app_data::AppData;
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembershipStorage;
-use crate::errors::{ServerBuilderError, ServerError};
+use crate::errors::ServerError;
 use crate::object_placement::ObjectPlacement;
 use crate::protocol::pubsub::SubscriptionRequest;
 use crate::protocol::ResponseError;
@@ -80,8 +80,9 @@ pub type InternalClientSender = mpsc::UnboundedSender<SendCommand>;
 /// [SubscriptionRequest].
 ///
 /// More of it can be seen in [Server::run].
+///
+/// TODO example builder
 #[derive(Builder)]
-#[builder(name = "NewServerBuilder")]
 pub struct Server<S, C, P>
 where
     S: MembershipStorage,
@@ -89,130 +90,23 @@ where
     P: ObjectPlacement,
 {
     /// Address given by the user
-    #[builder(setter(into, strip_option), default = r#""0.0.0.0:0".to_string()"#)]
+    #[builder(default = "0.0.0.0:0".to_string())]
     address: String,
 
     /// Address given by the user
-    #[builder(
-        setter(into, strip_option),
-        default = r#"Some("0.0.0.0:0".to_string())"#
-    )]
     #[cfg(feature = "http")]
     http_members_storage_address: Option<String>,
 
+    #[builder(with = |registry: Registry| Arc::new(RwLock::new(registry)))]
     registry: Arc<RwLock<Registry>>,
     cluster_provider: C,
+    #[builder(with = |provider: P| Arc::new(RwLock::new(provider)))]
     object_placement_provider: Arc<RwLock<P>>,
+    #[builder(with = |app_data: AppData| Arc::new(app_data))]
     app_data: Arc<AppData>,
 
-    #[builder(default = "10")]
-    client_pool_size: u32,
-
-    #[builder(default = "PhantomData {}", setter(skip))]
+    #[builder(skip = PhantomData {})]
     _marker: PhantomData<S>,
-}
-
-/// Builder pattern for [Server]
-///
-/// # Example
-/// ```rust
-/// # use rio_rs::server::ServerBuilder;
-/// # use rio_rs::object_placement::local::LocalObjectPlacement;
-/// # use rio_rs::registry::Registry;
-/// # use rio_rs::cluster::membership_protocol::local::LocalClusterProvider;
-/// # use rio_rs::cluster::storage::local::LocalStorage;
-/// # async fn run_server() {
-/// #
-/// let mut server = ServerBuilder::default()
-///     .registry(Registry::default())
-///     .cluster_provider(LocalClusterProvider {members_storage: LocalStorage::default()})
-///     .object_placement_provider(LocalObjectPlacement::default())
-///     .client_pool_size(10)
-///     .build().unwrap();
-/// let listener = server.bind().await.unwrap();
-/// server.run(listener).await;
-/// #
-/// # }
-/// ```
-pub struct ServerBuilder<S, C, P> {
-    address: String,
-    registry: Option<Registry>,
-    cluster_provider: Option<C>,
-    object_placement_provider: Option<P>,
-    client_pool_size: u32,
-
-    _marker: PhantomData<S>,
-}
-
-impl<S, C, P> Default for ServerBuilder<S, C, P> {
-    fn default() -> Self {
-        ServerBuilder {
-            address: "0.0.0.0:5000".to_string(),
-            registry: None,
-            cluster_provider: None,
-            object_placement_provider: None,
-            client_pool_size: 3,
-            _marker: PhantomData {},
-        }
-    }
-}
-
-impl<S, C, P> ServerBuilder<S, C, P>
-where
-    S: MembershipStorage + 'static,
-    C: ClusterProvider<S> + 'static + Send + Sync,
-    P: ObjectPlacement + 'static,
-{
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn address(mut self, value: String) -> Self {
-        self.address = value;
-        self
-    }
-
-    pub fn client_pool_size(mut self, value: u32) -> Self {
-        self.client_pool_size = value;
-        self
-    }
-
-    pub fn registry(mut self, value: Registry) -> Self {
-        self.registry = Some(value);
-        self
-    }
-
-    pub fn cluster_provider(mut self, value: C) -> Self {
-        self.cluster_provider = Some(value);
-        self
-    }
-
-    pub fn object_placement_provider(mut self, value: P) -> Self {
-        self.object_placement_provider = Some(value);
-        self
-    }
-
-    pub fn build(self) -> Result<Server<S, C, P>, ServerBuilderError> {
-        let address = self.address;
-        let registry = self.registry.unwrap_or_default();
-        let cluster_provider = self
-            .cluster_provider
-            .ok_or(ServerBuilderError::NoMembershipStorage)?;
-        let object_placement_provider = self
-            .object_placement_provider
-            .ok_or(ServerBuilderError::NoObjectPlacement)?;
-        let client_pool_size = self.client_pool_size;
-
-        let mut server = Server::new(
-            address,
-            registry,
-            cluster_provider,
-            object_placement_provider,
-        );
-        server.client_pool_size = client_pool_size;
-
-        Ok(server)
-    }
 }
 
 type ServerResult<T> = Result<T, ServerError>;
@@ -223,25 +117,6 @@ where
     C: ClusterProvider<S> + Send + Sync + 'static,
     P: ObjectPlacement + 'static,
 {
-    pub fn new(
-        address: String,
-        registry: Registry,
-        cluster_provider: C,
-        object_placement_provider: P,
-    ) -> Server<S, C, P> {
-        Server {
-            address,
-            #[cfg(feature = "http")]
-            http_members_storage_address: None,
-            registry: Arc::new(RwLock::new(registry)),
-            cluster_provider,
-            object_placement_provider: Arc::new(RwLock::new(object_placement_provider)),
-            app_data: Arc::new(AppData::new()),
-            client_pool_size: 3,
-            _marker: PhantomData {},
-        }
-    }
-
     pub async fn prepare(&self) {
         self.cluster_provider.members_storage().prepare().await;
         let object_placement_provider_guard = self.object_placement_provider.read().await;
@@ -523,15 +398,14 @@ mod test {
 
     #[tokio::test]
     async fn client_builder_sanity_check() {
-        let _server = NewServerBuilder::default()
-            .address("0.0.0.0:80")
-            .registry(Arc::new(RwLock::new(Registry::default())))
-            .app_data(Arc::new(Default::default()))
+        let _server = Server::builder()
+            .address("0.0.0.0:80".to_string())
+            .registry(Registry::default())
+            .app_data(AppData::new())
             .cluster_provider(LocalClusterProvider {
                 members_storage: LocalStorage::default(),
             })
-            .object_placement_provider(Arc::new(RwLock::new(LocalObjectPlacement::default())))
-            .build()
-            .expect("Builder Failed");
+            .object_placement_provider(LocalObjectPlacement::default())
+            .build();
     }
 }

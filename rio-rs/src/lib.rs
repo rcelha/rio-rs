@@ -109,12 +109,13 @@
 //!     let object_placement_provider = SqliteObjectPlacement::new(pool);
 //!
 //!     // Create the server object
-//!     let mut server = Server::new(
-//!         addr.to_string(),
-//!         registry,
-//!         membership_provider,
-//!         object_placement_provider,
-//!     );
+//!     let mut server = Server::builder()
+//!         .address(addr.to_string())
+//!         .registry(registry)
+//!         .app_data(AppData::new())
+//!         .cluster_provider(membership_provider)
+//!         .object_placement_provider(object_placement_provider)
+//!         .build();
 //!     server.prepare().await;
 //!     let listener = server.bind().await.expect("Bind");
 //!     // Run the server
@@ -231,7 +232,6 @@ pub mod prelude {
     pub use super::registry::{Handler, Registry};
 
     pub use super::server::Server;
-    pub use super::server::ServerBuilder;
     pub use super::state::ObjectStateManager;
     pub use super::LifecycleMessage;
     pub use super::ObjectId;

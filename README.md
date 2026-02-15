@@ -90,12 +90,13 @@ async fn main() {
     let object_placement_provider = SqliteObjectPlacement::new(pool);
 
     // Create the server object
-    let mut server = Server::new(
-        addr.to_string(),
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
+    let mut server = Server::builder()
+        .address(addr.to_string())
+        .registry(registry)
+        .app_data(AppData::new())
+        .cluster_provider(membership_provider)
+        .object_placement_provider(object_placement_provider)
+        .build();
     server.prepare().await;
     let listener = server.bind().await.expect("Bind");
     // Run the server

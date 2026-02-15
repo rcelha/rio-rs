@@ -55,12 +55,13 @@ pub async fn build_server(
     let object_placement_provider = SqliteObjectPlacement::new(pool);
 
     // Create the server object
-    let mut server = Server::new(
-        addr,
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
+    let mut server = Server::builder()
+        .address(addr)
+        .registry(registry)
+        .app_data(AppData::new())
+        .cluster_provider(membership_provider)
+        .object_placement_provider(object_placement_provider)
+        .build();
     server.prepare().await;
     // LifecycleMessage will try to load object from state
     server.app_data(LocalState::default());

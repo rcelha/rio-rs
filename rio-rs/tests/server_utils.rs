@@ -33,12 +33,13 @@ async fn build_server(
     let membership_provider =
         PeerToPeerClusterProvider::new(members_storage.clone(), cluster_provider_config);
 
-    let mut server = Server::new(
-        "0.0.0.0:0".to_string(),
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
+    let mut server = Server::builder()
+        .address("0.0.0.0:0".to_string())
+        .registry(registry)
+        .app_data(AppData::new())
+        .cluster_provider(membership_provider)
+        .object_placement_provider(object_placement_provider)
+        .build();
     let listener = server.bind().await.expect("Bind Error");
     (server, listener)
 }

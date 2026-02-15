@@ -61,14 +61,13 @@ async fn main() {
 
     let object_placement_provider = SqliteObjectPlacement::new(pool);
 
-    let mut server = ServerBuilder::new()
+    let mut server = Server::builder()
         .address(addr.to_string())
         .registry(registry)
+        .app_data(AppData::new())
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
-        .client_pool_size(10)
-        .build()
-        .expect("TODO: server builder fail");
+        .build();
     server.prepare().await;
 
     let sql_state_pool = SqliteState::pool()
