@@ -50,8 +50,9 @@ async fn main() {
         .expect("Connection failure");
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let cluster_config = PeerToPeerClusterConfig::new();
-    let cluster = PeerToPeerClusterProvider::new(members_storage, cluster_config);
+    let cluster = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage)
+        .build();
 
     let pool = SqliteObjectPlacement::pool()
         .max_connections(num_cpus)

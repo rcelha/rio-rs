@@ -97,9 +97,9 @@
 //!         .expect("Membership database connection failure");
 //!     let members_storage = SqliteMembershipStorage::new(pool);
 //!
-//!     let membership_provider_config = PeerToPeerClusterConfig::default();
-//!     let membership_provider =
-//!         PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
+//!     let membership_provider = PeerToPeerClusterProvider::builder()
+//!         .members_storage(members_storage)
+//!         .build();
 //!
 //!     // Configure the object placement
 //!     let pool = SqliteMembershipStorage::pool()
@@ -220,9 +220,7 @@ pub mod derive {
 pub mod prelude {
     pub use super::app_data::AppData;
     pub use super::client::ClientBuilder;
-    pub use super::cluster::membership_protocol::peer_to_peer::{
-        PeerToPeerClusterConfig, PeerToPeerClusterProvider,
-    };
+    pub use super::cluster::membership_protocol::peer_to_peer::PeerToPeerClusterProvider;
     pub use super::cluster::membership_protocol::ClusterProvider;
     pub use super::cluster::storage::MembershipStorage;
     pub use super::derive::{make_registry, ManagedState, Message, TypeName, WithId};

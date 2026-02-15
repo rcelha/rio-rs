@@ -42,9 +42,9 @@ pub async fn build_server(
         .unwrap();
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let membership_provider_config = PeerToPeerClusterConfig::default();
-    let membership_provider =
-        PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
+    let membership_provider = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage)
+        .build();
 
     // Configure the object placement
     let pool = SqliteMembershipStorage::pool()
