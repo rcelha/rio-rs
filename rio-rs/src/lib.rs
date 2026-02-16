@@ -97,9 +97,9 @@
 //!         .expect("Membership database connection failure");
 //!     let members_storage = SqliteMembershipStorage::new(pool);
 //!
-//!     let membership_provider_config = PeerToPeerClusterConfig::default();
-//!     let membership_provider =
-//!         PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
+//!     let membership_provider = PeerToPeerClusterProvider::builder()
+//!         .members_storage(members_storage)
+//!         .build();
 //!
 //!     // Configure the object placement
 //!     let pool = SqliteMembershipStorage::pool()
@@ -109,12 +109,13 @@
 //!     let object_placement_provider = SqliteObjectPlacement::new(pool);
 //!
 //!     // Create the server object
-//!     let mut server = Server::new(
-//!         addr.to_string(),
-//!         registry,
-//!         membership_provider,
-//!         object_placement_provider,
-//!     );
+//!     let mut server = Server::builder()
+//!         .address(addr.to_string())
+//!         .registry(registry)
+//!         .app_data(AppData::new())
+//!         .cluster_provider(membership_provider)
+//!         .object_placement_provider(object_placement_provider)
+//!         .build();
 //!     server.prepare().await;
 //!     let listener = server.bind().await.expect("Bind");
 //!     // Run the server
@@ -219,9 +220,7 @@ pub mod derive {
 pub mod prelude {
     pub use super::app_data::AppData;
     pub use super::client::ClientBuilder;
-    pub use super::cluster::membership_protocol::peer_to_peer::{
-        PeerToPeerClusterConfig, PeerToPeerClusterProvider,
-    };
+    pub use super::cluster::membership_protocol::peer_to_peer::PeerToPeerClusterProvider;
     pub use super::cluster::membership_protocol::ClusterProvider;
     pub use super::cluster::storage::MembershipStorage;
     pub use super::derive::{make_registry, ManagedState, Message, TypeName, WithId};
@@ -231,7 +230,6 @@ pub mod prelude {
     pub use super::registry::{Handler, Registry};
 
     pub use super::server::Server;
-    pub use super::server::ServerBuilder;
     pub use super::state::ObjectStateManager;
     pub use super::LifecycleMessage;
     pub use super::ObjectId;

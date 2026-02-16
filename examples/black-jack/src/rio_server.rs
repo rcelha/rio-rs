@@ -1,12 +1,8 @@
-use std::sync::Arc;
-
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::prelude::*;
-use rio_rs::server::NewServerBuilder;
 use rio_rs::state::sqlite::SqliteState;
 use rio_rs::state::StateSaver;
-use tokio::sync::RwLock;
 
 use crate::registry;
 
@@ -32,9 +28,9 @@ pub async fn build_server(
         .await?;
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let membership_provider_config = PeerToPeerClusterConfig::default();
-    let membership_provider =
-        PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
+    let membership_provider = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage)
+        .build();
 
     // Configure the object placement
     let pool = SqliteMembershipStorage::pool()
@@ -50,14 +46,14 @@ pub async fn build_server(
     StateSaver::<()>::prepare(&sql_state).await;
 
     // Create the server object
-    let mut server = NewServerBuilder::default()
+    let mut server = Server::builder()
         .address(addr)
-        .app_data(Default::default())
-        .http_members_storage_address("0.0.0.0:9876")
-        .registry(Arc::new(RwLock::new(registry)))
+        .app_data(AppData::new())
+        .http_members_storage_address("0.0.0.0:9876".to_string())
+        .registry(registry)
         .cluster_provider(membership_provider)
-        .object_placement_provider(Arc::new(RwLock::new(object_placement_provider)))
-        .build()?;
+        .object_placement_provider(object_placement_provider)
+        .build();
     server.prepare().await;
     // LifecycleMessage will try to load object from state
     server.app_data(sql_state);

@@ -44,20 +44,6 @@ pub enum ClientBuilderError {
     NoMembershipStorage,
 }
 
-/// Errors triggered while building a [crate::server::Server] using
-/// [crate::server::ServerBuilder]
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum ServerBuilderError {
-    #[error("no MembershipStorage configured")]
-    NoMembershipStorage,
-
-    #[error("no ObjectPlacement configured")]
-    NoObjectPlacement,
-
-    #[error("unknown")]
-    Unknown(String),
-}
-
 /// Represent errors that  happen during the [crate::server::Server] setup
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ServerError {

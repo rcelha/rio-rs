@@ -50,8 +50,9 @@ async fn main() {
         .expect("Connection failure");
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let cluster_config = PeerToPeerClusterConfig::new();
-    let cluster = PeerToPeerClusterProvider::new(members_storage, cluster_config);
+    let cluster = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage)
+        .build();
 
     let pool = SqliteObjectPlacement::pool()
         .max_connections(num_cpus)
@@ -61,14 +62,13 @@ async fn main() {
 
     let object_placement_provider = SqliteObjectPlacement::new(pool);
 
-    let mut server = ServerBuilder::new()
+    let mut server = Server::builder()
         .address(addr.to_string())
         .registry(registry)
+        .app_data(AppData::new())
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
-        .client_pool_size(10)
-        .build()
-        .expect("TODO: server builder fail");
+        .build();
     server.prepare().await;
 
     let sql_state_pool = SqliteState::pool()

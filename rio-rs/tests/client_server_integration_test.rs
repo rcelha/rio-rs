@@ -46,12 +46,6 @@ enum MockError {
     VariantB,
 }
 
-#[derive(Error, PartialEq, Debug, Serialize, Deserialize)]
-enum MockWrongError {
-    #[error("C")]
-    VariantC(String),
-}
-
 #[async_trait]
 impl Handler<MockMessage> for MockService {
     type Returns = MockResponse;

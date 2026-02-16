@@ -78,9 +78,9 @@ async fn main() {
         .expect("Membership database connection failure");
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let membership_provider_config = PeerToPeerClusterConfig::default();
-    let membership_provider =
-        PeerToPeerClusterProvider::new(members_storage, membership_provider_config);
+    let membership_provider = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage)
+        .build();
 
     // Configure the object placement
     let pool = SqliteMembershipStorage::pool()
@@ -90,12 +90,13 @@ async fn main() {
     let object_placement_provider = SqliteObjectPlacement::new(pool);
 
     // Create the server object
-    let mut server = Server::new(
-        addr.to_string(),
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
+    let mut server = Server::builder()
+        .address(addr.to_string())
+        .registry(registry)
+        .app_data(AppData::new())
+        .cluster_provider(membership_provider)
+        .object_placement_provider(object_placement_provider)
+        .build();
     server.prepare().await;
     let listener = server.bind().await.expect("Bind");
     // Run the server

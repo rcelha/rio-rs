@@ -26,11 +26,12 @@ bb8-redis = { version = "0.26.0", optional = true }
 bincode = "1.3.3" # TODO replace it with something supported or fork
 chrono = "0.4.43"# Date types for SQLx
 dashmap = "6.1.0"
-derive_builder = "0.20.2"
+bon = "3.9.0"
 env_logger = "0.11.9"
 futures = "0.3.31" # Need for futures::SyncExt (Framed.send)
 log = { version = "0.4.29", features = ["kv"] }
 lru = "0.16.3" # Store ServiceObject's placements locally
+
 netwatch = "0.12"
 papaya = "0.2.3"
 rand = "0.10"

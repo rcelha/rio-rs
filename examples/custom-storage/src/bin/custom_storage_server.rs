@@ -23,27 +23,25 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     let members_storage = SqliteMembershipStorage::new(pool);
 
-    let cluster_config = PeerToPeerClusterConfig {
-        interval_secs: 5,
-        num_failures_threshold: 2,
-        interval_secs_threshold: 30,
-        ..Default::default()
-    };
-    let cluster = PeerToPeerClusterProvider::new(members_storage, cluster_config);
+    let cluster = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage)
+        .interval_secs(5)
+        .num_failures_threshold(2)
+        .interval_secs_threshold(30)
+        .build();
 
     let pool = SqliteObjectPlacement::pool()
         .connect(placement_connection)
         .await?;
     let object_placement_provider = SqliteObjectPlacement::new(pool);
 
-    let mut server = ServerBuilder::new()
+    let mut server = Server::builder()
         .address(addr.to_string())
         .registry(registry)
+        .app_data(AppData::new())
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
-        .client_pool_size(10)
-        .build()
-        .expect("TODO: server builder fail");
+        .build();
     server.prepare().await;
 
     let state_pool = PingState::pool()

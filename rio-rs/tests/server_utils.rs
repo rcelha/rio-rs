@@ -22,23 +22,21 @@ async fn build_server(
     members_storage: LocalStorage,
     object_placement_provider: LocalObjectPlacement,
 ) -> (LocalServer, TcpListener) {
-    let mut cluster_provider_config = PeerToPeerClusterConfig::default();
-    // Test connectivity every second. If, for the past 2 seconds, it had more than 1 failure, the
-    // node will be marked as defective
-    cluster_provider_config.interval_secs = 1;
-    cluster_provider_config.num_failures_threshold = 1;
-    cluster_provider_config.interval_secs_threshold = 2;
-    cluster_provider_config.limit_monitored_members = None;
-    cluster_provider_config.drop_inactive_after_secs = Some(3);
-    let membership_provider =
-        PeerToPeerClusterProvider::new(members_storage.clone(), cluster_provider_config);
+    let membership_provider = PeerToPeerClusterProvider::builder()
+        .members_storage(members_storage.clone())
+        .interval_secs(1)
+        .num_failures_threshold(1)
+        .interval_secs_threshold(2)
+        .drop_inactive_after_secs(3)
+        .build();
 
-    let mut server = Server::new(
-        "0.0.0.0:0".to_string(),
-        registry,
-        membership_provider,
-        object_placement_provider,
-    );
+    let mut server = Server::builder()
+        .address("0.0.0.0:0".to_string())
+        .registry(registry)
+        .app_data(AppData::new())
+        .cluster_provider(membership_provider)
+        .object_placement_provider(object_placement_provider)
+        .build();
     let listener = server.bind().await.expect("Bind Error");
     (server, listener)
 }
