@@ -10,7 +10,7 @@ use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 type ArcMembers = Arc<RwLock<Vec<Member>>>;
 type ArcFailures = Arc<RwLock<Vec<(String, String, DateTime<Utc>)>>>;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct LocalStorage {
     members: ArcMembers,
     failures: ArcFailures,

@@ -53,6 +53,7 @@ tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["full"] }
 tower = { version = "0.5", features = ["full"] }
+tracing = "0.1.44"
 
 [dev-dependencies]
 lazy_static = "1.4.0"

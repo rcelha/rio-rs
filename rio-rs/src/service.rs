@@ -4,8 +4,10 @@ use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use futures::{FutureExt, Stream, StreamExt};
 use log::error;
+use std::fmt::Debug;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
+use tracing::{info_span, Instrument};
 
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;
@@ -22,7 +24,7 @@ use crate::registry::Registry;
 use crate::{LifecycleMessage, ObjectId};
 
 /// Service to respond to Requests from [crate::client::Client]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Service<S: MembershipStorage, P: ObjectPlacement> {
     pub(crate) address: String,
     pub(crate) registry: Arc<RwLock<Registry>>,
@@ -188,6 +190,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
     /// Returns the ip:port for where this object is placed
     ///
     /// If the object is not instantiated anywhere, it will allocate locally
+    #[tracing::instrument]
     async fn get_or_create_placement(&self, handler_type: String, handler_id: String) -> String {
         let object_id = ObjectId(handler_type, handler_id);
         let placement_guard = self.object_placement_provider.read().await;
@@ -251,6 +254,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
     /// There are various checks that needs to run.
     ///
     /// It returns an Error if it is not
+    #[tracing::instrument]
     async fn check_address_mismatch(&self, server_address: String) -> Result<(), ResponseError> {
         if server_address == self.address {
             return Ok(());
@@ -293,6 +297,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
     /// Startup a service object and insert it into registry
     ///
     /// If is already running, ignore it
+    #[tracing::instrument]
     async fn start_service_object(
         &self,
         handler_type: &str,
@@ -357,11 +362,15 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
     /// Consumes a stream of frames, each containing a command sent from clients.
     ///
     /// The commands might be either a request/response request or a subscription request
+    #[tracing::instrument]
     pub async fn run(&mut self, stream: TcpStream) {
         let codec = LengthDelimitedCodec::new();
         let mut frames = Framed::new(stream, codec);
 
-        while let Some(Ok(frame)) = StreamExt::next(&mut frames).await {
+        while let Some(Ok(frame)) = StreamExt::next(&mut frames)
+            .instrument(info_span!("frame_receive"))
+            .await
+        {
             let request: Result<RequestEnvelope, _> = bincode::deserialize(&frame);
             let subscription: Result<SubscriptionRequest, _> = bincode::deserialize(&frame);
 
@@ -389,7 +398,11 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                                 .expect("Serialization of response error should be infalible")
                         }
                     };
-                    frames.send(ser_response.into()).await.unwrap();
+                    frames
+                        .send(ser_response.into())
+                        .instrument(info_span!("response_send"))
+                        .await
+                        .unwrap();
                 }
                 AllRequest::PubSub(message) => {
                     let stream = self.call(message).await;
@@ -402,7 +415,11 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                             let sub_response = SubscriptionResponse::err(err);
                             let ser_response = bincode::serialize(&sub_response)
                                 .expect("Error serialization should be infalible");
-                            frames.send(ser_response.into()).await.ok();
+                            frames
+                                .send(ser_response.into())
+                                .instrument(info_span!("response_send"))
+                                .await
+                                .ok();
                             return;
                         }
                     };
@@ -420,7 +437,10 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                             }
                         };
 
-                        let send_result = frames.send(ser_response.into()).await;
+                        let send_result = frames
+                            .send(ser_response.into())
+                            .instrument(info_span!("response_send"))
+                            .await;
 
                         // Stop receiving messages if the sink we redirect messages to is
                         // closed

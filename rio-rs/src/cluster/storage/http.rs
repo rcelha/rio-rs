@@ -81,7 +81,7 @@ async fn member_failures<S: MembershipStorage + 'static>(
     (StatusCode::OK, Json(ret))
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct HttpMembershipStorage {
     pub remote_address: String,
 }

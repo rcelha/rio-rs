@@ -25,7 +25,7 @@ impl SqlMigrations for PgMembershipStorageMigrations {
 }
 
 /// MembershipStorage implementation to work with relational databases
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgresMembershipStorage {
     pool: PgPool,
 }

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 use chrono::{DateTime, TimeZone, Utc};
 
@@ -65,7 +67,7 @@ pub type MembershipUnitResult = Result<(), MembershipError>;
 /// It is **not** reponsible for asserting the nodes' state, only to store their state.
 /// This is done by the [crate::cluster::membership_protocol::ClusterProvider]
 #[async_trait]
-pub trait MembershipStorage: Send + Sync + Clone {
+pub trait MembershipStorage: Send + Sync + Clone + Debug {
     async fn prepare(&self) {}
 
     /// Saves a new member to the storage

@@ -1,5 +1,7 @@
 //! Maps object's location in the cluster
 
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 
 use crate::ObjectId;
@@ -33,7 +35,7 @@ impl ObjectPlacementItem {
 /// This trait decribes how to manipulate objects' allocation
 /// This is pretty much a CRUD for the mapping
 #[async_trait]
-pub trait ObjectPlacement: Send + Sync + Clone {
+pub trait ObjectPlacement: Send + Sync + Clone + Debug {
     /// Setup step, one can define it for their [ObjectPlacement] so it does some
     /// prep work before the server is running
     async fn prepare(&self) {}

@@ -25,7 +25,7 @@ impl SqlMigrations for SqliteMembershipStorageMigrations {
 }
 
 /// MembershipStorage implementation to work with relational databases
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SqliteMembershipStorage {
     pool: SqlitePool,
 }

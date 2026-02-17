@@ -8,11 +8,13 @@ use log::warn;
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    fmt::Debug,
     future::Future,
     pin::Pin,
     sync::Arc,
 };
 use tokio::sync::RwLock;
+use tracing::Instrument;
 
 mod handler;
 mod identifiable_type;
@@ -45,6 +47,18 @@ pub struct Registry {
 
     /// Internal control for duplicate type ids
     supported_types: HashMap<String, TypeId>,
+}
+
+impl Debug for Registry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Registry")
+            .field("object_map", &"DashMap<(String, String), Box<dyn Any + Send + Sync>>")
+            .field(
+                "handler_map_",
+                &"papaya::HashMap<(String, String), Box<dyn Fn(&str, &str, &[u8], Arc<AppData>) -> AsyncRet + Send + Sync>>",
+            )
+            .finish()
+    }
 }
 
 impl Registry {
@@ -127,25 +141,37 @@ impl Registry {
 
             let inner_object_map = object_map.clone();
             let object_key = (type_id.to_string(), object_id.to_string());
-            Box::pin(async move {
-                let boxed_object_guard = inner_object_map
-                    .get(&object_key)
-                    .ok_or(HandlerError::ObjectNotFound)?;
-                let mut boxed_object = boxed_object_guard.write().await;
-                let object: &mut T = boxed_object.downcast_mut().ok_or(HandlerError::Unknown)?;
-                let handler_result = object.handle(message, context).await;
+            Box::pin(
+                async move {
+                    let boxed_object_guard = inner_object_map
+                        .get(&object_key)
+                        .ok_or(HandlerError::ObjectNotFound)?;
+                    let mut boxed_object = boxed_object_guard
+                        .write()
+                        .instrument(tracing::info_span!("handler_lock_acquire"))
+                        .await;
 
-                // Serializes the error into a binary variant
-                // We do this to support 'custom' error types for each one of the Handler's
-                // implementation
-                let ret = handler_result.map_err(|err| {
-                    let ser_err = bincode::serialize(&err).expect("TODO");
-                    HandlerError::ApplicationError(ser_err)
-                })?;
+                    let object: &mut T =
+                        boxed_object.downcast_mut().ok_or(HandlerError::Unknown)?;
 
-                // Serialize the whole result back to the caller
-                bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
-            })
+                    let handler_result = object
+                        .handle(message, context)
+                        .instrument(tracing::info_span!("handler_handle"))
+                        .await;
+
+                    // Serializes the error into a binary variant
+                    // We do this to support 'custom' error types for each one of the Handler's
+                    // implementation
+                    let ret = handler_result.map_err(|err| {
+                        let ser_err = bincode::serialize(&err).expect("TODO");
+                        HandlerError::ApplicationError(ser_err)
+                    })?;
+
+                    // Serialize the whole result back to the caller
+                    bincode::serialize(&ret).or(Err(HandlerError::ResponseSerializationError))
+                }
+                .instrument(tracing::info_span!("handler_get_and_handle")),
+            )
         };
         let boxed_callable: BoxedCallback = Box::new(callable);
         let callable_key = (type_id, message_type_id);
