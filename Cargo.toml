@@ -2,10 +2,6 @@
 members = [
     "rio-rs",
     "rio-macros",
-    "examples/black-jack",
-    "examples/metric-aggregator",
-    "examples/ping-pong",
-    "examples/presence",
-    "examples/custom-storage",
+    "examples/*",
 ]
 resolver = "2"

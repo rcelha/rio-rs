@@ -252,7 +252,7 @@ mod test {
         Noop,
     }
 
-    #[derive(Clone, Default)]
+    #[derive(Clone, Default, Debug)]
     struct FailMembershipStorage {}
 
     #[async_trait]

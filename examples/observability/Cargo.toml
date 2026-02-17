@@ -1,0 +1,30 @@
+[package]
+name = "observability"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.release]
+release = false
+
+[dependencies]
+async-trait = { package = "async-trait-sync", version = "0.1.36" }
+rio-rs = { path = "../../rio-rs" }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["full", "tracing"] }
+futures = "0.3.0"
+rand = "0.8"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    "sqlite",
+    "postgres",
+    "chrono",
+] }
+clap = { version = "3.2.20", features = ["derive"] }
+
+opentelemetry = "0.31.0"
+opentelemetry-otlp = "0.31.0"
+opentelemetry_sdk = { version = "0.31.0", features = ["trace", "metrics", "logs"]}
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+tracing-opentelemetry = "0.32.1"

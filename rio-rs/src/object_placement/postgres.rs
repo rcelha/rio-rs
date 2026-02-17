@@ -22,7 +22,7 @@ impl SqlMigrations for PgObjectPlacementMigrations {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgresObjectPlacement {
     pool: PgPool,
 }

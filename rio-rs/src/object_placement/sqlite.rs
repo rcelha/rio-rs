@@ -19,7 +19,7 @@ impl SqlMigrations for SqliteObjectPlacementMigrations {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SqliteObjectPlacement {
     pool: SqlitePool,
 }

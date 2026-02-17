@@ -11,7 +11,7 @@ use crate::ObjectId;
 type PlacementMap = Arc<RwLock<HashMap<String, String>>>;
 
 /// In-memory implementation of the trait [ObjectPlacement]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct LocalObjectPlacement {
     placement: PlacementMap,
 }

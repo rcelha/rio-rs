@@ -7,7 +7,7 @@ use redis::AsyncCommands;
 
 use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RedisMembershipStorage {
     pool: Pool<RedisConnectionManager>,
     key_prefix: String,

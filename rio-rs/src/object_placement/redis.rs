@@ -10,7 +10,7 @@ use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
 use super::{ObjectPlacement, ObjectPlacementItem};
 use crate::ObjectId;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RedisObjectPlacement {
     pool: Pool<RedisConnectionManager>,
     key_prefix: String,
