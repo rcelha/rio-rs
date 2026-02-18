@@ -24,6 +24,7 @@ There are a few things that must be done before v0.1.0:
   - Not an issue. You can do just `Self::handle(my_other_message)?`
 - [x] Bypass networking for local messages
   - Already handled by `rio_rs::service::Service::call`
+- [x] Tracing
 - [ ] MDNs
 - [ ] Client bindings for other languages
 - [ ] Remove the need for two types of concurrent hashmap (papaya and dashmap)
@@ -56,7 +57,6 @@ There are a few things that must be done before v0.1.0:
 - [ ] Object TTL
 - [ ] Code of conduct
 - [ ] Metrics
-- [ ] Tracing
 - [ ] Deny allocations based on system resources
 - [ ] Dockerized examples
 - [ ] Reduce static lifetimes
