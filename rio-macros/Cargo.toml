@@ -16,7 +16,7 @@ quote = "1.0"
 syn = { version = "2.0", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
-rio-rs = { path = "../rio-rs" }
+rio-rs = { path = "../rio-rs", features = ["full"] }
 trybuild = "1.0"
 async-trait = { package = "async-trait-sync", version = "0.1.36" }
 serde = { version = "1.0", features = ["derive"] }
