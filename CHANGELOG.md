@@ -22,6 +22,9 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - Flag netwatch for upgrade [96dd1b9](https://github.com/rcelha/rio-rs/commit/96dd1b949d95ae4aeb3839ce0cb03aa4bb706f91) 
+- Update CHANGELOG.md [2edcd0b](https://github.com/rcelha/rio-rs/commit/2edcd0b8316abd6b8f98ec887a3e53de9975d893) 
+- Update README.md [c8cbf04](https://github.com/rcelha/rio-rs/commit/c8cbf04f04d85d5a23ffd9d399aaf1e621e61498) 
+- Improve make_registry docs and tests (#39) [5f4ae7d](https://github.com/rcelha/rio-rs/commit/5f4ae7d3a4da9c2a61d9b1ea531dd224c8ae83e3) 
 
 ### 🧪 Testing
 
