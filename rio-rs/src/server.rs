@@ -102,7 +102,7 @@ where
     cluster_provider: C,
     #[builder(with = |provider: P| Arc::new(RwLock::new(provider)))]
     object_placement_provider: Arc<RwLock<P>>,
-    #[builder(with = |app_data: AppData| Arc::new(app_data))]
+    #[builder(with = |app_data: AppData| Arc::new(app_data), default = Arc::new(AppData::new()))]
     app_data: Arc<AppData>,
 
     #[builder(skip = PhantomData {})]
