@@ -1,4 +1,4 @@
 tag-name = "{{version}}"
 shared-version = true
 consolidate-commits = true
-pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
+pre-release-hook = "../.pre-release"
