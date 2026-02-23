@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 📚 Documentation
+
+- Update changelog [6371d9f](https://github.com/rcelha/rio-rs/commit/6371d9f03df6a64a1f455fd053cbc2e995ae4802) 
+- Update README.md (#40) [58f4ea8](https://github.com/rcelha/rio-rs/commit/58f4ea894a0a4a6268cc268555fa0e9c491ccd3f) 
+
+### ⚙️ Miscellaneous Tasks
+
+- Move pre-release logic into the release.toml file [b316a7e](https://github.com/rcelha/rio-rs/commit/b316a7ecb9dd01e5d14bc593fa11b38a1e096d5d) 
+
 ## [0.5.1] - 2026-02-22
 
 ### 🚀 Features
