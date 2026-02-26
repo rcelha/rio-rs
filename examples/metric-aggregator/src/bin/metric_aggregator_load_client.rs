@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use futures::FutureExt;
-use metric_aggregator::messages::{self, MetricError};
+use metric_aggregator::{messages, registry::client};
 use rand::{thread_rng, Rng};
 use rio_rs::client::ClientConnectionManager;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let opts = options.clone();
             rt.spawn(async move {
                 let err_msg = format!("Error with task #{}", i);
-                client(opts).await.expect(&err_msg);
+                run_client(opts).await.expect(&err_msg);
                 println!("Finished task #{}", i);
             })
         });
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
     let pool = SqliteMembershipStorage::pool()
         .max_connections(opts.parallel_requests as u32)
         .connect(&opts.db_conn)
@@ -91,16 +91,15 @@ async fn client(opts: Options) -> Result<(), Box<dyn std::error::Error>> {
             for _ in 0..opts.num_requests {
                 let mut client = client_pool.get().await.unwrap();
                 let object_id = { thread_rng().gen_range(0..opts.num_ids).to_string() };
-                let resp: messages::Pong = client
-                    .send::<_, MetricError>(
-                        "MetricAggregator".to_string(),
-                        object_id.clone(),
-                        &messages::Ping {
-                            ping_id: object_id.clone(),
-                        },
-                    )
-                    .await
-                    .unwrap();
+                let resp = client::metric_aggregator::send_ping(
+                    &mut client,
+                    &object_id,
+                    &messages::Ping {
+                        ping_id: object_id.clone(),
+                    },
+                )
+                .await
+                .unwrap();
                 if resp.ping_id != object_id {
                     panic!("{} != {}", resp.ping_id, object_id);
                 }

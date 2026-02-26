@@ -1,5 +1,5 @@
-use metric_aggregator::messages;
-use metric_aggregator::services::{self, Counter};
+use metric_aggregator::registry::server::registry;
+use metric_aggregator::services::Counter;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::state::sqlite::SqliteState;
@@ -21,13 +21,7 @@ async fn main() {
         .next()
         .unwrap_or("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
-    let mut registry = Registry::new();
-    registry.add_type::<services::MetricAggregator>();
-    registry.add_handler::<services::MetricAggregator, LifecycleMessage>();
-    registry.add_handler::<services::MetricAggregator, messages::Ping>();
-    registry.add_handler::<services::MetricAggregator, messages::Metric>();
-    registry.add_handler::<services::MetricAggregator, messages::GetMetric>();
-    registry.add_handler::<services::MetricAggregator, messages::Drop>();
+    let registry = registry();
 
     let num_cpus = std::thread::available_parallelism()
         .expect("error getting num of CPUs")

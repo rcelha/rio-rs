@@ -1,10 +1,8 @@
+use presence::registry::server::registry;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::prelude::*;
 use rio_rs::state::local::LocalState;
-
-use presence::messages::Ping;
-use presence::services::PresenceService;
 
 #[tokio::main]
 async fn main() {
@@ -30,10 +28,7 @@ pub async fn build_server(
     let addr = format!("0.0.0.0:{port}");
 
     // Configure types on the server's registry
-    let mut registry = Registry::new();
-    registry.add_type::<PresenceService>();
-    registry.add_handler::<PresenceService, LifecycleMessage>();
-    registry.add_handler::<PresenceService, Ping>();
+    let registry = registry();
 
     // Configure the Cluster Membership provider
     let pool = SqliteMembershipStorage::pool()

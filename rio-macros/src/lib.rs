@@ -394,4 +394,38 @@ mod test {
             assert_eq!(state_defo.struct_name.to_string(), "Test".to_string());
         }
     }
+
+    mod registry {
+        use super::*;
+        use crate::RegistryInput;
+
+        #[test]
+        fn test_registry() {
+            let input = quote! {
+                Test: [
+                    Ping => (Pong, NoopError),
+                ],
+            };
+            let input: RegistryInput = syn::parse2(input).unwrap();
+            let service = &input.service[0];
+            let handler = &service.handlers[0];
+
+            assert_eq!(
+                service.service.to_token_stream().to_string(),
+                "Test".to_string()
+            );
+            assert_eq!(
+                handler.input.to_token_stream().to_string(),
+                "Ping".to_string()
+            );
+            assert_eq!(
+                handler.output.to_token_stream().to_string(),
+                "Pong".to_string()
+            );
+            assert_eq!(
+                handler.error.to_token_stream().to_string(),
+                "NoopError".to_string()
+            );
+        }
+    }
 }

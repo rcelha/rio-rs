@@ -57,27 +57,36 @@ impl Handler<Pong> for TestService {
     }
 }
 
-#[derive(Default, Debug, WithId, TypeName)]
-struct TestServicePingOnly {
-    id: String,
+mod messages {
+    use super::*;
+
+    #[derive(TypeName, Message, Debug, Deserialize, Serialize)]
+    pub struct Ping2 {}
 }
 
-impl ServiceObjectStateLoad for TestServicePingOnly {}
-impl ServiceObject for TestServicePingOnly {}
+mod services {
+    use super::*;
 
-#[async_trait]
-impl Handler<Ping> for TestServicePingOnly {
-    type Returns = Ping;
-    type Error = NoopError;
+    #[derive(Default, Debug, WithId, TypeName)]
+    pub struct TestServicePingOnly {
+        id: String,
+    }
 
-    async fn handle(
-        &mut self,
-        message: Ping,
-        _app_data: Arc<AppData>,
-    ) -> Result<Self::Returns, Self::Error> {
-        Ok(Ping {
-            ping_id: message.ping_id,
-        })
+    impl ServiceObjectStateLoad for TestServicePingOnly {}
+    impl ServiceObject for TestServicePingOnly {}
+
+    #[async_trait]
+    impl Handler<messages::Ping2> for TestServicePingOnly {
+        type Returns = messages::Ping2;
+        type Error = NoopError;
+
+        async fn handle(
+            &mut self,
+            _message: messages::Ping2,
+            _app_data: Arc<AppData>,
+        ) -> Result<Self::Returns, Self::Error> {
+            Ok(messages::Ping2 {})
+        }
     }
 }
 
@@ -86,8 +95,8 @@ make_registry! {
         Ping => (Pong, NoopError),
         Pong => (Pong, NoopError),
     ],
-    TestServicePingOnly: [
-        Ping => (Ping, NoopError),
+    services::TestServicePingOnly: [
+        messages::Ping2 => (messages::Ping2, NoopError),
     ]
 }
 
@@ -113,8 +122,12 @@ async fn test_client() -> Result<(), Box<dyn std::error::Error>> {
         },
     )
     .await?;
-    // let pong = client::test_service::send_pong;
-    // let pong = client::test_service_ping_only::send_ping;
+
+    let _ping = client::test_service_ping_only::send_ping2(
+        &mut client,
+        "ping2",
+        &messages::Ping2 {}
+    );
     // todo async test
     Ok(())
 }
