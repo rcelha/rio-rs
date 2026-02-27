@@ -1,9 +1,10 @@
-use observability::messages;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::prelude::*;
-use rio_rs::protocol::NoopError;
 use std::time::Duration;
 use tokio::time::sleep;
+
+use observability::messages;
+use observability::registry::client;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,16 +24,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .members_storage(members_storage)
         .build()?;
 
-    let resp: messages::Pong = client
-        .send::<_, NoopError>(
-            "Room".to_string(),
-            "1".to_string(),
-            &messages::Ping {
-                ping_id: "1:1".to_string(),
-            },
-        )
-        .await
-        .unwrap();
+    let resp = client::room::send_ping(
+        &mut client,
+        "1",
+        &messages::Ping {
+            ping_id: "1:1".to_string(),
+        },
+    )
+    .await?;
 
     println!("Response: {:#?}", resp);
     Ok(())

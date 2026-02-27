@@ -1,6 +1,5 @@
-use custom_storage::messages;
 use custom_storage::ping_state::PingState;
-use custom_storage::services;
+use custom_storage::registry::server::registry;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::prelude::*;
@@ -13,10 +12,7 @@ async fn main() -> anyhow::Result<()> {
     let members_storage_connection = "sqlite:///tmp/custom-storage-membership.sqlite3?mode=rwc";
     let placement_connection = "sqlite:///tmp/custom-storage-placement.sqlite3?mode=rwc";
 
-    let mut registry = Registry::new();
-    registry.add_type::<services::Room>();
-    registry.add_handler::<services::Room, LifecycleMessage>();
-    registry.add_handler::<services::Room, messages::Ping>();
+    let registry = registry();
 
     let pool = SqliteMembershipStorage::pool()
         .connect(members_storage_connection)

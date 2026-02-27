@@ -1,5 +1,6 @@
-use metric_aggregator::messages;
-use rio_rs::{cluster::storage::sqlite::SqliteMembershipStorage, prelude::*};
+use metric_aggregator::{messages, registry::client};
+use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
+use rio_rs::prelude::*;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -26,13 +27,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tags: "".to_string(),
             value: 100 * i,
         };
-        let _: messages::MetricResponse = client
-            .send::<_, messages::MetricError>(
-                "MetricAggregator".to_string(),
-                format!("instace-{}", i),
-                &payload,
-            )
-            .await?;
+        let _ = client::metric_aggregator::send_metric(
+            &mut client,
+            &format!("instace-{}", i),
+            &payload,
+        )
+        .await?;
         print!(".");
     }
     println!("!");

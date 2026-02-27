@@ -1,6 +1,4 @@
 use clap::Parser;
-use observability::messages;
-use observability::services;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::WithExportConfig;
@@ -15,6 +13,8 @@ use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::prelude::*;
 use rio_rs::state::sqlite::SqliteState;
 use rio_rs::state::StateSaver;
+
+use observability::registry::server::registry;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -71,10 +71,7 @@ async fn main() {
         .placement_conn
         .get_or_insert("sqlite:///tmp/placement.sqlite3?mode=rwc".to_string());
 
-    let mut registry = Registry::new();
-    registry.add_type::<services::Room>();
-    registry.add_handler::<services::Room, LifecycleMessage>();
-    registry.add_handler::<services::Room, messages::Ping>();
+    let registry = registry();
 
     let num_cpus = std::thread::available_parallelism()
         .expect("error getting num of CPUs")

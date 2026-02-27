@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use rio_rs::prelude::*;
+use rio_rs::protocol::NoopError;
 use rio_rs::state::sqlite::SqliteState;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -134,7 +135,7 @@ impl Handler<messages::Ping> for MetricAggregator {
 #[async_trait]
 impl Handler<messages::Drop> for MetricAggregator {
     type Returns = ();
-    type Error = ();
+    type Error = NoopError;
 
     async fn handle(
         &mut self,

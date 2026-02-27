@@ -1,4 +1,4 @@
-use metric_aggregator::messages::{self, MetricError};
+use metric_aggregator::{messages, registry::client};
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::prelude::*;
 use std::collections::HashMap;
@@ -34,13 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tags: tags.to_string(),
                 value: 100 * i,
             };
-            let _: messages::MetricResponse = client
-                .send::<_, MetricError>(
-                    "MetricAggregator".to_string(),
-                    instance_id.to_string(),
-                    &payload,
-                )
-                .await?;
+            let _ =
+                client::metric_aggregator::send_metric(&mut client, instance_id, &payload).await?;
             print!(".");
         }
     }
@@ -54,13 +49,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "EU",
         "US",
     ] {
-        let response: messages::MetricResponse = client
-            .send::<_, MetricError>(
-                "MetricAggregator".to_string(),
-                i.to_string(),
-                &messages::GetMetric {},
-            )
-            .await?;
+        let response =
+            client::metric_aggregator::send_get_metric(&mut client, i, &messages::GetMetric {})
+                .await?;
         println!("{} - {:?}", i, response);
     }
     Ok(())
