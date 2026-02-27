@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚀 Features
+
+- Support Paths on make_registry! (#41) [a9b6ad8](https://github.com/rcelha/rio-rs/commit/a9b6ad83928c6dc2c8ee93b69926157c8abe568f) 
+
+### 📚 Documentation
+
+- Update CHANGELOG.md [eb745ae](https://github.com/rcelha/rio-rs/commit/eb745ae4780cf79544d1a198ce4d0b4c91d891ce) 
+
 ## [0.5.2] - 2026-02-23
 
 ### 📚 Documentation
