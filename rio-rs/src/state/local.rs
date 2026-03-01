@@ -35,7 +35,7 @@ impl<T: DeserializeOwned> StateLoader<T> for LocalState {
         let k = (object_kind, object_id, state_type);
 
         if let Some(x) = self.data.get(&k) {
-            Ok(serde_json::from_str(&x).expect("TODO"))
+            Ok(serde_json::from_str(&x).map_err(|_| LoadStateError::DeserializationError)?)
         } else {
             Err(LoadStateError::ObjectNotFound)
         }
@@ -55,8 +55,9 @@ impl<T: Serialize + Send + Sync> StateSaver<T> for LocalState {
         let object_id = object_id.to_string();
         let state_type = state_type.to_string();
         let k = (object_kind, object_id, state_type);
-        self.data
-            .insert(k, serde_json::to_string(&data).expect("TODO"));
+        let serialized =
+            serde_json::to_string(&data).map_err(|_| LoadStateError::SerializationError)?;
+        self.data.insert(k, serialized);
         Ok(())
     }
 }
