@@ -84,7 +84,7 @@ async fn request_response_with_proxy() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),

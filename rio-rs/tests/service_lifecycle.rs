@@ -74,7 +74,7 @@ async fn service_is_not_allocated_on_lifecycle_handlers_panic() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),
@@ -105,7 +105,7 @@ async fn service_is_not_allocated_on_lifecycle_handlers_error() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),

@@ -98,7 +98,7 @@ async fn request_response() {
     let members_storage = LocalStorage::default();
     let object_placement_provider = LocalObjectPlacement::default();
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),
@@ -126,7 +126,7 @@ async fn request_response_error() {
     let members_storage = LocalStorage::default();
     let object_placement_provider = LocalObjectPlacement::default();
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),
@@ -156,7 +156,7 @@ async fn request_response_redirectt() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),
@@ -185,7 +185,7 @@ async fn pubsub() {
     let object_placement_provider = LocalObjectPlacement::default();
 
     run_integration_test(
-        5,
+        20,
         &build_registry,
         members_storage.clone(),
         object_placement_provider.clone(),
