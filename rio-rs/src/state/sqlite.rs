@@ -68,14 +68,13 @@ impl<T: DeserializeOwned> StateLoader<T> for SqliteState {
         .bind(object_kind)
         .bind(object_id)
         .bind(state_type)
-        .map(|x: SqliteRow| -> String {
-            let tmp = x.get::<Vec<u8>, _>("serialized_state");
-            String::from_utf8(tmp).expect("TODO")
-        })
+        .map(|x: SqliteRow| -> Vec<u8> { x.get::<Vec<u8>, _>("serialized_state") })
         .fetch_one(&self.pool)
         .map_err(|_| LoadStateError::ObjectNotFound)
         .await?;
-        let data = serde_json::from_str(&items).expect("TODO");
+        let items = String::from_utf8(items).map_err(|_| LoadStateError::DeserializationError)?;
+        let data =
+            serde_json::from_str(&items).map_err(|_| LoadStateError::DeserializationError)?;
         Ok(data)
     }
 }
@@ -93,7 +92,8 @@ impl<T: Serialize + Send + Sync> StateSaver<T> for SqliteState {
         state_type: &str,
         data: &T,
     ) -> Result<(), LoadStateError> {
-        let serialized_data = serde_json::to_string(&data).expect("TODO");
+        let serialized_data =
+            serde_json::to_string(&data).map_err(|_| LoadStateError::SerializationError)?;
         sqlx::query(
             r#"
             INSERT INTO
