@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
         .build();
-    server.prepare().await;
+    server.prepare().await?;
 
     let state_pool = PingState::pool()
         .connect("sqlite:///tmp/state.sqlite3?mode=rwc")

@@ -56,8 +56,17 @@ pub enum ServerError {
     #[error("cluster provider")]
     ClusterProviderServe(ClusterProviderServeError),
 
+    #[error("object placement")]
+    ObjectPlacement(ObjectPlacementError),
+
     #[error("Run")]
     Run,
+}
+
+impl From<ObjectPlacementError> for ServerError {
+    fn from(err: ObjectPlacementError) -> Self {
+        ServerError::ObjectPlacement(err)
+    }
 }
 
 /// Error type for the cluster redevouz/membeship trait
@@ -98,6 +107,24 @@ pub enum ClusterProviderServeError {
 impl From<MembershipError> for ClusterProviderServeError {
     fn from(err: MembershipError) -> Self {
         ClusterProviderServeError::MembershipProviderError(err.to_string())
+    }
+}
+
+/// Error type for the object placement trait
+/// ([crate::object_placement::ObjectPlacement])
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum ObjectPlacementError {
+    #[error("upstream error")]
+    Upstream(String),
+
+    #[error("unknown")]
+    Unknown(String),
+}
+
+#[cfg(feature = "sql")]
+impl From<sqlx::Error> for ObjectPlacementError {
+    fn from(err: sqlx::Error) -> Self {
+        ObjectPlacementError::Upstream(err.to_string())
     }
 }
 
