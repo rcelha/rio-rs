@@ -69,7 +69,7 @@ async fn main() {
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
         .build();
-    server.prepare().await;
+    server.prepare().await.unwrap();
 
     let sql_state_pool = SqliteState::pool()
         .max_connections(num_cpus)

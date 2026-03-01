@@ -109,7 +109,7 @@ pub async fn is_allocated(
     service_id: impl ToString,
 ) -> bool {
     let object_id = ObjectId(service_type.to_string(), service_id.to_string());
-    let where_is_it = object_placement_provider.lookup(&object_id).await;
+    let where_is_it = object_placement_provider.lookup(&object_id).await.unwrap();
     where_is_it.is_some()
 }
 

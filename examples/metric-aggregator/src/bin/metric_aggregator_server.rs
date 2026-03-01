@@ -54,7 +54,7 @@ async fn main() {
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
         .build();
-    server.prepare().await;
+    server.prepare().await.unwrap();
 
     server.app_data(Counter(AtomicUsize::new(0)));
     server.app_data(LocalState::new());

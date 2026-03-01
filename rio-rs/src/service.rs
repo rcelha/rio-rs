@@ -57,7 +57,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> TowerService<
             // Test if this object is in fact allocated in this instance
             let server_address = this
                 .get_or_create_placement(req.handler_type.clone(), req.handler_id.clone())
-                .await;
+                .await?;
             this.check_address_mismatch(server_address).await?;
 
             // Ensure the object is started in the registry
@@ -101,7 +101,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> TowerService<
                         .read()
                         .await
                         .remove(&ObjectId(req.handler_type.clone(), req.handler_id.clone()))
-                        .await;
+                        .await?;
                     Err(ResponseError::Unknown("Panic".to_string()))
                 }
             }
@@ -169,7 +169,7 @@ where
         let result = async move {
             let server_address = this
                 .get_or_create_placement(req.handler_type.clone(), req.handler_id.clone())
-                .await;
+                .await?;
 
             this.check_address_mismatch(server_address).await?;
             // TODO deal with redirect
@@ -191,10 +191,14 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
     ///
     /// If the object is not instantiated anywhere, it will allocate locally
     #[tracing::instrument]
-    async fn get_or_create_placement(&self, handler_type: String, handler_id: String) -> String {
+    async fn get_or_create_placement(
+        &self,
+        handler_type: String,
+        handler_id: String,
+    ) -> Result<String, ResponseError> {
         let object_id = ObjectId(handler_type, handler_id);
         let placement_guard = self.object_placement_provider.read().await;
-        let mut maybe_server_address = placement_guard.lookup(&object_id).await.take();
+        let mut maybe_server_address = placement_guard.lookup(&object_id).await?.take();
         drop(placement_guard);
 
         // Ensures the placement is on an active server
@@ -215,7 +219,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                        "The object's placement is in a bad state. This is likely a bug on the object placement code");
 
                 let placement_guard = self.object_placement_provider.read().await;
-                placement_guard.remove(&object_id).await;
+                placement_guard.remove(&object_id).await?;
                 maybe_server_address.take();
             }
             // In case the server in which this object is allocated is inactive/unavailable,
@@ -230,13 +234,13 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                 let placement_guard = self.object_placement_provider.read().await;
                 placement_guard
                     .clean_server(server_address.to_string())
-                    .await;
+                    .await?;
                 maybe_server_address.take();
             }
         }
 
         if let Some(server_address) = maybe_server_address {
-            server_address
+            Ok(server_address)
         } else {
             let new_placement = ObjectPlacementItem::new(object_id, Some(self.address.clone()));
             {
@@ -244,9 +248,9 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                     .write()
                     .await
                     .update(new_placement)
-                    .await;
+                    .await?;
             };
-            self.address.clone()
+            Ok(self.address.clone())
         }
     }
 
@@ -290,7 +294,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
             .read()
             .await
             .clean_server(server_address)
-            .await;
+            .await?;
         Err(ResponseError::DeallocateServiceObject)
     }
 
@@ -347,7 +351,7 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
                 .read()
                 .await
                 .remove(&ObjectId(handler_type.to_string(), handler_id.to_string()))
-                .await;
+                .await?;
 
             return Err(ResponseError::Unknown(format!("Task panicked: {:?}", e)));
         }

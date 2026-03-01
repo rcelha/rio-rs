@@ -1,6 +1,6 @@
 //! Client/Server communication protocol
 
-use super::errors::HandlerError;
+use super::errors::{HandlerError, ObjectPlacementError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
@@ -114,6 +114,12 @@ impl From<HandlerError> for ResponseError {
             HandlerError::ApplicationError(v) => ResponseError::ApplicationError(v),
             inner_err => ResponseError::Unknown(inner_err.to_string()),
         }
+    }
+}
+
+impl From<ObjectPlacementError> for ResponseError {
+    fn from(error: ObjectPlacementError) -> Self {
+        ResponseError::Unknown(error.to_string())
     }
 }
 
