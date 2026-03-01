@@ -54,7 +54,7 @@ pub async fn build_server(
         .cluster_provider(membership_provider)
         .object_placement_provider(object_placement_provider)
         .build();
-    server.prepare().await;
+    server.prepare().await?;
     // LifecycleMessage will try to load object from state
     server.app_data(sql_state);
 

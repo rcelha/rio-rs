@@ -99,7 +99,11 @@ async fn move_object_on_server_failure() {
                 .await
                 .unwrap();
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
-            let first_server = object_placement_provider.lookup(&object_id).await.unwrap();
+            let first_server = object_placement_provider
+                .lookup(&object_id)
+                .await
+                .unwrap()
+                .unwrap();
 
             // Now we send a message that will cause the server where this object is in to die.
             // Wait for the cluster provider to mark the killed server as inactive
@@ -119,7 +123,11 @@ async fn move_object_on_server_failure() {
                 .unwrap();
             // let members = members_storage.members().await.unwrap();
             assert!(is_allocated(&object_placement_provider, "MockService", "1").await);
-            let second_server = object_placement_provider.lookup(&object_id).await.unwrap();
+            let second_server = object_placement_provider
+                .lookup(&object_id)
+                .await
+                .unwrap()
+                .unwrap();
 
             // TODO why is this assert an _eq_ instead of a _ne_????
             assert_ne!(first_server, second_server);

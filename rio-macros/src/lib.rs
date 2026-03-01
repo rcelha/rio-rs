@@ -264,7 +264,7 @@ pub fn derive_managed_state(tokens: TokenStream) -> TokenStream {
 ///     .cluster_provider(cluster_provider)
 ///     .object_placement_provider(LocalObjectPlacement::default())
 ///     .build();
-/// server.prepare().await;
+/// server.prepare().await?;
 /// let listener = server.bind().await?;
 /// server.run(listener).await?;
 /// #   Ok(())

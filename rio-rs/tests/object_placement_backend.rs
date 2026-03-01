@@ -7,24 +7,27 @@ use rio_rs::{
 };
 
 async fn no_placement<S: ObjectPlacement>(provider: S) {
-    provider.prepare().await;
+    provider.prepare().await.unwrap();
 
-    let server_addr = provider.lookup(&ObjectId::new("obj", "1")).await;
+    let server_addr = provider.lookup(&ObjectId::new("obj", "1")).await.unwrap();
     assert!(server_addr.is_none());
 }
 
 async fn save_and_load<S: ObjectPlacement>(provider: S) {
-    provider.prepare().await;
+    provider.prepare().await.unwrap();
 
     let obj_id = ObjectId::new("obj", "1");
     let placement = ObjectPlacementItem::new(obj_id, Some("0.0.0.0:8888".to_string()));
-    provider.update(placement).await;
+    provider.update(placement).await.unwrap();
 
-    let server_addr = provider.lookup(&ObjectId::new("obj", "1")).await;
+    let server_addr = provider.lookup(&ObjectId::new("obj", "1")).await.unwrap();
     assert_eq!(server_addr.as_ref().unwrap(), "0.0.0.0:8888");
 
-    provider.clean_server("0.0.0.0:8888".to_string()).await;
-    let server_addr = provider.lookup(&ObjectId::new("obj", "1")).await;
+    provider
+        .clean_server("0.0.0.0:8888".to_string())
+        .await
+        .unwrap();
+    let server_addr = provider.lookup(&ObjectId::new("obj", "1")).await.unwrap();
     assert!(server_addr.is_none());
 }
 

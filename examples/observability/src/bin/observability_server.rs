@@ -18,7 +18,7 @@ use observability::registry::server::registry;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[clap(value_parser)]
+    #[clap(default_value = "0")]
     port: String,
 
     #[clap(short, value_parser)]
@@ -104,7 +104,7 @@ async fn main() {
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
         .build();
-    server.prepare().await;
+    server.prepare().await.unwrap();
 
     let sql_state_pool = SqliteState::pool()
         .max_connections(num_cpus)
