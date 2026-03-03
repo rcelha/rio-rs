@@ -1,7 +1,9 @@
-use rio_rs::{cluster::storage::Member, prelude::MembershipStorage};
-
 #[cfg(any(feature = "sqlite", feature = "postgres"))]
 mod db_utils;
+
+use rand::prelude::*;
+
+use rio_rs::{cluster::storage::Member, prelude::MembershipStorage};
 
 async fn members_sanity_check<T: MembershipStorage>(storage: T) {
     storage.prepare().await;
@@ -40,11 +42,12 @@ async fn failures_sanity_check<T: MembershipStorage>(storage: T) {
 
 #[cfg(feature = "redis")]
 mod redis {
+    use super::*;
     use rio_rs::cluster::storage::redis::RedisMembershipStorage;
 
     #[tokio::test]
     async fn members_sanity_check() {
-        let prefix = chrono::Local::now().timestamp().to_string();
+        let prefix = rand::rng().random::<i32>().to_string();
         let conn_manager =
             RedisMembershipStorage::connection_manager("redis://localhost:16379").unwrap();
         let pool = RedisMembershipStorage::pool()
@@ -57,7 +60,7 @@ mod redis {
 
     #[tokio::test]
     async fn failures_sanity_check() {
-        let prefix = chrono::Local::now().timestamp().to_string();
+        let prefix = rand::rng().random::<i32>().to_string();
         let conn_manager =
             RedisMembershipStorage::connection_manager("redis://localhost:16379").unwrap();
         let pool = RedisMembershipStorage::pool()

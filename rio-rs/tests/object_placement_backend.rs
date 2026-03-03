@@ -1,10 +1,12 @@
-#[cfg(feature = "sql")]
-mod db_utils;
+use rand::prelude::*;
 
 use rio_rs::{
     object_placement::{ObjectPlacement, ObjectPlacementItem},
     ObjectId,
 };
+
+#[cfg(feature = "sql")]
+mod db_utils;
 
 async fn no_placement<S: ObjectPlacement>(provider: S) {
     provider.prepare().await.unwrap();
@@ -33,11 +35,12 @@ async fn save_and_load<S: ObjectPlacement>(provider: S) {
 
 #[cfg(feature = "redis")]
 mod redis {
+    use super::*;
     use rio_rs::object_placement::redis::RedisObjectPlacement;
 
     #[tokio::test]
     async fn no_placement() {
-        let prefix = chrono::Local::now().timestamp().to_string();
+        let prefix = rand::rng().random::<i32>().to_string();
         let conn_manager =
             RedisObjectPlacement::connection_manager("redis://localhost:16379").unwrap();
         let pool = RedisObjectPlacement::pool()
@@ -50,7 +53,7 @@ mod redis {
 
     #[tokio::test]
     async fn save_and_load() {
-        let prefix = chrono::Local::now().timestamp().to_string();
+        let prefix = rand::rng().random::<i32>().to_string();
         let conn_manager =
             RedisObjectPlacement::connection_manager("redis://localhost:16379").unwrap();
         let pool = RedisObjectPlacement::pool()

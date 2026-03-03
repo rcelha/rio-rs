@@ -1,6 +1,8 @@
+use rand::prelude::*;
+use serde::{Deserialize, Serialize};
+
 use rio_rs::errors::LoadStateError;
 use rio_rs::state::{StateLoader, StateSaver};
-use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "sql")]
 mod db_utils;
@@ -40,11 +42,12 @@ async fn state_load_not_found<S: StateSaver<State> + StateLoader<State>>(storage
 
 #[cfg(feature = "redis")]
 mod redis {
+    use super::*;
     use rio_rs::state::redis::RedisState;
 
     #[tokio::test]
     async fn state_save_sanity_check() {
-        let prefix = chrono::Local::now().timestamp().to_string();
+        let prefix = rand::rng().random::<i32>().to_string();
         let conn_manager = RedisState::connection_manager("redis://localhost:16379").unwrap();
         let pool = RedisState::pool().build(conn_manager).await.unwrap();
         let storage = RedisState::new(pool, Some(prefix));
