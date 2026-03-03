@@ -187,7 +187,7 @@ mod test {
         let pool = SqliteMembershipStorage::pool()
             .connect("sqlite::memory:")
             .await
-            .expect("TODO: Connection failure");
+            .expect("Connection failure");
         let members_storage = SqliteMembershipStorage::new(pool);
         members_storage.prepare().await;
         members_storage

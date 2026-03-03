@@ -163,7 +163,10 @@ impl Registry {
                     // We do this to support 'custom' error types for each one of the Handler's
                     // implementation
                     let ret = handler_result.map_err(|err| {
-                        let ser_err = bincode::serialize(&err).expect("TODO");
+                        let ser_err = bincode::serialize(&err).unwrap_or_else(|_| {
+                            tracing::error!("Error to serialize handler error");
+                            vec![]
+                        });
                         HandlerError::ApplicationError(ser_err)
                     })?;
 

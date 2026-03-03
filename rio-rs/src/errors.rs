@@ -34,6 +34,9 @@ pub enum HandlerError {
 pub enum ServiceObjectLifeCycleError {
     #[error("unknown error")]
     Unknown,
+
+    #[error("fail to shutdown properly")]
+    Shutdown,
 }
 
 /// Errors triggered while building an [crate::client::Client] using
@@ -79,6 +82,9 @@ pub enum MembershipError {
     #[error("unknown")]
     Unknown(String),
 
+    #[error("deserialization error")]
+    DeserializationError,
+
     #[error("This MembershipStorage is Read-only")]
     ReadOnly(String),
 }
@@ -86,6 +92,20 @@ pub enum MembershipError {
 #[cfg(feature = "sql")]
 impl From<sqlx::Error> for MembershipError {
     fn from(err: sqlx::Error) -> Self {
+        MembershipError::Upstream(err.to_string())
+    }
+}
+
+#[cfg(feature = "redis")]
+impl From<redis::RedisError> for MembershipError {
+    fn from(err: redis::RedisError) -> Self {
+        MembershipError::Upstream(err.to_string())
+    }
+}
+
+#[cfg(feature = "redis")]
+impl From<bb8::RunError<redis::RedisError>> for MembershipError {
+    fn from(err: bb8::RunError<redis::RedisError>) -> Self {
         MembershipError::Upstream(err.to_string())
     }
 }

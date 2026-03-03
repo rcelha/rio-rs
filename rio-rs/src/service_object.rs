@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use tracing::error;
 
 use crate::app_data::AppData;
 use crate::errors::ServiceObjectLifeCycleError;
@@ -60,7 +61,7 @@ pub trait ServiceObject: Default + WithId + IdentifiableType {
         V: Serialize + IdentifiableType + Send + Sync,
     {
         let client = app_data.get::<InternalClientSender>();
-        let payload = bincode::serialize(&payload).expect("TODO");
+        let payload = bincode::serialize(&payload).map_err(|_| RequestError::SerializationError)?;
         let request = RequestEnvelope::new(
             handler_type_id.to_string(),
             handler_id.to_string(),
@@ -107,7 +108,10 @@ pub trait ServiceObject: Default + WithId + IdentifiableType {
                 Self::user_defined_type_id().to_string(),
                 self.id().to_string(),
             ))
-            .expect("TODO");
+            .map_err(|err| {
+                error!("{}", err);
+                ServiceObjectLifeCycleError::Shutdown
+            })?;
         Ok(())
     }
 }

@@ -44,17 +44,19 @@ mod redis {
 
     #[tokio::test]
     async fn state_save_sanity_check() {
-        let prefix = chrono::Local::now().timestamp_micros().to_string();
-        let storage =
-            RedisState::from_connect_string("redis://localhost:16379", Some(prefix)).await;
+        let prefix = chrono::Local::now().timestamp().to_string();
+        let conn_manager = RedisState::connection_manager("redis://localhost:16379").unwrap();
+        let pool = RedisState::pool().build(conn_manager).await.unwrap();
+        let storage = RedisState::new(pool, Some(prefix));
         super::state_save_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn state_load_not_found() {
-        let prefix = chrono::Local::now().timestamp_micros().to_string();
-        let storage =
-            RedisState::from_connect_string("redis://localhost:16379", Some(prefix)).await;
+        let prefix = chrono::Local::now().timestamp().to_string();
+        let conn_manager = RedisState::connection_manager("redis://localhost:16379").unwrap();
+        let pool = RedisState::pool().build(conn_manager).await.unwrap();
+        let storage = RedisState::new(pool, Some(prefix));
         super::state_load_not_found(storage).await;
     }
 }

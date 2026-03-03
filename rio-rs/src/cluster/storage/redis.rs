@@ -1,9 +1,12 @@
 use std::fmt::Display;
 
 use async_trait::async_trait;
+use bb8::Builder;
 use bb8_redis::{bb8::Pool, RedisConnectionManager};
 use chrono::{DateTime, Utc};
-use redis::AsyncCommands;
+use redis::{AsyncCommands, RedisError};
+
+use crate::errors::MembershipError;
 
 use super::{Member, MembershipResult, MembershipStorage, MembershipUnitResult};
 
@@ -24,11 +27,17 @@ impl RedisMembershipStorage {
 }
 
 impl RedisMembershipStorage {
-    pub async fn from_connect_string(connection_string: &str, key_prefix: Option<String>) -> Self {
-        let conn_manager = RedisConnectionManager::new(connection_string).expect("TODO");
-        let pool = Pool::builder().build(conn_manager).await.expect("TODO");
+    pub fn new(pool: Pool<RedisConnectionManager>, key_prefix: Option<String>) -> Self {
         let key_prefix = key_prefix.unwrap_or_default();
-        RedisMembershipStorage { pool, key_prefix }
+        Self { pool, key_prefix }
+    }
+
+    pub fn pool() -> Builder<RedisConnectionManager> {
+        Pool::builder()
+    }
+
+    pub fn connection_manager(url: impl ToString) -> Result<RedisConnectionManager, RedisError> {
+        RedisConnectionManager::new(url.to_string())
     }
 }
 
@@ -47,54 +56,60 @@ fn member_to_string(member: &Member) -> String {
     member
 }
 
-fn parse_member(member: &str) -> Member {
+fn parse_member(member: &str) -> MembershipResult<Member> {
     let mut split_member = member.split(";");
-    let ip = split_member.next().expect("TODO").to_string();
-    let port = split_member.next().expect("TODO").to_string();
+    let ip = split_member
+        .next()
+        .ok_or(MembershipError::DeserializationError)?
+        .to_string();
+    let port = split_member
+        .next()
+        .ok_or(MembershipError::DeserializationError)?
+        .to_string();
     let mut parsed_member = Member::new(ip, port);
     parsed_member.active = split_member
         .next()
-        .expect("TODO next")
+        .ok_or(MembershipError::DeserializationError)?
         .parse()
-        .expect("TODO parse");
-    let last_seen = split_member.next().expect("TODO");
+        .map_err(|_| MembershipError::DeserializationError)?;
+    let last_seen = split_member
+        .next()
+        .ok_or(MembershipError::DeserializationError)?;
     parsed_member.last_seen = DateTime::parse_from_rfc3339(last_seen)
-        .expect("TODO")
+        .map_err(|_| MembershipError::DeserializationError)?
         .to_utc();
-    parsed_member
+    Ok(parsed_member)
 }
 
 #[async_trait]
 impl MembershipStorage for RedisMembershipStorage {
     async fn push(&self, member: Member) -> MembershipUnitResult {
-        let mut client = self.pool.get().await.expect("TODO");
+        let mut client = self.pool.get().await?;
         let member_key = member_key(&member.ip, &member.port);
         let member_val = member_to_string(&member);
 
         let key = self.members_key();
-        let _: () = client
-            .hset(&key, member_key, member_val)
-            .await
-            .expect("TODO");
+        let _: () = client.hset(&key, member_key, member_val).await?;
         Ok(())
     }
 
     async fn remove(&self, ip: &str, port: &str) -> MembershipUnitResult {
-        let mut client = self.pool.get().await.expect("TODO");
+        let mut client = self.pool.get().await?;
         let member_key = member_key(ip, port);
         let key = self.members_key();
-        let _: () = client.hdel(&key, member_key).await.expect("TODO");
+        let _: () = client.hdel(&key, member_key).await?;
         Ok(())
     }
 
     async fn set_is_active(&self, ip: &str, port: &str, is_active: bool) -> MembershipUnitResult {
         let last_seen = Utc::now();
-        let mut client = self.pool.get().await.expect("TODO");
+        let mut client = self.pool.get().await?;
         let member_key = member_key(ip, port);
         let key = self.members_key();
-        let raw_member: Option<String> = client.hget(&key, &member_key).await.expect("TODO");
+        let raw_member: Option<String> = client.hget(&key, &member_key).await?;
         let mut member = raw_member
             .map(|x| parse_member(&x))
+            .transpose()?
             .unwrap_or_else(|| Member::new(ip.to_string(), port.to_string()));
         if is_active {
             member.last_seen = last_seen;
@@ -105,34 +120,41 @@ impl MembershipStorage for RedisMembershipStorage {
     }
 
     async fn members(&self) -> MembershipResult<Vec<Member>> {
-        let mut client = self.pool.get().await.expect("TODO");
+        let mut client = self.pool.get().await?;
         let key = self.members_key();
-        let members_raw: Vec<(String, String)> = client.hgetall(&key).await.expect("TODO");
-        let members: Vec<Member> = members_raw.iter().map(|(_, x)| parse_member(x)).collect();
+        let members_raw: Vec<(String, String)> = client.hgetall(&key).await?;
+        let members: Vec<Member> = members_raw
+            .iter()
+            .map(|(_, x)| parse_member(x))
+            .collect::<MembershipResult<Vec<Member>>>()?;
         Ok(members)
     }
 
     async fn notify_failure(&self, ip: &str, port: &str) -> MembershipUnitResult {
-        let mut client = self.pool.get().await.expect("TODO");
+        let mut client = self.pool.get().await?;
         let key = self.member_failures_key(ip, port);
         let now = chrono::Local::now().to_utc();
         let ts = now.timestamp();
-        let _: () = client.rpush(&key, ts).await.expect("TODO");
-        let _: () = client.ltrim(&key, 0, 1_000).await.expect("TODO");
+        let _: () = client.rpush(&key, ts).await?;
+        let _: () = client.ltrim(&key, 0, 1_000).await?;
         Ok(())
     }
 
     async fn member_failures(&self, ip: &str, port: &str) -> MembershipResult<Vec<DateTime<Utc>>> {
-        let mut client = self.pool.get().await.expect("TODO");
+        let mut client = self.pool.get().await?;
         let key = self.member_failures_key(ip, port);
-        let values: Vec<String> = client.lrange(&key, 0, -1).await.expect("TODO");
+        let values: Vec<String> = client.lrange(&key, 0, -1).await?;
         let parsed_values = values
             .iter()
             .map(|x| {
-                let ts: i64 = x.parse().expect("TODO");
-                DateTime::from_timestamp(ts, 0).expect("TODO").to_utc()
+                let ts: i64 = x
+                    .parse()
+                    .map_err(|_| MembershipError::DeserializationError)?;
+                DateTime::from_timestamp(ts, 0)
+                    .map(|dt| dt.to_utc())
+                    .ok_or(MembershipError::DeserializationError)
             })
-            .collect();
+            .collect::<MembershipResult<Vec<_>>>()?;
         Ok(parsed_values)
     }
 }

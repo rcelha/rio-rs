@@ -90,8 +90,8 @@ impl GameTable {
 
     fn send_player_command(&mut self, command: GameServerRequest) -> GameServerResponse {
         if let (Some(tx), Some(rx)) = (&self.request_tx, &self.response_rx) {
-            tx.send(command).expect("TODO");
-            rx.recv().expect("TODO")
+            tx.send(command).expect("send command");
+            rx.recv().expect("receive")
         } else {
             panic!("GameServer not initialized");
         }

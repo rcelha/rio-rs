@@ -48,7 +48,7 @@ impl Handler<messages::Ping> for Room {
     ) -> Result<Self::Returns, Self::Error> {
         self.state.request_count += 1;
         let state_saver = app_data.get::<PingState>();
-        self.save_state(state_saver).await.expect("TODO");
+        self.save_state(state_saver).await.expect("save state");
         Ok(messages::Pong {
             ping_id: message.ping_id,
             request_count: self.state.request_count,

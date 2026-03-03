@@ -48,7 +48,7 @@ impl ServiceObject for PresenceService {
                     "PresenceService".to_string(),
                     self_id.clone(),
                 ))
-                .expect("TODO");
+                .expect("Shutdown Command");
         });
         Ok(())
     }

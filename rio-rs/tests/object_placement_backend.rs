@@ -37,19 +37,27 @@ mod redis {
 
     #[tokio::test]
     async fn no_placement() {
-        let prefix = chrono::Local::now().timestamp_micros().to_string();
-        let provider =
-            RedisObjectPlacement::from_connect_string("redis://localhost:16379", Some(prefix))
-                .await;
+        let prefix = chrono::Local::now().timestamp().to_string();
+        let conn_manager =
+            RedisObjectPlacement::connection_manager("redis://localhost:16379").unwrap();
+        let pool = RedisObjectPlacement::pool()
+            .build(conn_manager)
+            .await
+            .unwrap();
+        let provider = RedisObjectPlacement::new(pool, Some(prefix));
         super::no_placement(provider).await;
     }
 
     #[tokio::test]
     async fn save_and_load() {
-        let prefix = chrono::Local::now().timestamp_micros().to_string();
-        let provider =
-            RedisObjectPlacement::from_connect_string("redis://localhost:16379", Some(prefix))
-                .await;
+        let prefix = chrono::Local::now().timestamp().to_string();
+        let conn_manager =
+            RedisObjectPlacement::connection_manager("redis://localhost:16379").unwrap();
+        let pool = RedisObjectPlacement::pool()
+            .build(conn_manager)
+            .await
+            .unwrap();
+        let provider = RedisObjectPlacement::new(pool, Some(prefix));
         super::save_and_load(provider).await;
     }
 }

@@ -174,8 +174,7 @@ where
             this.check_address_mismatch(server_address).await?;
             // TODO deal with redirect
             this.start_service_object(&req.handler_type, &req.handler_id)
-                .await
-                .expect("TODO");
+                .await?;
             let receiver = this
                 .app_data
                 .get_or_default::<MessageRouter>()
@@ -326,7 +325,8 @@ impl<S: MembershipStorage + 'static, P: ObjectPlacement + 'static> Service<S, P>
         let lifecycle_result = {
             let object_guard = self.registry.read().await;
             let lifecycle_msg = LifecycleMessage::Load;
-            let lifecycle_ser_msg = bincode::serialize(&lifecycle_msg).expect("TODO");
+            let lifecycle_ser_msg = bincode::serialize(&lifecycle_msg)
+                .map_err(|e| ResponseError::SeralizationError(e.to_string()))?;
             let lifecycle_fut = object_guard.send(
                 handler_type,
                 handler_id,

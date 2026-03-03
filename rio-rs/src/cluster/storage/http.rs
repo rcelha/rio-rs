@@ -55,7 +55,7 @@ async fn list_members<S: MembershipStorage + 'static>(
         .inner
         .members()
         .await
-        .expect("TODO")
+        .expect("list members error")
         .iter()
         .map(|x| HttpMember {
             active: x.active,

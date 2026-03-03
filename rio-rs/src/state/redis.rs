@@ -1,5 +1,7 @@
 use async_trait::async_trait;
+use bb8::Builder;
 use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
+use redis::RedisError;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -14,11 +16,17 @@ pub struct RedisState {
 }
 
 impl RedisState {
-    pub async fn from_connect_string(connection_string: &str, key_prefix: Option<String>) -> Self {
-        let conn_manager = RedisConnectionManager::new(connection_string).expect("TODO");
-        let pool = Pool::builder().build(conn_manager).await.expect("TODO");
+    pub fn new(pool: Pool<RedisConnectionManager>, key_prefix: Option<String>) -> Self {
         let key_prefix = key_prefix.unwrap_or_default();
         Self { pool, key_prefix }
+    }
+
+    pub fn pool() -> Builder<RedisConnectionManager> {
+        Pool::builder()
+    }
+
+    pub fn connection_manager(url: impl ToString) -> Result<RedisConnectionManager, RedisError> {
+        RedisConnectionManager::new(url.to_string())
     }
 }
 
@@ -38,7 +46,10 @@ impl<T: DeserializeOwned> StateLoader<T> for RedisState {
             self.key_prefix, object_kind, object_id, state_type
         );
         let mut client = self.pool.get().await.map_err(|_| LoadStateError::Unknown)?;
-        let se_data: Option<String> = client.get(key).await.expect("TODO");
+        let se_data: Option<String> = client.get(key).await.map_err(|e| {
+            tracing::error!("Error fetching state from Redis: {}", e);
+            LoadStateError::ObjectNotFound
+        })?;
         if let Some(x) = se_data {
             let data = serde_json::from_str(&x);
             data.map_err(|_| LoadStateError::DeserializationError)

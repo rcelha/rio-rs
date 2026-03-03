@@ -3,7 +3,9 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
+use bb8::Builder;
 use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
+use redis::RedisError;
 
 use super::{ObjectPlacement, ObjectPlacementItem};
 use crate::errors::ObjectPlacementError;
@@ -16,11 +18,17 @@ pub struct RedisObjectPlacement {
 }
 
 impl RedisObjectPlacement {
-    pub async fn from_connect_string(connection_string: &str, key_prefix: Option<String>) -> Self {
-        let conn_manager = RedisConnectionManager::new(connection_string).expect("TODO");
-        let pool = Pool::builder().build(conn_manager).await.expect("TODO");
+    pub fn new(pool: Pool<RedisConnectionManager>, key_prefix: Option<String>) -> Self {
         let key_prefix = key_prefix.unwrap_or_default();
         Self { pool, key_prefix }
+    }
+
+    pub fn pool() -> Builder<RedisConnectionManager> {
+        Pool::builder()
+    }
+
+    pub fn connection_manager(url: impl ToString) -> Result<RedisConnectionManager, RedisError> {
+        RedisConnectionManager::new(url.to_string())
     }
 }
 
