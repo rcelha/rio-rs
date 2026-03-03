@@ -4,6 +4,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Opts {
+    #[arg(default_value = "0")]
     pub port: u16,
     #[arg(
         short,

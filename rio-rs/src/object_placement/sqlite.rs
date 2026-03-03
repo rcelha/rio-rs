@@ -7,6 +7,7 @@ use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{self, Row, SqlitePool};
 
 use super::{ObjectPlacement, ObjectPlacementItem};
+use crate::errors::ObjectPlacementError;
 use crate::sql_migration::SqlMigrations;
 use crate::ObjectId;
 
@@ -54,19 +55,20 @@ impl ObjectPlacement for SqliteObjectPlacement {
     ///
     /// For now, the Rio server doesn't run this at start-up and it needs
     /// to be invoked on manually in the server's setup.
-    async fn prepare(&self) {
-        let mut transaction = self.pool.begin().await.unwrap();
+    async fn prepare(&self) -> Result<(), ObjectPlacementError> {
+        let mut transaction = self.pool.begin().await?;
         let queries = SqliteObjectPlacementMigrations::queries();
         for query in queries {
-            sqlx::query(&query)
-                .execute(&mut *transaction)
-                .await
-                .unwrap();
+            sqlx::query(&query).execute(&mut *transaction).await?;
         }
-        transaction.commit().await.unwrap();
+        transaction.commit().await?;
+        Ok(())
     }
 
-    async fn update(&self, object_placement: ObjectPlacementItem) {
+    async fn update(
+        &self,
+        object_placement: ObjectPlacementItem,
+    ) -> Result<(), ObjectPlacementError> {
         sqlx::query(
             r#"
             INSERT INTO
@@ -78,10 +80,10 @@ impl ObjectPlacement for SqliteObjectPlacement {
         .bind(&object_placement.object_id.1)
         .bind(&object_placement.server_address)
         .execute(&self.pool)
-        .await
-        .unwrap();
+        .await?;
+        Ok(())
     }
-    async fn lookup(&self, object_id: &ObjectId) -> Option<String> {
+    async fn lookup(&self, object_id: &ObjectId) -> Result<Option<String>, ObjectPlacementError> {
         let row = sqlx::query(
             r#"
             SELECT server_address
@@ -94,9 +96,9 @@ impl ObjectPlacement for SqliteObjectPlacement {
         .fetch_one(&self.pool)
         .await
         .ok();
-        row.map(|row| row.get("server_address"))
+        Ok(row.map(|row| row.get("server_address")))
     }
-    async fn clean_server(&self, address: String) {
+    async fn clean_server(&self, address: String) -> Result<(), ObjectPlacementError> {
         sqlx::query(
             r#"
             DELETE FROM object_placement
@@ -105,11 +107,11 @@ impl ObjectPlacement for SqliteObjectPlacement {
         )
         .bind(&address)
         .execute(&self.pool)
-        .await
-        .unwrap();
+        .await?;
+        Ok(())
     }
 
-    async fn remove(&self, object_id: &ObjectId) {
+    async fn remove(&self, object_id: &ObjectId) -> Result<(), ObjectPlacementError> {
         sqlx::query(
             r#"
             DELETE FROM object_placement
@@ -119,8 +121,8 @@ impl ObjectPlacement for SqliteObjectPlacement {
         .bind(&object_id.0)
         .bind(&object_id.1)
         .execute(&self.pool)
-        .await
-        .unwrap();
+        .await?;
+        Ok(())
     }
 }
 
@@ -140,7 +142,7 @@ mod test {
     async fn object_placement_provider() -> (SqlitePool, impl ObjectPlacement) {
         let pool = pool().await;
         let object_placement_provider = SqliteObjectPlacement::new(pool.clone());
-        object_placement_provider.prepare().await;
+        object_placement_provider.prepare().await.unwrap();
         (pool, object_placement_provider)
     }
 
@@ -149,33 +151,44 @@ mod test {
         let (_, object_placement_provider) = object_placement_provider().await;
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))
-            .await;
+            .await
+            .unwrap();
         assert_eq!(placement, None);
 
         let object_placement =
             ObjectPlacementItem::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5000".to_string()));
-        object_placement_provider.update(object_placement).await;
+        object_placement_provider
+            .update(object_placement)
+            .await
+            .unwrap();
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))
             .await
+            .unwrap()
             .unwrap();
         assert_eq!(placement, "0.0.0.0:5000");
 
         let object_placement =
             ObjectPlacementItem::new(ObjectId::new("Test", "1"), Some("0.0.0.0:5001".to_string()));
-        object_placement_provider.update(object_placement).await;
+        object_placement_provider
+            .update(object_placement)
+            .await
+            .unwrap();
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))
             .await
+            .unwrap()
             .unwrap();
         assert_eq!(placement, "0.0.0.0:5001");
 
         object_placement_provider
             .clean_server("0.0.0.0:5001".to_string())
-            .await;
+            .await
+            .unwrap();
         let placement = object_placement_provider
             .lookup(&ObjectId::new("Test", "1"))
-            .await;
+            .await
+            .unwrap();
         assert_eq!(placement, None);
     }
 }

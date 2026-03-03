@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
+use crate::errors::ObjectPlacementError;
 use crate::ObjectId;
 
 #[cfg(feature = "local")]
@@ -38,13 +39,18 @@ impl ObjectPlacementItem {
 pub trait ObjectPlacement: Send + Sync + Clone + Debug {
     /// Setup step, one can define it for their [ObjectPlacement] so it does some
     /// prep work before the server is running
-    async fn prepare(&self) {}
+    async fn prepare(&self) -> Result<(), ObjectPlacementError> {
+        Ok(())
+    }
     /// Insert or update the object placement
-    async fn update(&self, object_placement: ObjectPlacementItem);
+    async fn update(
+        &self,
+        object_placement: ObjectPlacementItem,
+    ) -> Result<(), ObjectPlacementError>;
     /// Find the server address for a given object
-    async fn lookup(&self, object_id: &ObjectId) -> Option<String>;
+    async fn lookup(&self, object_id: &ObjectId) -> Result<Option<String>, ObjectPlacementError>;
     /// Unassign all objects for a given server
-    async fn clean_server(&self, address: String);
+    async fn clean_server(&self, address: String) -> Result<(), ObjectPlacementError>;
     /// Unassign a single object by its ID
-    async fn remove(&self, object_id: &ObjectId);
+    async fn remove(&self, object_id: &ObjectId) -> Result<(), ObjectPlacementError>;
 }

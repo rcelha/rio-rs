@@ -7,13 +7,13 @@ use rio_rs::state::StateSaver;
 use rio_rs::{prelude::*, state::local::LocalState};
 use std::sync::atomic::AtomicUsize;
 
-static USAGE: &str =
+static _USAGE: &str =
     "usage: server ip:port [MEMBERSHIP_CONNECTION_STRING] [PLACEMENT_CONNECTION_STRING]";
 
 #[tokio::main]
 async fn main() {
     let mut args = std::env::args().skip(1);
-    let addr = args.next().expect(USAGE);
+    let addr = args.next().unwrap_or("0:0".to_string());
     let members_storage_connection = args
         .next()
         .unwrap_or("sqlite:///tmp/membership.sqlite3?mode=rwc".to_string());
@@ -54,7 +54,7 @@ async fn main() {
         .cluster_provider(cluster)
         .object_placement_provider(object_placement_provider)
         .build();
-    server.prepare().await;
+    server.prepare().await.unwrap();
 
     server.app_data(Counter(AtomicUsize::new(0)));
     server.app_data(LocalState::new());

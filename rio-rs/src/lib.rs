@@ -116,7 +116,7 @@
 //!         .cluster_provider(membership_provider)
 //!         .object_placement_provider(object_placement_provider)
 //!         .build();
-//!     server.prepare().await;
+//!     server.prepare().await.expect("Prepare");
 //!     let listener = server.bind().await.expect("Bind");
 //!     // Run the server
 //!     // server.run(listener).await;

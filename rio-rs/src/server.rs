@@ -117,10 +117,11 @@ where
     C: ClusterProvider<S> + Send + Sync + 'static,
     P: ObjectPlacement + 'static,
 {
-    pub async fn prepare(&self) {
+    pub async fn prepare(&self) -> ServerResult<()> {
         self.cluster_provider.members_storage().prepare().await;
         let object_placement_provider_guard = self.object_placement_provider.read().await;
-        object_placement_provider_guard.prepare().await;
+        object_placement_provider_guard.prepare().await?;
+        Ok(())
     }
 
     pub fn app_data<Data>(&mut self, data: Data)
@@ -261,7 +262,8 @@ where
                     })??;
                 warn!("Internal client consumer finished first");
             }
-            _ = admin_commands_fut => {
+            admin_commands_result = admin_commands_fut => {
+                admin_commands_result?;
                 warn!("Admin command serve finished first");
             }
             _ = &mut cluster_storage_http_server_task => {
@@ -333,7 +335,7 @@ where
     ///
     /// These are operations that need to be protected from external access, and only
     /// ServiceObjects have access to this channel - the channel is in the AppData
-    async fn consume_admin_commands(&self, mut admin_receiver: AdminReceiver) {
+    async fn consume_admin_commands(&self, mut admin_receiver: AdminReceiver) -> ServerResult<()> {
         while let Some(message) = admin_receiver.recv().await {
             match message {
                 // TODO I think this only works for the current server,
@@ -348,15 +350,16 @@ where
                         .write()
                         .await
                         .remove(&ObjectId(object_kind, object_id))
-                        .await;
+                        .await?;
                 }
                 AdminCommands::ServerExit => {
                     // Exists `while` to terminate the server
                     println!("I got a message to terminate this thing here. So Ill try");
-                    return;
+                    return Ok(());
                 }
             }
         }
+        Ok(())
     }
 }
 
