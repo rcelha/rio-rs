@@ -45,18 +45,26 @@ mod redis {
     #[tokio::test]
     async fn members_sanity_check() {
         let prefix = chrono::Local::now().timestamp().to_string();
-        let storage =
-            RedisMembershipStorage::from_connect_string("redis://localhost:16379", Some(prefix))
-                .await;
+        let conn_manager =
+            RedisMembershipStorage::connection_manager("redis://localhost:16379").unwrap();
+        let pool = RedisMembershipStorage::pool()
+            .build(conn_manager)
+            .await
+            .unwrap();
+        let storage = RedisMembershipStorage::new(pool, Some(prefix));
         super::members_sanity_check(storage).await;
     }
 
     #[tokio::test]
     async fn failures_sanity_check() {
         let prefix = chrono::Local::now().timestamp().to_string();
-        let storage =
-            RedisMembershipStorage::from_connect_string("redis://localhost:16379", Some(prefix))
-                .await;
+        let conn_manager =
+            RedisMembershipStorage::connection_manager("redis://localhost:16379").unwrap();
+        let pool = RedisMembershipStorage::pool()
+            .build(conn_manager)
+            .await
+            .unwrap();
+        let storage = RedisMembershipStorage::new(pool, Some(prefix));
         super::failures_sanity_check(storage).await;
     }
 }

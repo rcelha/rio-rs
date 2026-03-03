@@ -136,7 +136,7 @@ mod test {
             .max_connections(5)
             .connect("sqlite::memory:")
             .await
-            .expect("TODO: Connection failure")
+            .expect("Connection failure")
     }
 
     async fn object_placement_provider() -> (SqlitePool, impl ObjectPlacement) {

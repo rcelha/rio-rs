@@ -143,7 +143,7 @@ impl Handler<messages::Drop> for MetricAggregator {
         app_data: Arc<AppData>,
     ) -> Result<Self::Returns, Self::Error> {
         println!("got shudown");
-        self.shutdown(app_data).await.expect("TODO shutdown");
+        self.shutdown(app_data).await.expect("Shutdown Message");
         Ok(())
     }
 }

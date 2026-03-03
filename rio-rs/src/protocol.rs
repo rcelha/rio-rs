@@ -178,6 +178,9 @@ pub enum RequestError<E: std::error::Error> {
     #[error("client error")]
     ClientError(ClientError),
 
+    #[error("message serialization error")]
+    SerializationError,
+
     #[error("application error")]
     ApplicationError(E),
 }

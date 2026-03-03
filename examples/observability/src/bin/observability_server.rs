@@ -110,7 +110,7 @@ async fn main() {
         .max_connections(num_cpus)
         .connect("sqlite:///tmp/state.sqlite3?mode=rwc")
         .await
-        .expect("TODO: Connection failure");
+        .expect("Connection failure");
     let sql_state = SqliteState::new(sql_state_pool);
     StateSaver::<()>::prepare(&sql_state).await;
     server.app_data(sql_state);
