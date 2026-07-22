@@ -198,8 +198,9 @@ where
             let states = futures::future::join_all(future_member_tests).await;
             debug!("[{}] STATES={:?}", address, states);
 
-            // Wait for the remaining of 'config.interval_secs'
-            let elapsed = t0.elapsed().expect("Fail to get elapsed time");
+            // Wait for the remaining of 'config.interval_secs'. If it fails to get the elased
+            // time, default to 1 second
+            let elapsed = t0.elapsed().unwrap_or_else(|_| Duration::from_secs(1));
             let remaning_sleep_period = sleep_period.saturating_sub(elapsed);
             debug!("[{}] - Time delta {:?}", address, remaning_sleep_period);
             if remaning_sleep_period > Duration::ZERO {
