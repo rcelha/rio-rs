@@ -6,8 +6,8 @@ use tokio::task::JoinSet;
 use tokio::time::sleep;
 
 use rio_rs::cluster::storage::local::LocalStorage;
-use rio_rs::object_placement::local::LocalObjectPlacement;
 use rio_rs::object_placement::ObjectPlacement;
+use rio_rs::object_placement::local::LocalObjectPlacement;
 use rio_rs::prelude::Registry;
 use rio_rs::prelude::*;
 use rio_rs::server::Server;

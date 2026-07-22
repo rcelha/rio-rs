@@ -5,9 +5,9 @@ use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 
+use crate::ObjectId;
 use crate::errors::ObjectPlacementError;
 use crate::object_placement::{ObjectPlacement, ObjectPlacementItem};
-use crate::ObjectId;
 
 type PlacementMap = Arc<RwLock<HashMap<String, String>>>;
 
@@ -85,31 +85,39 @@ mod test {
             .await
             .unwrap();
 
-        assert!(provider
-            .lookup(&ObjectId("test".to_string(), "1".to_string()))
-            .await
-            .unwrap()
-            .is_some());
-        assert!(cloned_provider
-            .lookup(&ObjectId("test".to_string(), "1".to_string()))
-            .await
-            .unwrap()
-            .is_some());
+        assert!(
+            provider
+                .lookup(&ObjectId("test".to_string(), "1".to_string()))
+                .await
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            cloned_provider
+                .lookup(&ObjectId("test".to_string(), "1".to_string()))
+                .await
+                .unwrap()
+                .is_some()
+        );
 
         cloned_provider
             .clean_server("0.0.0.0:80".to_string())
             .await
             .unwrap();
 
-        assert!(provider
-            .lookup(&ObjectId("test".to_string(), "1".to_string()))
-            .await
-            .unwrap()
-            .is_none());
-        assert!(cloned_provider
-            .lookup(&ObjectId("test".to_string(), "1".to_string()))
-            .await
-            .unwrap()
-            .is_none());
+        assert!(
+            provider
+                .lookup(&ObjectId("test".to_string(), "1".to_string()))
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            cloned_provider
+                .lookup(&ObjectId("test".to_string(), "1".to_string()))
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

@@ -1,13 +1,13 @@
 use async_trait::async_trait;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use rio_macros::{Message, TypeName, WithId};
 use rio_rs::app_data::AppDataExt;
 use rio_rs::cluster::storage::local::LocalStorage;
 use rio_rs::message_router::MessageRouter;
 use rio_rs::object_placement::local::LocalObjectPlacement;
 use rio_rs::prelude::*;
-use rio_rs::protocol::pubsub::SubscriptionResponse;
 use rio_rs::protocol::NoopError;
+use rio_rs::protocol::pubsub::SubscriptionResponse;
 use rio_rs::registry::IdentifiableType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

@@ -2,7 +2,7 @@
 #[allow(dead_code)]
 pub(crate) mod pgsql {
     use rio_rs::state::postgres::PostgresState;
-    use sqlx::{postgres::PgPoolOptions, PgPool};
+    use sqlx::{PgPool, postgres::PgPoolOptions};
 
     pub(crate) async fn pool(name: &str) -> PgPool {
         let pool = PostgresState::pool()
@@ -26,7 +26,7 @@ pub(crate) mod pgsql {
 #[allow(dead_code)]
 #[cfg(feature = "sql")]
 pub(crate) mod sqlite {
-    use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+    use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 
     pub(crate) async fn pool() -> SqlitePool {
         SqlitePoolOptions::new()

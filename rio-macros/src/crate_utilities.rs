@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 use proc_macro2::Ident as Ident2;
-use quote::{format_ident, ToTokens};
+use quote::{ToTokens, format_ident};
 use syn::{Expr, ItemStruct, Lit, LitStr, Meta, MetaNameValue, Path};
 
 /// Helper function to allow changing what is the

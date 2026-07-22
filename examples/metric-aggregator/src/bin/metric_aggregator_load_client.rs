@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use futures::FutureExt;
 use metric_aggregator::{messages, registry::client};
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use rio_rs::client::ClientConnectionManager;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::prelude::*;

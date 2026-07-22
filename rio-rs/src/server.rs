@@ -13,17 +13,17 @@ use tokio::task::JoinSet;
 use tokio::{net::TcpListener, sync::RwLock};
 use tower::{Service as TowerService, ServiceExt};
 
+use crate::ObjectId;
 use crate::app_data::AppData;
 use crate::cluster::membership_protocol::ClusterProvider;
 use crate::cluster::storage::MembershipStorage;
 use crate::errors::ServerError;
 use crate::object_placement::ObjectPlacement;
-use crate::protocol::pubsub::SubscriptionRequest;
 use crate::protocol::ResponseError;
+use crate::protocol::pubsub::SubscriptionRequest;
 use crate::protocol::{RequestEnvelope, ResponseEnvelope};
 use crate::registry::Registry;
 use crate::service::Service;
-use crate::ObjectId;
 
 /// Internal commands, e.g., shutdown a service object
 #[derive(Debug)]

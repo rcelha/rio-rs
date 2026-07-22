@@ -5,7 +5,7 @@ use black_jack::messages::{JoinGame, PlayerCommand};
 use black_jack::registry::client as client_;
 
 use clap::Parser;
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use rio_rs::cluster::storage::http::HttpMembershipStorage;
 use rio_rs::prelude::*;
 use std::process::exit;

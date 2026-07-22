@@ -6,9 +6,9 @@
 use crate::cluster::storage::MembershipStorage;
 use crate::errors::ClientBuilderError;
 
-use super::pool::ClientConnectionManager;
 use super::Client;
 use super::DEFAULT_TIMEOUT_MILLIS;
+use super::pool::ClientConnectionManager;
 
 /// Helper Struct to build clients from configuration
 /// S is the MembershipStorage implementation to be used by the client

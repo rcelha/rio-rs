@@ -1,8 +1,8 @@
 use rand::prelude::*;
 
 use rio_rs::{
-    object_placement::{ObjectPlacement, ObjectPlacementItem},
     ObjectId,
+    object_placement::{ObjectPlacement, ObjectPlacementItem},
 };
 
 #[cfg(feature = "sql")]

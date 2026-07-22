@@ -2,7 +2,7 @@
 //!
 //! Provides storage for objects and maps their callables to handle registered message types
 
-use crate::{app_data::AppData, errors::HandlerError, WithId};
+use crate::{WithId, app_data::AppData, errors::HandlerError};
 use dashmap::DashMap;
 use log::warn;
 use std::{

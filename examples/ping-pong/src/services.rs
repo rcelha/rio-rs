@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use rio_rs::prelude::*;
 use rio_rs::protocol::NoopError;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::*;
 

@@ -7,7 +7,7 @@ use log::error;
 use std::fmt::Debug;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
-use tracing::{info_span, Instrument};
+use tracing::{Instrument, info_span};
 
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;

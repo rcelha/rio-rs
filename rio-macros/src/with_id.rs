@@ -5,10 +5,6 @@ use proc_macro2::Ident as Ident2;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
 use quote::{format_ident, quote};
-use syn::parse::Parse;
-use syn::parse_macro_input;
-use syn::parse_quote;
-use syn::punctuated::Punctuated;
 use syn::AngleBracketedGenericArguments;
 use syn::ExprAssign;
 use syn::ExprPath;
@@ -17,10 +13,14 @@ use syn::PathArguments;
 use syn::PathSegment;
 use syn::Stmt;
 use syn::Token;
-use syn::{parse2, ItemStruct, Lit, Meta, MetaNameValue};
+use syn::parse::Parse;
+use syn::parse_macro_input;
+use syn::parse_quote;
+use syn::punctuated::Punctuated;
+use syn::{ItemStruct, Lit, Meta, MetaNameValue, parse2};
 
-use crate::get_crate_path;
 use crate::Codegen;
+use crate::get_crate_path;
 
 pub(crate) struct WithIdInput {
     rio_rs: Ident2,

@@ -6,8 +6,8 @@ use crate::errors::LoadStateError;
 use crate::registry::IdentifiableType;
 use crate::{ServiceObject, WithId};
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 #[cfg(feature = "local")]
 pub mod local;

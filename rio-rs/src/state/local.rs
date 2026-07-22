@@ -2,8 +2,8 @@ use super::{StateLoader, StateSaver};
 use crate::errors::LoadStateError;
 use async_trait::async_trait;
 use dashmap::DashMap;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 /// `LocalState` is a state provider for testing purposes
 ///

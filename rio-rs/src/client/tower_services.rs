@@ -3,7 +3,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 use futures::future::BoxFuture;
-use futures::{pin_mut, FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, SinkExt, StreamExt, pin_mut};
 use log::{debug, error, info, warn};
 use serde::de::DeserializeOwned;
 use tower::Service as TowerService;
@@ -199,7 +199,7 @@ where
                         // will pickup a new placement to try from
                         warn!("Refresh the list of servers");
                         inner_service.client.ts_active_servers_refresh = 0; // forces re-fetching the
-                                                                            // active servers
+                        // active servers
                         inner_service
                             .client
                             .placement
@@ -241,7 +241,7 @@ mod test {
     use super::*;
     use crate::{
         cluster::storage::{
-            local::LocalStorage, Member, MembershipResult, MembershipStorage, MembershipUnitResult,
+            Member, MembershipResult, MembershipStorage, MembershipUnitResult, local::LocalStorage,
         },
         errors::MembershipError,
     };

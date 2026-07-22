@@ -7,9 +7,8 @@ use rio_rs::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    self,
+    self, Row, SqlitePool,
     sqlite::{SqlitePoolOptions, SqliteRow},
-    Row, SqlitePool,
 };
 
 /// This is the fragment that needs to be associated with your

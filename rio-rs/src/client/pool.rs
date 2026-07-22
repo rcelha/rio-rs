@@ -70,8 +70,8 @@ impl<S: MembershipStorage + 'static> ManageConnection for ClientConnectionManage
 mod test {
     use bb8::Pool;
 
-    use crate::cluster::storage::local::LocalStorage;
     use crate::cluster::storage::Member;
+    use crate::cluster::storage::local::LocalStorage;
 
     use super::*;
 

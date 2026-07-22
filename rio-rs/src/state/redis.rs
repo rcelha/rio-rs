@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use bb8::Builder;
-use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
+use bb8_redis::{RedisConnectionManager, bb8::Pool, redis::AsyncCommands};
 use redis::RedisError;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use super::{StateLoader, StateSaver};
 use crate::errors::LoadStateError;
