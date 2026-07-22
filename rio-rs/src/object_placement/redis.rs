@@ -4,12 +4,12 @@ use std::collections::HashSet;
 
 use async_trait::async_trait;
 use bb8::Builder;
-use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
+use bb8_redis::{RedisConnectionManager, bb8::Pool, redis::AsyncCommands};
 use redis::RedisError;
 
 use super::{ObjectPlacement, ObjectPlacementItem};
-use crate::errors::ObjectPlacementError;
 use crate::ObjectId;
+use crate::errors::ObjectPlacementError;
 
 #[derive(Clone, Debug)]
 pub struct RedisObjectPlacement {

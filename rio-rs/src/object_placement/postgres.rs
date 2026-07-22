@@ -7,19 +7,18 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{self, PgPool, Row};
 
 use super::{ObjectPlacement, ObjectPlacementItem};
+use crate::ObjectId;
 use crate::errors::ObjectPlacementError;
 use crate::sql_migration::SqlMigrations;
-use crate::ObjectId;
 
 pub struct PgObjectPlacementMigrations {}
 
 impl SqlMigrations for PgObjectPlacementMigrations {
     fn queries() -> Vec<String> {
-        let migrations = include_str!("./migrations/0001-postgres-init.sql")
+        include_str!("./migrations/0001-postgres-init.sql")
             .split(";")
             .map(|x| x.to_string())
-            .collect();
-        migrations
+            .collect()
     }
 }
 

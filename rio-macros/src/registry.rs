@@ -7,10 +7,10 @@ use proc_macro2::Span as Span2;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::format_ident;
 use quote::quote;
+use syn::Token;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::token::Group;
-use syn::Token;
 
 use crate::Codegen;
 

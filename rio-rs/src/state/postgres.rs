@@ -1,11 +1,10 @@
 use crate::{errors::LoadStateError, sql_migration::SqlMigrations};
 use async_trait::async_trait;
 use futures::TryFutureExt;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use sqlx::{
-    self,
+    self, PgPool, Row,
     postgres::{PgPoolOptions, PgRow},
-    PgPool, Row,
 };
 
 use super::{StateLoader, StateSaver};

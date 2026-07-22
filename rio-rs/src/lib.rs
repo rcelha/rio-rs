@@ -210,30 +210,30 @@ pub use service_object::*;
 
 /// Re-exports of [rio_macros]
 pub mod derive {
-    pub use rio_macros::make_registry;
     pub use rio_macros::ManagedState;
     pub use rio_macros::Message;
     pub use rio_macros::TypeName;
     pub use rio_macros::WithId;
+    pub use rio_macros::make_registry;
 }
 
 pub mod prelude {
     pub use super::app_data::AppData;
     pub use super::client::ClientBuilder;
-    pub use super::cluster::membership_protocol::peer_to_peer::PeerToPeerClusterProvider;
     pub use super::cluster::membership_protocol::ClusterProvider;
+    pub use super::cluster::membership_protocol::peer_to_peer::PeerToPeerClusterProvider;
     pub use super::cluster::storage::MembershipStorage;
-    pub use super::derive::{make_registry, ManagedState, Message, TypeName, WithId};
+    pub use super::derive::{ManagedState, Message, TypeName, WithId, make_registry};
     pub use super::errors::{ClientBuilderError, HandlerError, ServiceObjectLifeCycleError};
     pub use super::protocol::{ClientError, NoopError, RequestError, ResponseError};
 
     pub use super::registry::{Handler, Registry};
 
-    pub use super::server::Server;
-    pub use super::state::ObjectStateManager;
     pub use super::LifecycleMessage;
     pub use super::ObjectId;
     pub use super::ServiceObject;
     pub use super::ServiceObjectStateLoad;
     pub use super::WithId;
+    pub use super::server::Server;
+    pub use super::state::ObjectStateManager;
 }

@@ -4,8 +4,8 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-use crate::errors::ObjectPlacementError;
 use crate::ObjectId;
+use crate::errors::ObjectPlacementError;
 
 #[cfg(feature = "local")]
 pub mod local;

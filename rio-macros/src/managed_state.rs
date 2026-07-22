@@ -4,10 +4,10 @@ use quote::{format_ident, quote};
 use syn::ExprAssign;
 use syn::ExprPath;
 use syn::PathSegment;
-use syn::{parse2, ItemStruct};
+use syn::{ItemStruct, parse2};
 
-use crate::get_crate_path;
 use crate::Codegen;
+use crate::get_crate_path;
 
 #[derive(Debug)]
 pub(crate) struct StateDefinition {

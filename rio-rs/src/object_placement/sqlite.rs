@@ -7,9 +7,9 @@ use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{self, Row, SqlitePool};
 
 use super::{ObjectPlacement, ObjectPlacementItem};
+use crate::ObjectId;
 use crate::errors::ObjectPlacementError;
 use crate::sql_migration::SqlMigrations;
-use crate::ObjectId;
 
 pub struct SqliteObjectPlacementMigrations {}
 

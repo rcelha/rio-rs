@@ -1,7 +1,7 @@
 //! Client/Server communication protocol
 
 use super::errors::{HandlerError, ObjectPlacementError};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
 
 /// This is the struct that we serialize and send to the server serialized

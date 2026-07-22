@@ -4,8 +4,8 @@ use ping_pong::services;
 use rio_rs::cluster::storage::sqlite::SqliteMembershipStorage;
 use rio_rs::object_placement::sqlite::SqliteObjectPlacement;
 use rio_rs::prelude::*;
-use rio_rs::state::sqlite::SqliteState;
 use rio_rs::state::StateSaver;
+use rio_rs::state::sqlite::SqliteState;
 
 #[derive(Parser, Debug)]
 struct Args {

@@ -1,11 +1,11 @@
 [package]
 name = "rio-rs"
 version = "0.6.0"
-edition = "2021"
+edition = "2024"
 license-file = "../LICENSE"
 repository = "https://github.com/rcelha/rio-rs"
 description = "Distributed stateful service framework"
-rust-version = "1.83"
+rust-version = "1.85"
 
 [features]
 default = ["redis", "sqlite", "postgres", "local"]

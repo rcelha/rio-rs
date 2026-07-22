@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use rio_macros::{ManagedState, TypeName, WithId};
 use rio_rs::{
-    registry::IdentifiableType,
-    state::{local::LocalState, ObjectStateManager, State, StateLoader, StateSaver},
     ServiceObject, WithId,
+    registry::IdentifiableType,
+    state::{ObjectStateManager, State, StateLoader, StateSaver, local::LocalState},
 };
 use serde::{Deserialize, Serialize};
 
@@ -74,8 +74,8 @@ mod local {
 mod sqlite {
     use super::*;
     use rio_rs::{
-        state::{sqlite::SqliteState, ObjectStateManager, StateSaver},
         ServiceObject,
+        state::{ObjectStateManager, StateSaver, sqlite::SqliteState},
     };
 
     #[derive(Debug, Default, WithId, TypeName, ManagedState)]
@@ -103,7 +103,7 @@ mod sqlite {
     mod mixed_macro {
         use super::super::*;
         use super::*;
-        use rio_rs::{prelude::AppData, ServiceObjectStateLoad};
+        use rio_rs::{ServiceObjectStateLoad, prelude::AppData};
 
         #[tokio::test]
         async fn persist_state_for_object() {

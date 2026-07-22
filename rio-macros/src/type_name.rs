@@ -2,15 +2,15 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
-use syn::parse2;
 use syn::ItemStruct;
 use syn::Lit;
 use syn::Meta;
 use syn::MetaNameValue;
+use syn::parse2;
 
+use crate::Codegen;
 use crate::crate_utilities::get_value_from_meta_name_value;
 use crate::get_crate_path;
-use crate::Codegen;
 
 pub(crate) struct TypeNameInput {
     rio_rs: Ident,

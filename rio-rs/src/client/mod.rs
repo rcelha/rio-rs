@@ -16,15 +16,15 @@ pub use pool::ClientConnectionManager;
 pub use pool::Pool;
 pub use pool::PooledConnection;
 
-use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
+use dashmap::mapref::one::RefMut;
 use futures::SinkExt;
 use futures::{Stream, StreamExt};
 use lru::LruCache;
 use rand::rng;
 use rand::seq::IndexedRandom;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::num::NonZeroUsize;
@@ -434,7 +434,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::cluster::storage::{local::LocalStorage, Member, MembershipStorage};
+    use crate::cluster::storage::{Member, MembershipStorage, local::LocalStorage};
 
     fn client() -> Client<LocalStorage> {
         Client {

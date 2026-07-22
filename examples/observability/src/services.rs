@@ -3,8 +3,8 @@ use rio_rs::prelude::*;
 use rio_rs::protocol::NoopError;
 use tracing::Instrument;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::*;
 

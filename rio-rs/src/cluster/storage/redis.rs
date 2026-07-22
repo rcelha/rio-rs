@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use async_trait::async_trait;
 use bb8::Builder;
-use bb8_redis::{bb8::Pool, RedisConnectionManager};
+use bb8_redis::{RedisConnectionManager, bb8::Pool};
 use chrono::{DateTime, Utc};
 use redis::{AsyncCommands, RedisError};
 

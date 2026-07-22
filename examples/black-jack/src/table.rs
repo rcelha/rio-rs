@@ -1,6 +1,6 @@
 use super::card::Card;
 use super::hand::Hand;
-use rand::{rngs::OsRng, Rng};
+use rand::{Rng, rngs::OsRng};
 use std::collections::BTreeMap;
 
 pub struct Table {

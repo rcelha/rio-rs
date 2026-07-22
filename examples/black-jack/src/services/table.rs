@@ -9,7 +9,7 @@ use rio_rs::{
     app_data::AppDataExt,
     message_router::MessageRouter,
     prelude::*,
-    protocol::{pubsub::SubscriptionResponse, NoopError},
+    protocol::{NoopError, pubsub::SubscriptionResponse},
     registry::IdentifiableType,
     state::sqlite::SqliteState,
 };
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     game_server::{
-        build_app, AdminCommand, GameServerConfig, GameServerRequest, GameServerResponse,
+        AdminCommand, GameServerConfig, GameServerRequest, GameServerResponse, build_app,
     },
     messages::{self, PlayerPush},
 };
