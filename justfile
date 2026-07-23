@@ -41,10 +41,12 @@ bump-type:
 
 # Install development tools
 install-tools:
-    cargo install cargo-watch
-    cargo install cargo-nextest
-    cargo install cargo-readme
-    cargo install simple-http-server
+    cargo install cargo-binstall
+    cargo binstall cargo-watch@8.5.3
+    cargo binstall cargo-nextest@0.9.92
+    cargo binstall cargo-readme@3.3.1
+    cargo binstall simple-http-server@0.6.11
+    cargo binstall release-plz@0.3.160
 
 # Generates the README.md file
 readme:
