@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚀 Features
+
+- Make object placement's methods falible (#44) [56b5d5c](https://github.com/rcelha/rio-rs/commit/56b5d5cbf25b851eb699722b6c0346e9d9c6abb2) 
+- Remove `expect("TODO...")` [8c9ea12](https://github.com/rcelha/rio-rs/commit/8c9ea12a141c66447b1c5c7b7638498a46d0d503) 
+
+### 🐛 Bug Fixes
+
+- Handle serialization/deserialization errors for state managers (#43) [fa1cd8f](https://github.com/rcelha/rio-rs/commit/fa1cd8fed511db86055bf655c34a5044ed822524) 
+- Fix tests failing on timeout [5018b74](https://github.com/rcelha/rio-rs/commit/5018b742267196dd26a98439c3a106575d34ca7e) 
+- Prevent peer to peer membership protocol from crashing when getting Elapsed time [ccab817](https://github.com/rcelha/rio-rs/commit/ccab817dc165150b99c850e01c00b0f3734bfbfe) 
+- *(rio-macros)* Update ui_fail snapshot [398eb2e](https://github.com/rcelha/rio-rs/commit/398eb2eed41bc29da013f01f2455a825b31f1fc3) 
+
+### 📚 Documentation
+
+- Update CHANGELOG [5362c21](https://github.com/rcelha/rio-rs/commit/5362c214207c2f2fab59393bfc79935d2a7e3814) 
+- Add links to Crates.io and Docs.rs (#42) [638ef74](https://github.com/rcelha/rio-rs/commit/638ef747c211007762ece3e08a5fb76882024a1b) 
+
+### 🧪 Testing
+
+- Fix flaky test [37f00b8](https://github.com/rcelha/rio-rs/commit/37f00b8b812df588fd77cff563d98a3a7d18d67a) 
+- Remove pg restart [34c03d5](https://github.com/rcelha/rio-rs/commit/34c03d552a519d19f7b0cf1deb6a21c15ae8e13b) 
+
+### ⚙️ Miscellaneous Tasks
+
+- Update readme [2aa3f24](https://github.com/rcelha/rio-rs/commit/2aa3f24042e930b5e211546037d0fa6e4fda3988) 
+- Update rust edition to 2024 (#46) [e61f56f](https://github.com/rcelha/rio-rs/commit/e61f56f10eee38ee3e12e8d0643d8183ff43ce7f) 
+
 ## [0.6.0] - 2026-02-27
 
 ### 🚀 Features
