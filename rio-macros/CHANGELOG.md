@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1](https://github.com/rcelha/rio-rs/compare/rio-macros-v0.7.0...rio-macros-v0.7.1) - 2026-07-23
+
+### Other
+
+- Configure release-plz
+
 ## [0.7.0] - 2026-07-23
 
 ### 🚀 Features
