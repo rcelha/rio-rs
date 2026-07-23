@@ -2,8 +2,8 @@
 name = "rio-macros"
 version = "0.7.1"
 edition = "2024"
+license = "MPL-2.0"
 description = "Proc macros to help developing rio-rs applications"
-license-file = "../LICENSE"
 repository = "https://github.com/rcelha/rio-rs"
 
 [lib]
