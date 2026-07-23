@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-set -ex
-
-cd $WORKSPACE_ROOT
-git cliff -o CHANGELOG.md
-git add CHANGELOG.md
