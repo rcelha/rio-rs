@@ -1,0 +1,23 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+      # Temp
+      - ci/release-please
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          target-branch: test-release
