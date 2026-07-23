@@ -6,12 +6,14 @@ name = "rio-rs"
 changelog_include = ["rio-macros"]
 changelog_update = true
 changelog_path = "./CHANGELOG.md"
+version_group = "rio"
 
 [[package]]
 name = "rio-macros"
 changelog_include = ["rio-rs"]
 changelog_update = true
 changelog_path = "./CHANGELOG.md"
+version_group = "rio"
 
 [[package]]
 name = "black-jack"
