@@ -1,0 +1,21 @@
+{
+  "release-type": "rust",
+  "packages": {
+    "rio-rs": {
+      "component": "rio-rs"
+    },
+    "rio-macros": {
+      "component": "rio-macros"
+    }
+  },
+  "plugins": [
+    {
+      "type": "cargo-workspace"
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "rio",
+      "components": ["rio-rs", "rio-macros"]
+    }
+  ]
+}
