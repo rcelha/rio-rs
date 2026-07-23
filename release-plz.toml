@@ -1,0 +1,33 @@
+[workspace]
+
+[[package]]
+name = "rio-rs"
+changelog_include = ["rio-macros"]
+
+[[package]]
+name = "rio-macros"
+changelog_include = ["rio-rs"]
+
+[[package]]
+name = "black-jack"
+release = false
+
+[[package]]
+name = "custom-storage"
+release = false
+
+[[package]]
+name = "metric-aggregator"
+release = false
+
+[[package]]
+name = "observability"
+release = false
+
+[[package]]
+name = "ping-pong"
+release = false
+
+[[package]]
+name = "presence"
+release = false

@@ -45,20 +45,10 @@ install-tools:
     cargo install cargo-nextest
     cargo install cargo-readme
     cargo install simple-http-server
-    cargo install cargo-release
-    cargo install git-cliff
-
-# Release a new version
-release:
-    @echo just run "cargo release"
 
 # Generates the README.md file
 readme:
     cargo readme -t ../README.tpl.md -r rio-rs > README.md
-
-# Generate changelog
-changelog:
-    git cliff -o CHANGELOG.md
 
 # Generate docs and run a server for preview
 YELLOW:='\033[0;33m'
