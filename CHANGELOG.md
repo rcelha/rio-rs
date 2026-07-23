@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/rcelha/rio-rs/compare/v0.6.0...v0.7.0) (2026-07-23)
+
+
+### Features
+
+* (BREAKING) Move the generic for StateLoader from the struct into the methods ([3cea561](https://github.com/rcelha/rio-rs/commit/3cea5612414da3b98a0d2c658ff904a06928a098))
+* Add initial support to pub/sub ([#10](https://github.com/rcelha/rio-rs/issues/10)) ([167a6c0](https://github.com/rcelha/rio-rs/commit/167a6c0d04db7e91338802266baf9be2673371b7))
+* Add tracing support and create an example integrated with Jaegger ([#38](https://github.com/rcelha/rio-rs/issues/38)) ([54463c0](https://github.com/rcelha/rio-rs/commit/54463c064c2dbdb152448bc1d9bb56179f168588))
+* Backoff retry for client connection ([cd9296f](https://github.com/rcelha/rio-rs/commit/cd9296f6a7aed71e5238e801fe0fca16d5930ad4))
+* BREAKING - Revert generics on state to be at the trait level ([e07e495](https://github.com/rcelha/rio-rs/commit/e07e495bd70d59ec567d5e1986a30e9a6aa8a4b7))
+* Custom error ([#20](https://github.com/rcelha/rio-rs/issues/20)) ([e80dbb2](https://github.com/rcelha/rio-rs/commit/e80dbb240490e9e47456090e27511eb800220e77))
+* Expose client pool and internal fields for SendCommand ([d2aa2b9](https://github.com/rcelha/rio-rs/commit/d2aa2b96f1995cbbb8cc0cf024b61505212debc2))
+* Extend supported backends - Redis, PgSQL ([#13](https://github.com/rcelha/rio-rs/issues/13)) ([6db10d1](https://github.com/rcelha/rio-rs/commit/6db10d1498b41fd9d6b710492bcd84fb9014f048))
+* HttpMemberStorage ([4d8d08b](https://github.com/rcelha/rio-rs/commit/4d8d08bae4c306730108c9457ca2b8e39a618126))
+* Implementation of naive server/client with clustering support ([#3](https://github.com/rcelha/rio-rs/issues/3)) ([82a5d5a](https://github.com/rcelha/rio-rs/commit/82a5d5a71f230885cec3ae86315fc7dc537751ed))
+* Make object placement's methods falible ([#44](https://github.com/rcelha/rio-rs/issues/44)) ([56b5d5c](https://github.com/rcelha/rio-rs/commit/56b5d5cbf25b851eb699722b6c0346e9d9c6abb2))
+* Map local address when for client connection ([223b740](https://github.com/rcelha/rio-rs/commit/223b7406689e20ead639485008101ff4be007eb4))
+* Refactor networking and reliability improvements on client and ([0131c0b](https://github.com/rcelha/rio-rs/commit/0131c0b902cff7ddc5d6e1d0e7f350ddf656a843))
+* Remove `expect("TODO...")` ([8c9ea12](https://github.com/rcelha/rio-rs/commit/8c9ea12a141c66447b1c5c7b7638498a46d0d503))
+* Split psql and sqlite support ([08a5abd](https://github.com/rcelha/rio-rs/commit/08a5abd2afcbf84e274fb12302efdfa885222b74))
+* **state:** Add basic object state storage ([ec490cd](https://github.com/rcelha/rio-rs/commit/ec490cdd0fb2f686e91ecc1911506f103437f4c7))
+* Support Paths on make_registry! ([#41](https://github.com/rcelha/rio-rs/issues/41)) ([a9b6ad8](https://github.com/rcelha/rio-rs/commit/a9b6ad83928c6dc2c8ee93b69926157c8abe568f))
+* Use Builder as the public API to instantiate new Servers ([#37](https://github.com/rcelha/rio-rs/issues/37)) ([d9d528b](https://github.com/rcelha/rio-rs/commit/d9d528b5a3f0f8b025001ef6a124ed7cb3c663c7))
+
+
+### Bug Fixes
+
+* Argument on path for the http membership storage (server) ([45c97ac](https://github.com/rcelha/rio-rs/commit/45c97ac33fe8146b64a2d677a3682a8353e881f1))
+* Fix tests failing on timeout ([5018b74](https://github.com/rcelha/rio-rs/commit/5018b742267196dd26a98439c3a106575d34ca7e))
+* Handle serialization/deserialization errors for state managers ([#43](https://github.com/rcelha/rio-rs/issues/43)) ([fa1cd8f](https://github.com/rcelha/rio-rs/commit/fa1cd8fed511db86055bf655c34a5044ed822524))
+* Improve error handling on pubsub ([#32](https://github.com/rcelha/rio-rs/issues/32)) ([072259c](https://github.com/rcelha/rio-rs/commit/072259c7c92bafc0b99a95f1e4f823ddd3a4f1b8))
+* Improve error story ([32b775c](https://github.com/rcelha/rio-rs/commit/32b775cd5d263815cb5acddb3c10f8d2ff120080))
+* Membership sanitisation and Server aborting all tasks ([#17](https://github.com/rcelha/rio-rs/issues/17)) ([520fd57](https://github.com/rcelha/rio-rs/commit/520fd57619689d82a7abc7f0537f631335caace4))
+* Prevent peer to peer membership protocol from crashing when getting Elapsed time ([ccab817](https://github.com/rcelha/rio-rs/commit/ccab817dc165150b99c850e01c00b0f3734bfbfe))
+* Redis cluster storage key mismatch on remove ([#18](https://github.com/rcelha/rio-rs/issues/18)) ([588beb9](https://github.com/rcelha/rio-rs/commit/588beb9b34893b21cdb7d8ae499795290a791581))
+* Remove redundant bounds from struct/trait declarations ([#33](https://github.com/rcelha/rio-rs/issues/33)) ([904efec](https://github.com/rcelha/rio-rs/commit/904efec3d632e0148ff00cfb97e8f52a335b5467))
+* **rio-macros:** Update ui_fail snapshot ([398eb2e](https://github.com/rcelha/rio-rs/commit/398eb2eed41bc29da013f01f2455a825b31f1fc3))
+* **rio-macros:** Updated UI test expected output to match new compiler's format ([#34](https://github.com/rcelha/rio-rs/issues/34)) ([1e8a542](https://github.com/rcelha/rio-rs/commit/1e8a5429826c6eb45b75d8aedeefd0d1401f3d24))
+* Use the right version of async-trait ([b5e7fca](https://github.com/rcelha/rio-rs/commit/b5e7fcabe657aee38b558b204eaccd746e91927c))
+
 ## [0.6.0] - 2026-02-27
 
 ### 🚀 Features
