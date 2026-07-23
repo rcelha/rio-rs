@@ -2,7 +2,7 @@
 name = "rio-rs"
 version = "0.7.1"
 edition = "2024"
-license-file = "../LICENSE"
+license = "MPL-2.0"
 repository = "https://github.com/rcelha/rio-rs"
 description = "Distributed stateful service framework"
 rust-version = "1.85"
